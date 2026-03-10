@@ -1,0 +1,5 @@
+title: "Stm-Micro_ros-eth Docs"
+remote_theme: just-the-docs/just-the-docs
+baseurl: "/Stm-Micro_ros-eth"
+color_scheme: light
+search_enabled: true
