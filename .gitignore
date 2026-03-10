@@ -29,6 +29,7 @@ obj/
 *.log
 logs/
 *.tmp
+docs/
 
 # App bundles
 Renode.app/

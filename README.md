@@ -1,20 +1,15 @@
 # Stm-Micro_ros-eth
 
-High-level workspace that collects firmware, simulation, and tooling projects used around micro-ROS over Ethernet and Renode-based development workflows. This README is intentionally minimal and serves as a landing page only; detailed documentation lives in each subproject.
+High-level workspace for STM32H7 micro-ROS Ethernet firmware, Renode simulation, and production tooling. This README is intentionally compact; detailed docs live on GitHub Pages.
 
-## Repository Map
+## Documentation
 
-- `Renode.app/` Prebuilt Renode application bundle.
-- `renode/` Renode source tree and tools.
-- `microrosWs/` micro-ROS Ethernet workspace and tests.
-- `Test_Board_Sensore/` Firmware and simulation assets for the test board.
-- `production/` Deployment assets and production-related configs.
+- https://rovertech-team.github.io/Stm-Micro_ros-eth/
 
-## Key Subproject READMEs
+## Quick Links
 
-- `renode/README.md`
-- `microrosWs/README.md`
-- `Test_Board_Sensore/simulation/README.md`
-- `production/jetson-orin-nx/README.md`
-
-If you are looking for setup, build, or test instructions, start with the README in the relevant subproject.
+- https://rovertech-team.github.io/Stm-Micro_ros-eth/firmware/overview.html
+- https://rovertech-team.github.io/Stm-Micro_ros-eth/microros/overview.html
+- https://rovertech-team.github.io/Stm-Micro_ros-eth/simulation/overview.html
+- https://rovertech-team.github.io/Stm-Micro_ros-eth/production/overview.html
+- https://rovertech-team.github.io/Stm-Micro_ros-eth/testing/overview.html
