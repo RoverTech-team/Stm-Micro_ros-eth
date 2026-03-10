@@ -1,0 +1,2289 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "UnitTests/1.0.0": {
+        "dependencies": {
+          "ELFSharp": "1.0.0",
+          "Infrastructure": "1.0.0",
+          "Microsoft.NET.Test.Sdk": "16.9.1",
+          "Migrant": "1.0.0",
+          "Moq": "4.18.1",
+          "NUnit": "3.13.1",
+          "NUnit3TestAdapter": "3.17.0",
+          "Renode": "1.0.0",
+          "AntShell.Reference": "1.0.9563.42682",
+          "BigGustave.Reference": "1.0.0.0",
+          "CoSimulationPlugin.Reference": "1.0.0.0",
+          "crypto.Reference": "1.9.0.0",
+          "CxxDemangler.Reference": "1.0.9563.42684",
+          "ELFSharp.Reference": "0.1.1.0",
+          "FdtSharp.Reference": "0.1.0.0",
+          "Infrastructure.Reference": "1.0.0.0",
+          "IronPython.Reference": "2.7.12.0",
+          "libtftp.Reference": "1.0.0.0",
+          "Migrant.Reference": "0.14.0.0",
+          "OptionsParser.Reference": "0.1.0.0",
+          "PacketDotNet.Reference": "0.13.0.0",
+          "Renode.Reference": "1.16.1.42688",
+          "SampleCommandPlugin.Reference": "1.0.0.0",
+          "SystemCPlugin.Reference": "1.0.0.0",
+          "TermSharp.Reference": "0.0.0.0",
+          "TracePlugin.Reference": "1.0.0.0",
+          "WiresharkPlugin.Reference": "1.0.0.0",
+          "Xwt.Reference": "0.1.0.0",
+          "Xwt.Gtk3.Reference": "0.1.0.0"
+        },
+        "runtime": {
+          "UnitTests.dll": {}
+        }
+      },
+      "AsyncIO/0.1.69": {
+        "runtime": {
+          "lib/netstandard2.0/AsyncIO.dll": {
+            "assemblyVersion": "0.1.69.0",
+            "fileVersion": "0.1.69.0"
+          }
+        }
+      },
+      "AtkSharp/3.24.24.95": {
+        "dependencies": {
+          "GLibSharp": "3.24.24.95"
+        },
+        "runtime": {
+          "lib/net6.0/AtkSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "CairoSharp/3.24.24.95": {
+        "runtime": {
+          "lib/net6.0/CairoSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "Castle.Core/5.0.0": {
+        "dependencies": {
+          "System.Diagnostics.EventLog": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Castle.Core.dll": {
+            "assemblyVersion": "5.0.0.0",
+            "fileVersion": "5.0.0.0"
+          }
+        }
+      },
+      "DynamicLanguageRuntime/1.3.5": {
+        "dependencies": {
+          "System.CodeDom": "8.0.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Dynamic.dll": {
+            "assemblyVersion": "1.3.5.0",
+            "fileVersion": "1.3.5.1000"
+          },
+          "lib/net8.0/Microsoft.Scripting.Metadata.dll": {
+            "assemblyVersion": "1.3.5.0",
+            "fileVersion": "1.3.5.1000"
+          },
+          "lib/net8.0/Microsoft.Scripting.dll": {
+            "assemblyVersion": "1.3.5.0",
+            "fileVersion": "1.3.5.1000"
+          }
+        }
+      },
+      "Dynamitey/2.0.10.189": {
+        "runtime": {
+          "lib/netstandard2.0/Dynamitey.dll": {
+            "assemblyVersion": "2.0.10.189",
+            "fileVersion": "2.0.10.189"
+          }
+        }
+      },
+      "GdkSharp/3.24.24.95": {
+        "dependencies": {
+          "CairoSharp": "3.24.24.95",
+          "GLibSharp": "3.24.24.95",
+          "GioSharp": "3.24.24.95",
+          "PangoSharp": "3.24.24.95"
+        },
+        "runtime": {
+          "lib/net6.0/GdkSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "GioSharp/3.24.24.95": {
+        "dependencies": {
+          "GLibSharp": "3.24.24.95"
+        },
+        "runtime": {
+          "lib/net6.0/GioSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "GirCore.GLib-2.0/0.7.0": {
+        "runtime": {
+          "lib/net8.0/GLib-2.0.dll": {
+            "assemblyVersion": "0.7.0.0",
+            "fileVersion": "0.7.0.0"
+          }
+        }
+      },
+      "GirCore.GObject-2.0/0.7.0": {
+        "dependencies": {
+          "GirCore.GLib-2.0": "0.7.0"
+        },
+        "runtime": {
+          "lib/net8.0/GObject-2.0.dll": {
+            "assemblyVersion": "0.7.0.0",
+            "fileVersion": "0.7.0.0"
+          }
+        }
+      },
+      "GirCore.Gst-1.0/0.7.0": {
+        "dependencies": {
+          "GirCore.GLib-2.0": "0.7.0",
+          "GirCore.GObject-2.0": "0.7.0"
+        },
+        "runtime": {
+          "lib/net8.0/Gst-1.0.dll": {
+            "assemblyVersion": "0.7.0.0",
+            "fileVersion": "0.7.0.0"
+          }
+        }
+      },
+      "GirCore.GstApp-1.0/0.7.0": {
+        "dependencies": {
+          "GirCore.GstBase-1.0": "0.7.0"
+        },
+        "runtime": {
+          "lib/net8.0/GstApp-1.0.dll": {
+            "assemblyVersion": "0.7.0.0",
+            "fileVersion": "0.7.0.0"
+          }
+        }
+      },
+      "GirCore.GstBase-1.0/0.7.0": {
+        "dependencies": {
+          "GirCore.GLib-2.0": "0.7.0",
+          "GirCore.GObject-2.0": "0.7.0",
+          "GirCore.Gst-1.0": "0.7.0"
+        },
+        "runtime": {
+          "lib/net8.0/GstBase-1.0.dll": {
+            "assemblyVersion": "0.7.0.0",
+            "fileVersion": "0.7.0.0"
+          }
+        }
+      },
+      "GLibSharp/3.24.24.95": {
+        "runtime": {
+          "lib/net6.0/GLibSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "GtkSharp/3.24.24.95": {
+        "dependencies": {
+          "AtkSharp": "3.24.24.95",
+          "CairoSharp": "3.24.24.95",
+          "GLibSharp": "3.24.24.95",
+          "GdkSharp": "3.24.24.95",
+          "GioSharp": "3.24.24.95",
+          "PangoSharp": "3.24.24.95"
+        },
+        "runtime": {
+          "lib/net6.0/GtkSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "K4os.Compression.LZ4/1.3.8": {
+        "runtime": {
+          "lib/net6.0/K4os.Compression.LZ4.dll": {
+            "assemblyVersion": "1.3.8.0",
+            "fileVersion": "1.3.8.0"
+          }
+        }
+      },
+      "Microsoft.CodeAnalysis.Common/3.9.0": {
+        "runtime": {
+          "lib/netcoreapp3.1/Microsoft.CodeAnalysis.dll": {
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.900.21.12420"
+          }
+        },
+        "resources": {
+          "lib/netcoreapp3.1/cs/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netcoreapp3.1/de/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netcoreapp3.1/es/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netcoreapp3.1/fr/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netcoreapp3.1/it/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netcoreapp3.1/ja/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netcoreapp3.1/ko/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netcoreapp3.1/pl/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netcoreapp3.1/pt-BR/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netcoreapp3.1/ru/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netcoreapp3.1/tr/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netcoreapp3.1/zh-Hans/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netcoreapp3.1/zh-Hant/Microsoft.CodeAnalysis.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "Microsoft.CodeAnalysis.Compilers/3.9.0": {
+        "dependencies": {
+          "Microsoft.CodeAnalysis.CSharp": "3.9.0",
+          "Microsoft.CodeAnalysis.VisualBasic": "3.9.0"
+        }
+      },
+      "Microsoft.CodeAnalysis.CSharp/3.9.0": {
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Common": "3.9.0"
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/Microsoft.CodeAnalysis.CSharp.dll": {
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.900.21.12420"
+          }
+        },
+        "resources": {
+          "lib/netcoreapp3.1/cs/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netcoreapp3.1/de/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netcoreapp3.1/es/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netcoreapp3.1/fr/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netcoreapp3.1/it/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netcoreapp3.1/ja/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netcoreapp3.1/ko/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netcoreapp3.1/pl/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netcoreapp3.1/pt-BR/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netcoreapp3.1/ru/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netcoreapp3.1/tr/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netcoreapp3.1/zh-Hans/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netcoreapp3.1/zh-Hant/Microsoft.CodeAnalysis.CSharp.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "Microsoft.CodeAnalysis.VisualBasic/3.9.0": {
+        "dependencies": {
+          "Microsoft.CodeAnalysis.Common": "3.9.0"
+        },
+        "runtime": {
+          "lib/netcoreapp3.1/Microsoft.CodeAnalysis.VisualBasic.dll": {
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.900.21.12420"
+          }
+        },
+        "resources": {
+          "lib/netcoreapp3.1/cs/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netcoreapp3.1/de/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netcoreapp3.1/es/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netcoreapp3.1/fr/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netcoreapp3.1/it/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netcoreapp3.1/ja/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netcoreapp3.1/ko/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netcoreapp3.1/pl/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netcoreapp3.1/pt-BR/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netcoreapp3.1/ru/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netcoreapp3.1/tr/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netcoreapp3.1/zh-Hans/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netcoreapp3.1/zh-Hant/Microsoft.CodeAnalysis.VisualBasic.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "Microsoft.CodeCoverage/16.9.1": {
+        "runtime": {
+          "lib/netcoreapp1.0/Microsoft.VisualStudio.CodeCoverage.Shim.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "16.900.21.11904"
+          }
+        }
+      },
+      "Microsoft.DotNet.InternalAbstractions/1.0.0": {
+        "runtime": {
+          "lib/netstandard1.3/Microsoft.DotNet.InternalAbstractions.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Microsoft.Extensions.ObjectPool/6.0.16": {
+        "runtime": {
+          "lib/net6.0/Microsoft.Extensions.ObjectPool.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.1623.17406"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Logging/6.8.0": {
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.IdentityModel.Logging.dll": {
+            "assemblyVersion": "6.8.0.0",
+            "fileVersion": "6.8.0.11012"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Protocols.WsTrust/6.8.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens.Saml": "6.8.0",
+          "Microsoft.IdentityModel.Xml": "6.8.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.IdentityModel.Protocols.WsTrust.dll": {
+            "assemblyVersion": "6.8.0.0",
+            "fileVersion": "6.8.0.11018"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Tokens/6.8.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Logging": "6.8.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.IdentityModel.Tokens.dll": {
+            "assemblyVersion": "6.8.0.0",
+            "fileVersion": "6.8.0.11012"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Tokens.Saml/6.8.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "6.8.0",
+          "Microsoft.IdentityModel.Xml": "6.8.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.IdentityModel.Tokens.Saml.dll": {
+            "assemblyVersion": "6.8.0.0",
+            "fileVersion": "6.8.0.11012"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Xml/6.8.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "6.8.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.IdentityModel.Xml.dll": {
+            "assemblyVersion": "6.8.0.0",
+            "fileVersion": "6.8.0.11012"
+          }
+        }
+      },
+      "Microsoft.NET.Test.Sdk/16.9.1": {
+        "dependencies": {
+          "Microsoft.CodeCoverage": "16.9.1",
+          "Microsoft.TestPlatform.TestHost": "16.9.1"
+        }
+      },
+      "Microsoft.TestPlatform.ObjectModel/16.9.1": {
+        "dependencies": {
+          "NuGet.Frameworks": "5.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.TestPlatform.CoreUtilities.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          },
+          "lib/netstandard2.0/Microsoft.TestPlatform.PlatformAbstractions.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          },
+          "lib/netstandard2.0/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          }
+        },
+        "resources": {
+          "lib/netstandard2.0/cs/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netstandard2.0/cs/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netstandard2.0/de/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netstandard2.0/de/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netstandard2.0/es/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netstandard2.0/es/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netstandard2.0/fr/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netstandard2.0/fr/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netstandard2.0/it/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netstandard2.0/it/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netstandard2.0/ja/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netstandard2.0/ja/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netstandard2.0/ko/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netstandard2.0/ko/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netstandard2.0/pl/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netstandard2.0/pl/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netstandard2.0/pt-BR/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netstandard2.0/pt-BR/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netstandard2.0/ru/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netstandard2.0/ru/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netstandard2.0/tr/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netstandard2.0/tr/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netstandard2.0/zh-Hans/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netstandard2.0/zh-Hans/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netstandard2.0/zh-Hant/Microsoft.TestPlatform.CoreUtilities.resources.dll": {
+            "locale": "zh-Hant"
+          },
+          "lib/netstandard2.0/zh-Hant/Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "Microsoft.TestPlatform.TestHost/16.9.1": {
+        "dependencies": {
+          "Microsoft.TestPlatform.ObjectModel": "16.9.1",
+          "Newtonsoft.Json": "9.0.1"
+        },
+        "runtime": {
+          "lib/netcoreapp2.1/Microsoft.TestPlatform.CommunicationUtilities.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          },
+          "lib/netcoreapp2.1/Microsoft.TestPlatform.CrossPlatEngine.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          },
+          "lib/netcoreapp2.1/Microsoft.TestPlatform.Utilities.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          },
+          "lib/netcoreapp2.1/Microsoft.VisualStudio.TestPlatform.Common.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          },
+          "lib/netcoreapp2.1/testhost.dll": {
+            "assemblyVersion": "15.0.0.0",
+            "fileVersion": "15.0.0.0"
+          }
+        },
+        "resources": {
+          "lib/netcoreapp2.1/cs/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netcoreapp2.1/cs/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netcoreapp2.1/cs/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/netcoreapp2.1/de/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netcoreapp2.1/de/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netcoreapp2.1/de/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "de"
+          },
+          "lib/netcoreapp2.1/es/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netcoreapp2.1/es/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netcoreapp2.1/es/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "es"
+          },
+          "lib/netcoreapp2.1/fr/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netcoreapp2.1/fr/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netcoreapp2.1/fr/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/netcoreapp2.1/it/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netcoreapp2.1/it/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netcoreapp2.1/it/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "it"
+          },
+          "lib/netcoreapp2.1/ja/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netcoreapp2.1/ja/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netcoreapp2.1/ja/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/netcoreapp2.1/ko/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netcoreapp2.1/ko/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netcoreapp2.1/ko/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/netcoreapp2.1/pl/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netcoreapp2.1/pl/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netcoreapp2.1/pl/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/netcoreapp2.1/pt-BR/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netcoreapp2.1/pt-BR/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netcoreapp2.1/pt-BR/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/netcoreapp2.1/ru/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netcoreapp2.1/ru/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netcoreapp2.1/ru/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/netcoreapp2.1/tr/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netcoreapp2.1/tr/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netcoreapp2.1/tr/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/netcoreapp2.1/zh-Hans/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netcoreapp2.1/zh-Hans/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netcoreapp2.1/zh-Hans/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/netcoreapp2.1/zh-Hant/Microsoft.TestPlatform.CommunicationUtilities.resources.dll": {
+            "locale": "zh-Hant"
+          },
+          "lib/netcoreapp2.1/zh-Hant/Microsoft.TestPlatform.CrossPlatEngine.resources.dll": {
+            "locale": "zh-Hant"
+          },
+          "lib/netcoreapp2.1/zh-Hant/Microsoft.VisualStudio.TestPlatform.Common.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "Microsoft.Win32.SystemEvents/5.0.0": {
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.Win32.SystemEvents.dll": {
+            "assemblyVersion": "5.0.0.0",
+            "fileVersion": "5.0.20.51904"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/netcoreapp3.0/Microsoft.Win32.SystemEvents.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "5.0.0.0",
+            "fileVersion": "5.0.20.51904"
+          }
+        }
+      },
+      "Mono.Cecil/0.11.3": {
+        "runtime": {
+          "lib/netstandard2.0/Mono.Cecil.Mdb.dll": {
+            "assemblyVersion": "0.11.3.0",
+            "fileVersion": "0.11.3.0"
+          },
+          "lib/netstandard2.0/Mono.Cecil.Pdb.dll": {
+            "assemblyVersion": "0.11.3.0",
+            "fileVersion": "0.11.3.0"
+          },
+          "lib/netstandard2.0/Mono.Cecil.Rocks.dll": {
+            "assemblyVersion": "0.11.3.0",
+            "fileVersion": "0.11.3.0"
+          },
+          "lib/netstandard2.0/Mono.Cecil.dll": {
+            "assemblyVersion": "0.11.3.0",
+            "fileVersion": "0.11.3.0"
+          }
+        }
+      },
+      "Mono.Posix/7.1.0-final.1.21458.1": {
+        "dependencies": {
+          "Mono.Unix": "7.1.0-final.1.21458.1"
+        },
+        "runtime": {
+          "lib/net6.0/Mono.Posix.dll": {
+            "assemblyVersion": "7.1.0.0",
+            "fileVersion": "7.100.21.45801"
+          }
+        }
+      },
+      "Mono.Unix/7.1.0-final.1.21458.1": {
+        "runtime": {
+          "lib/net6.0/Mono.Unix.dll": {
+            "assemblyVersion": "7.1.0.0",
+            "fileVersion": "7.100.21.45801"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/android-arm/native/libMono.Unix.so": {
+            "rid": "android-arm",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/android-arm64/native/libMono.Unix.so": {
+            "rid": "android-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/android-x64/native/libMono.Unix.so": {
+            "rid": "android-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/android-x86/native/libMono.Unix.so": {
+            "rid": "android-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/ios-arm/native/libMono.Unix.a": {
+            "rid": "ios-arm",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/ios-arm64/native/libMono.Unix.a": {
+            "rid": "ios-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/ios-armv7s/native/libMono.Unix.a": {
+            "rid": "ios-armv7s",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/iossimulator-arm64/native/libMono.Unix.a": {
+            "rid": "iossimulator-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/iossimulator-x64/native/libMono.Unix.a": {
+            "rid": "iossimulator-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-arm/native/libMono.Unix.so": {
+            "rid": "linux-arm",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-arm64/native/libMono.Unix.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x64/native/libMono.Unix.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/maccatalyst-arm64/native/libMono.Unix.a": {
+            "rid": "maccatalyst-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/maccatalyst-x64/native/libMono.Unix.a": {
+            "rid": "maccatalyst-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-arm64/native/libMono.Unix.dylib": {
+            "rid": "osx-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-x64/native/libMono.Unix.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/tvos-arm64/native/libMono.Unix.a": {
+            "rid": "tvos-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/tvossimulator-x64/native/libMono.Unix.a": {
+            "rid": "tvossimulator-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Moq/4.18.1": {
+        "dependencies": {
+          "Castle.Core": "5.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Moq.dll": {
+            "assemblyVersion": "4.18.0.0",
+            "fileVersion": "4.18.1.0"
+          }
+        }
+      },
+      "NaCl.Net/0.1.13": {
+        "runtime": {
+          "lib/netstandard2.1/NaCl.dll": {
+            "assemblyVersion": "0.1.13.0",
+            "fileVersion": "0.1.13.0"
+          }
+        }
+      },
+      "NetMQ/4.0.1.12": {
+        "dependencies": {
+          "AsyncIO": "0.1.69",
+          "NaCl.Net": "0.1.13",
+          "System.ServiceModel.Primitives": "6.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.1/NetMQ.dll": {
+            "assemblyVersion": "4.0.1.12",
+            "fileVersion": "4.0.1.12"
+          }
+        }
+      },
+      "Newtonsoft.Json/9.0.1": {
+        "runtime": {
+          "lib/netstandard1.0/Newtonsoft.Json.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.1.19813"
+          }
+        }
+      },
+      "NuGet.Frameworks/5.0.0": {
+        "runtime": {
+          "lib/netstandard2.0/NuGet.Frameworks.dll": {
+            "assemblyVersion": "5.0.0.6",
+            "fileVersion": "5.0.0.5923"
+          }
+        }
+      },
+      "NUnit/3.13.1": {
+        "runtime": {
+          "lib/netstandard2.0/nunit.framework.dll": {
+            "assemblyVersion": "3.13.1.0",
+            "fileVersion": "3.13.1.0"
+          }
+        }
+      },
+      "NUnit3TestAdapter/3.17.0": {
+        "dependencies": {
+          "Microsoft.DotNet.InternalAbstractions": "1.0.0",
+          "System.Xml.XPath.XmlDocument": "4.3.0"
+        }
+      },
+      "PangoSharp/3.24.24.95": {
+        "dependencies": {
+          "CairoSharp": "3.24.24.95",
+          "GLibSharp": "3.24.24.95"
+        },
+        "runtime": {
+          "lib/net6.0/PangoSharp.dll": {
+            "assemblyVersion": "3.24.24.95",
+            "fileVersion": "3.24.24.95"
+          }
+        }
+      },
+      "System.CodeDom/8.0.0": {
+        "runtime": {
+          "lib/net8.0/System.CodeDom.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
+          }
+        }
+      },
+      "System.Diagnostics.EventLog/6.0.0": {
+        "runtime": {
+          "lib/net6.0/System.Diagnostics.EventLog.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net6.0/System.Diagnostics.EventLog.Messages.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          },
+          "runtimes/win/lib/net6.0/System.Diagnostics.EventLog.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        }
+      },
+      "System.Drawing.Common/5.0.3": {
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "5.0.0"
+        },
+        "runtime": {
+          "lib/netcoreapp3.0/System.Drawing.Common.dll": {
+            "assemblyVersion": "5.0.0.2",
+            "fileVersion": "5.0.1221.52207"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/unix/lib/netcoreapp3.0/System.Drawing.Common.dll": {
+            "rid": "unix",
+            "assetType": "runtime",
+            "assemblyVersion": "5.0.0.2",
+            "fileVersion": "5.0.1221.52207"
+          },
+          "runtimes/win/lib/netcoreapp3.0/System.Drawing.Common.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "5.0.0.2",
+            "fileVersion": "5.0.1221.52207"
+          }
+        }
+      },
+      "System.Private.ServiceModel/4.8.1": {
+        "dependencies": {
+          "System.Security.Cryptography.Xml": "6.0.1"
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.Private.ServiceModel.dll": {
+            "assemblyVersion": "4.8.1.0",
+            "fileVersion": "4.800.121.7802"
+          }
+        }
+      },
+      "System.Security.Cryptography.Pkcs/6.0.1": {
+        "runtime": {
+          "lib/net6.0/System.Security.Cryptography.Pkcs.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.522.21309"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net6.0/System.Security.Cryptography.Pkcs.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.522.21309"
+          }
+        }
+      },
+      "System.Security.Cryptography.Xml/6.0.1": {
+        "dependencies": {
+          "System.Security.Cryptography.Pkcs": "6.0.1"
+        },
+        "runtime": {
+          "lib/net6.0/System.Security.Cryptography.Xml.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.822.36306"
+          }
+        }
+      },
+      "System.ServiceModel.Duplex/4.8.1": {
+        "dependencies": {
+          "System.Private.ServiceModel": "4.8.1",
+          "System.ServiceModel.Primitives": "6.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.ServiceModel.Duplex.dll": {
+            "assemblyVersion": "4.8.1.0",
+            "fileVersion": "4.800.121.7802"
+          }
+        }
+      },
+      "System.ServiceModel.Federation/4.8.1": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols.WsTrust": "6.8.0",
+          "System.ServiceModel.Http": "6.0.0",
+          "System.ServiceModel.Primitives": "6.0.0",
+          "System.ServiceModel.Security": "4.8.1"
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.ServiceModel.Federation.dll": {
+            "assemblyVersion": "4.8.1.0",
+            "fileVersion": "4.800.121.7802"
+          }
+        }
+      },
+      "System.ServiceModel.Http/6.0.0": {
+        "dependencies": {
+          "System.ServiceModel.Primitives": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/System.ServiceModel.Http.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.23.25304"
+          }
+        },
+        "resources": {
+          "lib/net6.0/cs/System.ServiceModel.Http.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/net6.0/de/System.ServiceModel.Http.resources.dll": {
+            "locale": "de"
+          },
+          "lib/net6.0/es/System.ServiceModel.Http.resources.dll": {
+            "locale": "es"
+          },
+          "lib/net6.0/fr/System.ServiceModel.Http.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/net6.0/it/System.ServiceModel.Http.resources.dll": {
+            "locale": "it"
+          },
+          "lib/net6.0/ja/System.ServiceModel.Http.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/net6.0/ko/System.ServiceModel.Http.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/net6.0/pl/System.ServiceModel.Http.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/net6.0/pt-BR/System.ServiceModel.Http.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/net6.0/ru/System.ServiceModel.Http.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/net6.0/tr/System.ServiceModel.Http.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/net6.0/zh-Hans/System.ServiceModel.Http.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/net6.0/zh-Hant/System.ServiceModel.Http.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "System.ServiceModel.NetTcp/4.8.1": {
+        "dependencies": {
+          "System.Private.ServiceModel": "4.8.1",
+          "System.ServiceModel.Primitives": "6.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.ServiceModel.NetTcp.dll": {
+            "assemblyVersion": "4.8.1.0",
+            "fileVersion": "4.800.121.7802"
+          }
+        }
+      },
+      "System.ServiceModel.Primitives/6.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.ObjectPool": "6.0.16",
+          "System.Security.Cryptography.Xml": "6.0.1"
+        },
+        "runtime": {
+          "lib/net6.0/System.ServiceModel.Primitives.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.23.25304"
+          }
+        },
+        "resources": {
+          "lib/net6.0/cs/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/net6.0/de/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "de"
+          },
+          "lib/net6.0/es/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "es"
+          },
+          "lib/net6.0/fr/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/net6.0/it/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "it"
+          },
+          "lib/net6.0/ja/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/net6.0/ko/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/net6.0/pl/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/net6.0/pt-BR/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/net6.0/ru/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/net6.0/tr/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/net6.0/zh-Hans/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/net6.0/zh-Hant/System.ServiceModel.Primitives.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "System.ServiceModel.Security/4.8.1": {
+        "dependencies": {
+          "System.Private.ServiceModel": "4.8.1",
+          "System.ServiceModel.Primitives": "6.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/System.ServiceModel.Security.dll": {
+            "assemblyVersion": "4.8.1.0",
+            "fileVersion": "4.800.121.7802"
+          }
+        }
+      },
+      "System.Xml.XPath.XmlDocument/4.3.0": {
+        "runtime": {
+          "lib/netstandard1.3/System.Xml.XPath.XmlDocument.dll": {
+            "assemblyVersion": "4.0.2.0",
+            "fileVersion": "4.6.24705.1"
+          }
+        }
+      },
+      "AntShell/1.0.0": {
+        "dependencies": {
+          "Migrant": "1.0.0"
+        },
+        "runtime": {
+          "AntShell.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "BigGustave/1.0.0": {
+        "runtime": {
+          "BigGustave.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "CoSimulationPlugin/1.0.0": {
+        "dependencies": {
+          "AntShell": "1.0.0",
+          "Infrastructure": "1.0.0",
+          "Mono.Posix": "7.1.0-final.1.21458.1",
+          "System.ServiceModel.Duplex": "4.8.1",
+          "System.ServiceModel.Federation": "4.8.1",
+          "System.ServiceModel.NetTcp": "4.8.1"
+        },
+        "runtime": {
+          "CoSimulationPlugin.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "crypto/1.0.0": {
+        "runtime": {
+          "crypto.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "CxxDemangler/1.0.0": {
+        "runtime": {
+          "CxxDemangler.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ELFSharp/1.0.0": {
+        "runtime": {
+          "ELFSharp.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "FdtSharp/1.0.0": {
+        "runtime": {
+          "FdtSharp.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Infrastructure/1.0.0": {
+        "dependencies": {
+          "AntShell": "1.0.0",
+          "BigGustave": "1.0.0",
+          "CxxDemangler": "1.0.0",
+          "DynamicLanguageRuntime": "1.3.5",
+          "Dynamitey": "2.0.10.189",
+          "ELFSharp": "1.0.0",
+          "FdtSharp": "1.0.0",
+          "GLibSharp": "3.24.24.95",
+          "GdkSharp": "3.24.24.95",
+          "GirCore.Gst-1.0": "0.7.0",
+          "GirCore.GstApp-1.0": "0.7.0",
+          "K4os.Compression.LZ4": "1.3.8",
+          "Microsoft.CodeAnalysis.CSharp": "3.9.0",
+          "Microsoft.CodeAnalysis.Compilers": "3.9.0",
+          "Migrant": "1.0.0",
+          "Mono.Cecil": "0.11.3",
+          "Mono.Posix": "7.1.0-final.1.21458.1",
+          "OptionsParser": "1.0.0",
+          "PacketDotNet": "1.0.0",
+          "System.Drawing.Common": "5.0.3",
+          "TermSharp": "1.0.0",
+          "Xwt": "1.0.0",
+          "Xwt.Gtk3": "1.0.0",
+          "crypto": "1.0.0"
+        },
+        "runtime": {
+          "Infrastructure.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "libtftp/1.0.0": {
+        "runtime": {
+          "libtftp.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Migrant/1.0.0": {
+        "runtime": {
+          "Migrant.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "OptionsParser/1.0.0": {
+        "dependencies": {
+          "Microsoft.NET.Test.Sdk": "16.9.1",
+          "NUnit": "3.13.1",
+          "NUnit3TestAdapter": "3.17.0"
+        },
+        "runtime": {
+          "OptionsParser.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "PacketDotNet/1.0.0": {
+        "runtime": {
+          "PacketDotNet.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Renode/1.0.0": {
+        "dependencies": {
+          "AntShell": "1.0.0",
+          "CoSimulationPlugin": "1.0.0",
+          "Infrastructure": "1.0.0",
+          "Migrant": "1.0.0",
+          "Mono.Posix": "7.1.0-final.1.21458.1",
+          "NetMQ": "4.0.1.12",
+          "OptionsParser": "1.0.0",
+          "PacketDotNet": "1.0.0",
+          "SampleCommandPlugin": "1.0.0",
+          "System.ServiceModel.Http": "6.0.0",
+          "SystemCPlugin": "1.0.0",
+          "TermSharp": "1.0.0",
+          "TracePlugin": "1.0.0",
+          "WiresharkPlugin": "1.0.0",
+          "Xwt": "1.0.0",
+          "Xwt.Gtk3": "1.0.0",
+          "libtftp": "1.0.0"
+        },
+        "runtime": {
+          "Renode.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "SampleCommandPlugin/1.0.0": {
+        "dependencies": {
+          "AntShell": "1.0.0",
+          "Infrastructure": "1.0.0"
+        },
+        "runtime": {
+          "SampleCommandPlugin.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "SystemCPlugin/1.0.0": {
+        "dependencies": {
+          "Infrastructure": "1.0.0",
+          "Mono.Posix": "7.1.0-final.1.21458.1",
+          "System.ServiceModel.Duplex": "4.8.1",
+          "System.ServiceModel.Federation": "4.8.1",
+          "System.ServiceModel.NetTcp": "4.8.1"
+        },
+        "runtime": {
+          "SystemCPlugin.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "TermSharp/1.0.0": {
+        "dependencies": {
+          "System.Drawing.Common": "5.0.3",
+          "Xwt": "1.0.0"
+        },
+        "runtime": {
+          "TermSharp.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "TracePlugin/1.0.0": {
+        "dependencies": {
+          "AntShell": "1.0.0",
+          "Dynamitey": "2.0.10.189",
+          "Infrastructure": "1.0.0"
+        },
+        "runtime": {
+          "TracePlugin.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "WiresharkPlugin/1.0.0": {
+        "dependencies": {
+          "AntShell": "1.0.0",
+          "Infrastructure": "1.0.0"
+        },
+        "runtime": {
+          "WiresharkPlugin.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Xwt/1.0.0": {
+        "runtime": {
+          "Xwt.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Xwt.Gtk3/1.0.0": {
+        "dependencies": {
+          "AtkSharp": "3.24.24.95",
+          "CairoSharp": "3.24.24.95",
+          "GLibSharp": "3.24.24.95",
+          "GdkSharp": "3.24.24.95",
+          "GioSharp": "3.24.24.95",
+          "GtkSharp": "3.24.24.95",
+          "PangoSharp": "3.24.24.95",
+          "System.Drawing.Common": "5.0.3",
+          "Xwt": "1.0.0"
+        },
+        "runtime": {
+          "Xwt.Gtk3.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "AntShell.Reference/1.0.9563.42682": {
+        "runtime": {
+          "AntShell.dll": {
+            "assemblyVersion": "1.0.9563.42682",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "BigGustave.Reference/1.0.0.0": {
+        "runtime": {
+          "BigGustave.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "CoSimulationPlugin.Reference/1.0.0.0": {
+        "runtime": {
+          "CoSimulationPlugin.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "crypto.Reference/1.9.0.0": {
+        "runtime": {
+          "crypto.dll": {
+            "assemblyVersion": "1.9.0.0",
+            "fileVersion": "1.9.21290.1"
+          }
+        }
+      },
+      "CxxDemangler.Reference/1.0.9563.42684": {
+        "runtime": {
+          "CxxDemangler.dll": {
+            "assemblyVersion": "1.0.9563.42684",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ELFSharp.Reference/0.1.1.0": {
+        "runtime": {
+          "ELFSharp.dll": {
+            "assemblyVersion": "0.1.1.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "FdtSharp.Reference/0.1.0.0": {
+        "runtime": {
+          "FdtSharp.dll": {
+            "assemblyVersion": "0.1.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Infrastructure.Reference/1.0.0.0": {
+        "runtime": {
+          "Infrastructure.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "IronPython.Reference/2.7.12.0": {
+        "runtime": {
+          "IronPython.dll": {
+            "assemblyVersion": "2.7.12.0",
+            "fileVersion": "2.7.12.1000"
+          }
+        }
+      },
+      "libtftp.Reference/1.0.0.0": {
+        "runtime": {
+          "libtftp.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Migrant.Reference/0.14.0.0": {
+        "runtime": {
+          "Migrant.dll": {
+            "assemblyVersion": "0.14.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "OptionsParser.Reference/0.1.0.0": {
+        "runtime": {
+          "OptionsParser.dll": {
+            "assemblyVersion": "0.1.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "PacketDotNet.Reference/0.13.0.0": {
+        "runtime": {
+          "PacketDotNet.dll": {
+            "assemblyVersion": "0.13.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Renode.Reference/1.16.1.42688": {
+        "runtime": {
+          "Renode.dll": {
+            "assemblyVersion": "1.16.1.42688",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "SampleCommandPlugin.Reference/1.0.0.0": {
+        "runtime": {
+          "SampleCommandPlugin.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "SystemCPlugin.Reference/1.0.0.0": {
+        "runtime": {
+          "SystemCPlugin.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "TermSharp.Reference/0.0.0.0": {
+        "runtime": {
+          "TermSharp.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "TracePlugin.Reference/1.0.0.0": {
+        "runtime": {
+          "TracePlugin.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "WiresharkPlugin.Reference/1.0.0.0": {
+        "runtime": {
+          "WiresharkPlugin.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Xwt.Reference/0.1.0.0": {
+        "runtime": {
+          "Xwt.dll": {
+            "assemblyVersion": "0.1.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Xwt.Gtk3.Reference/0.1.0.0": {
+        "runtime": {
+          "Xwt.Gtk3.dll": {
+            "assemblyVersion": "0.1.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "FlatBuffers/0.0.0.0": {
+        "runtime": {
+          "FlatBuffers.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Nini/1.1.0.0": {
+        "runtime": {
+          "Nini.dll": {
+            "assemblyVersion": "1.1.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "BitMiracle.LibJpeg.NET/1.5.0.0": {
+        "runtime": {
+          "BitMiracle.LibJpeg.NET.dll": {
+            "assemblyVersion": "1.5.0.0",
+            "fileVersion": "1.5.0.0"
+          }
+        }
+      },
+      "Sprache/2.1.0.0": {
+        "runtime": {
+          "Sprache.dll": {
+            "assemblyVersion": "2.1.0.0",
+            "fileVersion": "2.1.0.0"
+          }
+        }
+      },
+      "protobuf-net/2.4.0.0": {
+        "runtime": {
+          "protobuf-net.dll": {
+            "assemblyVersion": "2.4.0.0",
+            "fileVersion": "2.4.7.18"
+          }
+        }
+      },
+      "IronPython.Modules/2.7.12.0": {
+        "runtime": {
+          "IronPython.Modules.dll": {
+            "assemblyVersion": "2.7.12.0",
+            "fileVersion": "2.7.12.1000"
+          }
+        }
+      },
+      "CookComputing.XmlRpcV2/2.5.0.0": {
+        "runtime": {
+          "CookComputing.XmlRpcV2.dll": {
+            "assemblyVersion": "2.5.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "UnitTests/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AsyncIO/0.1.69": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xyXJLi+wjy6AtIyWXHXJkPS0gItqVT4lg5w++7bA5YEjugYKdrFMGxCo6KUJ1yYwjriLQJ1g35LDljZs3Q90XQ==",
+      "path": "asyncio/0.1.69",
+      "hashPath": "asyncio.0.1.69.nupkg.sha512"
+    },
+    "AtkSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-LnSfsc0y11gfzczZj5bnpwcFkXFZuVTSSd92ML/FcHIM7FU+cAfm1UkAonv5BdwTRhzDbNDE39vihao/k75sUA==",
+      "path": "atksharp/3.24.24.95",
+      "hashPath": "atksharp.3.24.24.95.nupkg.sha512"
+    },
+    "CairoSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-EZ9KT3pwVAol35XbZW0Uwdg2LqhDvPnWdhqIrsedhDx+Omnu56hLzxh8mZGqmQvEwJE8Opbda4w9CqDtXbX6Vw==",
+      "path": "cairosharp/3.24.24.95",
+      "hashPath": "cairosharp.3.24.24.95.nupkg.sha512"
+    },
+    "Castle.Core/5.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-edc8jjyXqzzy8jFdhs36FZdwmlDDTgqPb2Zy1Q5F/f2uAc88bu/VS/0Tpvgupmpl9zJOvOo5ZizVANb0ltN1NQ==",
+      "path": "castle.core/5.0.0",
+      "hashPath": "castle.core.5.0.0.nupkg.sha512"
+    },
+    "DynamicLanguageRuntime/1.3.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HHCVAlsIe8eBuj0bxh+0zCflYPeu+WSmP5iJ2J+oqd9wa1j7kcw70hiGPxoDPSoLM/RRLGXUdvj7ISkelxLpNw==",
+      "path": "dynamiclanguageruntime/1.3.5",
+      "hashPath": "dynamiclanguageruntime.1.3.5.nupkg.sha512"
+    },
+    "Dynamitey/2.0.10.189": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sKo8BlCgQTOSFFK4RlMvC8abp0NqZrTd017fishVrkoqggNBpwa4RGq88wPjyedk5GjTWeB8/kGrbXES+Rcl7Q==",
+      "path": "dynamitey/2.0.10.189",
+      "hashPath": "dynamitey.2.0.10.189.nupkg.sha512"
+    },
+    "GdkSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-rABpIGkxr8lOdyhEmrKXzjih3z3932kjqUmm5qaQhWVSvu9YepEk3J1FApgnKCW/EWEzlerzxnJArsyOlgMsZQ==",
+      "path": "gdksharp/3.24.24.95",
+      "hashPath": "gdksharp.3.24.24.95.nupkg.sha512"
+    },
+    "GioSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-avYEDFlYgbogb+Y7ZhIXQpyJfL83bnPpBKY642YEW9PQ+pRK3qf2k0opvd5oHccXfByj6kAQjmRUSIS0pj19Fg==",
+      "path": "giosharp/3.24.24.95",
+      "hashPath": "giosharp.3.24.24.95.nupkg.sha512"
+    },
+    "GirCore.GLib-2.0/0.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-RaFYLZTRpKYRJrvMa1/ctrQQfAX5rTpZzFRudCp9AVQOdOYQl3LYqVAqc4otFTD6bIXpoV0msm7azGCfyF7XbQ==",
+      "path": "gircore.glib-2.0/0.7.0",
+      "hashPath": "gircore.glib-2.0.0.7.0.nupkg.sha512"
+    },
+    "GirCore.GObject-2.0/0.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-95ehT1EbreYDFAQJposjK+0olBcWjLSs3hie3j8lL3MtCgrAMFzQuJU8Qdz0jAUl9WX2a0pb5mv1ZkUCFAbbKA==",
+      "path": "gircore.gobject-2.0/0.7.0",
+      "hashPath": "gircore.gobject-2.0.0.7.0.nupkg.sha512"
+    },
+    "GirCore.Gst-1.0/0.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hsBAd3uwa4QuUz849mH3uRQWEfu/NEHiq1JTLP21OnulHrBiwQb8agqzXex9P6/dCiY2gumdC7ijdL4AWXc3vA==",
+      "path": "gircore.gst-1.0/0.7.0",
+      "hashPath": "gircore.gst-1.0.0.7.0.nupkg.sha512"
+    },
+    "GirCore.GstApp-1.0/0.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hFxZQVJcWrSuXLVEhBTt3tse3lddflssjhSPKJEY79qp195WM6XPZiMD1KMaAUeEyfEMyVel69iFFUgW8fEvOg==",
+      "path": "gircore.gstapp-1.0/0.7.0",
+      "hashPath": "gircore.gstapp-1.0.0.7.0.nupkg.sha512"
+    },
+    "GirCore.GstBase-1.0/0.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-IPYdnGYoleHQ8L1hHd4XxigAqQr4gMOScQvCz494SalIIimPQiF393KNOWEgsTKARMN8Y3/IJvWI1ASA26/haA==",
+      "path": "gircore.gstbase-1.0/0.7.0",
+      "hashPath": "gircore.gstbase-1.0.0.7.0.nupkg.sha512"
+    },
+    "GLibSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1viZRMVjddf2HUCW7WDXT47rHssteHkAOimXQ2/pI8oGrPGNFuuw5MbX8BOIy73hCWVqo7JEMONv3z32OrCoCQ==",
+      "path": "glibsharp/3.24.24.95",
+      "hashPath": "glibsharp.3.24.24.95.nupkg.sha512"
+    },
+    "GtkSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-RRUY45hAa5gsMcadvVjcLUzMjVtmuHSYTcIwM6j8LNgKhzFFHk69qM1D5ULfGxaWmVjicqNWiFtOtk8WsvPqaQ==",
+      "path": "gtksharp/3.24.24.95",
+      "hashPath": "gtksharp.3.24.24.95.nupkg.sha512"
+    },
+    "K4os.Compression.LZ4/1.3.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-LhwlPa7c1zs1OV2XadMtAWdImjLIsqFJPoRcIWAadSRn0Ri1DepK65UbWLPmt4riLqx2d40xjXRk0ogpqNtK7g==",
+      "path": "k4os.compression.lz4/1.3.8",
+      "hashPath": "k4os.compression.lz4.1.3.8.nupkg.sha512"
+    },
+    "Microsoft.CodeAnalysis.Common/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HiWjF7PNIEngmFg2Xk8cZ/83lRIRkk9v+5ibbY5B7VvjNGdClGAMuWtZER9F5rGRR41VbJLco9ah73jFTh4vPw==",
+      "path": "microsoft.codeanalysis.common/3.9.0",
+      "hashPath": "microsoft.codeanalysis.common.3.9.0.nupkg.sha512"
+    },
+    "Microsoft.CodeAnalysis.Compilers/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WEQF/tv33ljxbHVlpmJ/zpLLI2GLcBKuwXrUNt7sbS8FqssQo4C7rvD7v5DUSmZ35Zyh5F6cjpep2YOyMdwDTQ==",
+      "path": "microsoft.codeanalysis.compilers/3.9.0",
+      "hashPath": "microsoft.codeanalysis.compilers.3.9.0.nupkg.sha512"
+    },
+    "Microsoft.CodeAnalysis.CSharp/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-NTsiK3fnoZGemy4dBHrILwg9rL+jDnOJ7aixFu4EOWM1r6MZMrNCIhT2tO4AmIMdfICLPwj910uZRRLpbMnqHg==",
+      "path": "microsoft.codeanalysis.csharp/3.9.0",
+      "hashPath": "microsoft.codeanalysis.csharp.3.9.0.nupkg.sha512"
+    },
+    "Microsoft.CodeAnalysis.VisualBasic/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0s2fIafB30oihBJMa5ya2hZFu4T78A7j66nTIrrmQC1jP446Z0F+6eyVHUL4oigNLAg1mqO1F3goktJRBLkrFw==",
+      "path": "microsoft.codeanalysis.visualbasic/3.9.0",
+      "hashPath": "microsoft.codeanalysis.visualbasic.3.9.0.nupkg.sha512"
+    },
+    "Microsoft.CodeCoverage/16.9.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OEIMvld3rabmyc1L4VvHWOMTEOYrGLbgoVxwAaD8RwX8GT3a1Aal7QpJXLV22f47LpMhSz0uOBerKAd8eI9wNA==",
+      "path": "microsoft.codecoverage/16.9.1",
+      "hashPath": "microsoft.codecoverage.16.9.1.nupkg.sha512"
+    },
+    "Microsoft.DotNet.InternalAbstractions/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AAguUq7YyKk3yDWPoWA8DrLZvURxB/LrDdTn1h5lmPeznkFUpfC3p459w5mQYQE0qpquf/CkSQZ0etiV5vRHFA==",
+      "path": "microsoft.dotnet.internalabstractions/1.0.0",
+      "hashPath": "microsoft.dotnet.internalabstractions.1.0.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.ObjectPool/6.0.16": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OVX5tlKg6LY+XKqlUn7i9KY+6Liut0iewWff2DNr7129i/NJ8rpUzbmxavPydZgcLREEWHklXZiPKCS895tNIQ==",
+      "path": "microsoft.extensions.objectpool/6.0.16",
+      "hashPath": "microsoft.extensions.objectpool.6.0.16.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Logging/6.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Rfh/p4MaN4gkmhPxwbu8IjrmoDncGfHHPh1sTnc0AcM/Oc39/fzC9doKNWvUAjzFb8LqA6lgZyblTrIsX/wDXg==",
+      "path": "microsoft.identitymodel.logging/6.8.0",
+      "hashPath": "microsoft.identitymodel.logging.6.8.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Protocols.WsTrust/6.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KiRRp/pAtbJtyK7wPIiUW1FMna1T0IEizDWFL9R0C60jk6t66U95fo0SPl3ztOkmnS4v7uF1zWjfAEgZ/i+Zhg==",
+      "path": "microsoft.identitymodel.protocols.wstrust/6.8.0",
+      "hashPath": "microsoft.identitymodel.protocols.wstrust.6.8.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Tokens/6.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-gTqzsGcmD13HgtNePPcuVHZ/NXWmyV+InJgalW/FhWpII1D7V1k0obIseGlWMeA4G+tZfeGMfXr0klnWbMR/mQ==",
+      "path": "microsoft.identitymodel.tokens/6.8.0",
+      "hashPath": "microsoft.identitymodel.tokens.6.8.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Tokens.Saml/6.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-zRbtJ7Kvr2RMcXi4g4ta3og/wX0GZpLGfb/h7aohwNAaUtCooRpx7Gl8Cv7tn4FDAp6MZwBQL/w0jMeyVTkjPQ==",
+      "path": "microsoft.identitymodel.tokens.saml/6.8.0",
+      "hashPath": "microsoft.identitymodel.tokens.saml.6.8.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Xml/6.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-p2DOCNVVOQpxfx9c3FW0kJve2jAAZB/zecWsi9S5fpznbJ/VcH0zxKdz6wIXjDQgwf2xg/u/k58uHiS/o+0qiA==",
+      "path": "microsoft.identitymodel.xml/6.8.0",
+      "hashPath": "microsoft.identitymodel.xml.6.8.0.nupkg.sha512"
+    },
+    "Microsoft.NET.Test.Sdk/16.9.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9acz3fExifstaoKTAvHVwRGMFrtb1QLlT6KfxOFTYM4dksuzwpkApjt0xP+yJcuRsPcf14F1b0Du3GgfKZWHJw==",
+      "path": "microsoft.net.test.sdk/16.9.1",
+      "hashPath": "microsoft.net.test.sdk.16.9.1.nupkg.sha512"
+    },
+    "Microsoft.TestPlatform.ObjectModel/16.9.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-UuS6HBi6pVJDGS5pmf6Mi38oSQVQ4vE5AOmNJzA5WgOUlFmvg9fTq9KCSd5o+UPSVH420t9wthj2Q0M9Yfb+HA==",
+      "path": "microsoft.testplatform.objectmodel/16.9.1",
+      "hashPath": "microsoft.testplatform.objectmodel.16.9.1.nupkg.sha512"
+    },
+    "Microsoft.TestPlatform.TestHost/16.9.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-j/lZDlkuoUJ+lRJXOXLJpwUGXmko5/woAPo/hN6QhFRo0J5wscQPoPJ1isvXpB4Iw7x7A3jYllxR5QjV3cMlRw==",
+      "path": "microsoft.testplatform.testhost/16.9.1",
+      "hashPath": "microsoft.testplatform.testhost.16.9.1.nupkg.sha512"
+    },
+    "Microsoft.Win32.SystemEvents/5.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Bh6blKG8VAKvXiLe2L+sEsn62nc1Ij34MrNxepD2OCrS5cpCwQa9MeLyhVQPQ/R4Wlzwuy6wMK8hLb11QPDRsQ==",
+      "path": "microsoft.win32.systemevents/5.0.0",
+      "hashPath": "microsoft.win32.systemevents.5.0.0.nupkg.sha512"
+    },
+    "Mono.Cecil/0.11.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DNYE+io5XfEE8+E+5padThTPHJARJHbz1mhbhMPNrrWGKVKKqj/KEeLvbawAmbIcT73NuxLV7itHZaYCZcVWGg==",
+      "path": "mono.cecil/0.11.3",
+      "hashPath": "mono.cecil.0.11.3.nupkg.sha512"
+    },
+    "Mono.Posix/7.1.0-final.1.21458.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xhil/0zRkA2MrkyMZXC3dPSDWOhq6YD0vYGl1VnBbjsEZfLQCu7+mJZ/ftnOd0r4qmeHVeNuW6Pt33NoxO671A==",
+      "path": "mono.posix/7.1.0-final.1.21458.1",
+      "hashPath": "mono.posix.7.1.0-final.1.21458.1.nupkg.sha512"
+    },
+    "Mono.Unix/7.1.0-final.1.21458.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Rhxz4A7By8Q0wEgDqR+mioDsYXGrcYMYPiWE9bSaUKMpG8yAGArhetEQV5Ms6KhKCLdQTlPYLBKPZYoKbAvT/g==",
+      "path": "mono.unix/7.1.0-final.1.21458.1",
+      "hashPath": "mono.unix.7.1.0-final.1.21458.1.nupkg.sha512"
+    },
+    "Moq/4.18.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MmZIKNyvn8VrivSaqA8tqy5DmwUievC9zsuNTrcb00oY4IeGq6fXT5BQK329lZ05/tyi5vp30AWe9fl0d2PZQg==",
+      "path": "moq/4.18.1",
+      "hashPath": "moq.4.18.1.nupkg.sha512"
+    },
+    "NaCl.Net/0.1.13": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AVg1455RQnyTy6tiessudruZHvbl70QWRPyx3og2I1Fei17LDNc7Z3DRgqN2+PsySBui/1EDP4A7adhQXydi6g==",
+      "path": "nacl.net/0.1.13",
+      "hashPath": "nacl.net.0.1.13.nupkg.sha512"
+    },
+    "NetMQ/4.0.1.12": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-TeeHKqhJ5rCuzqYfF9gfU7aPeQjO8Wkw0FJznPYIVMJTFyw1Kz/y8pY0MmZnfNJNJ/7YU6TA80o1ru/EVM/aQQ==",
+      "path": "netmq/4.0.1.12",
+      "hashPath": "netmq.4.0.1.12.nupkg.sha512"
+    },
+    "Newtonsoft.Json/9.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-U82mHQSKaIk+lpSVCbWYKNavmNH1i5xrExDEquU1i6I5pV6UMOqRnJRSlKO3cMPfcpp0RgDY+8jUXHdQ4IfXvw==",
+      "path": "newtonsoft.json/9.0.1",
+      "hashPath": "newtonsoft.json.9.0.1.nupkg.sha512"
+    },
+    "NuGet.Frameworks/5.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-c5JVjuVAm4f7E9Vj+v09Z9s2ZsqFDjBpcsyS3M9xRo0bEdm/LVZSzLxxNvfvAwRiiE8nwe1h2G4OwiwlzFKXlA==",
+      "path": "nuget.frameworks/5.0.0",
+      "hashPath": "nuget.frameworks.5.0.0.nupkg.sha512"
+    },
+    "NUnit/3.13.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-vWBvrSelmTYwqHWvO3dA63z7cOpaFR/3nJ9MMVLBkWeaWa7oiglPPm5g1h96B4i2XXqjFexxhR5MyMjmIJYPfg==",
+      "path": "nunit/3.13.1",
+      "hashPath": "nunit.3.13.1.nupkg.sha512"
+    },
+    "NUnit3TestAdapter/3.17.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-I9MNvK+GM2yXrHPitwZkAZKU9sYI2OO/8wKC+VuBD7V3z+ySQ1pSopX/urr0ooedI8/TIcajYPRO4vGRr7AM8A==",
+      "path": "nunit3testadapter/3.17.0",
+      "hashPath": "nunit3testadapter.3.17.0.nupkg.sha512"
+    },
+    "PangoSharp/3.24.24.95": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-H7JeyEvLsgvsbamGpRgoNtdvzPiGwwsUuoeTobN1C/JRjw1J8Snw0yf2WBr7CKx5GLwbrwpQYOb7N/HD17ME8A==",
+      "path": "pangosharp/3.24.24.95",
+      "hashPath": "pangosharp.3.24.24.95.nupkg.sha512"
+    },
+    "System.CodeDom/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WTlRjL6KWIMr/pAaq3rYqh0TJlzpouaQ/W1eelssHgtlwHAH25jXTkUphTYx9HaIIf7XA6qs/0+YhtLEQRkJ+Q==",
+      "path": "system.codedom/8.0.0",
+      "hashPath": "system.codedom.8.0.0.nupkg.sha512"
+    },
+    "System.Diagnostics.EventLog/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-lcyUiXTsETK2ALsZrX+nWuHSIQeazhqPphLfaRxzdGaG93+0kELqpgEHtwWOlQe7+jSFnKwaCAgL4kjeZCQJnw==",
+      "path": "system.diagnostics.eventlog/6.0.0",
+      "hashPath": "system.diagnostics.eventlog.6.0.0.nupkg.sha512"
+    },
+    "System.Drawing.Common/5.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-rEQZuslijqdsO0pkJn7LtGBaMc//YVA8de0meGihkg9oLPaN+w+/Pb5d71lgp0YjPoKgBKNMvdq0IPnoW4PEng==",
+      "path": "system.drawing.common/5.0.3",
+      "hashPath": "system.drawing.common.5.0.3.nupkg.sha512"
+    },
+    "System.Private.ServiceModel/4.8.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-neXeXhKIlCUBCg5rxKpYnae4vQSiMWjhqeTgsMedHvKKUTsmP98je+G8oPmDdY9uZVruvxqRGjcljn1XYNhC+w==",
+      "path": "system.private.servicemodel/4.8.1",
+      "hashPath": "system.private.servicemodel.4.8.1.nupkg.sha512"
+    },
+    "System.Security.Cryptography.Pkcs/6.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ynmbW2GjIGg9K1wXmVIRs4IlyDolf0JXNpzFQ8JCVgwM+myUC2JeUggl2PwQig2PNVMegKmN1aAx7WPQ8tI3vA==",
+      "path": "system.security.cryptography.pkcs/6.0.1",
+      "hashPath": "system.security.cryptography.pkcs.6.0.1.nupkg.sha512"
+    },
+    "System.Security.Cryptography.Xml/6.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5e5bI28T0x73AwTsbuFP4qSRzthmU2C0Gqgg3AZ3KTxmSyA+Uhk31puA3srdaeWaacVnHhLdJywCzqOiEpbO/w==",
+      "path": "system.security.cryptography.xml/6.0.1",
+      "hashPath": "system.security.cryptography.xml.6.0.1.nupkg.sha512"
+    },
+    "System.ServiceModel.Duplex/4.8.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-htdZ/71tGUl+Yj/URS2dzK7v4hRR/o1/pH2Vnse9vlqZnChJTz7dV3Wk6GsHDUOuYzcufyCMuM79W6aHmL9v8w==",
+      "path": "system.servicemodel.duplex/4.8.1",
+      "hashPath": "system.servicemodel.duplex.4.8.1.nupkg.sha512"
+    },
+    "System.ServiceModel.Federation/4.8.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MoI7+PiitoeT/6Ggmlaz+kDBHodCu/OoPLdgd3TaEBR6Y7ccY0rRgh+d4O06+vajtejioynO366Ziqa3c9O70g==",
+      "path": "system.servicemodel.federation/4.8.1",
+      "hashPath": "system.servicemodel.federation.4.8.1.nupkg.sha512"
+    },
+    "System.ServiceModel.Http/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hHIv339ehbkFMkZROzSxL9IdG5prE/M1BMQaqBNsFfVOlPVo7prhG/v0G+YKebw2jTp5vJv+JRuzsTQqLmcC7g==",
+      "path": "system.servicemodel.http/6.0.0",
+      "hashPath": "system.servicemodel.http.6.0.0.nupkg.sha512"
+    },
+    "System.ServiceModel.NetTcp/4.8.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2h2Wq1wr/aBj8BwydO8h8AV5HvE7lEhgRyE6sDsftGTOr1rg5us9zxcJGT+WMlJ7pSTPXSTYCOEM/FfqHe0SEQ==",
+      "path": "system.servicemodel.nettcp/4.8.1",
+      "hashPath": "system.servicemodel.nettcp.4.8.1.nupkg.sha512"
+    },
+    "System.ServiceModel.Primitives/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-uGyB5FMdwiBmSgJtB0x9mWUuGYj/RbXjh8I6FtsZmUAVcFc6qjOasHPHnflHUk+Qqbx7cAFugDUa2HFRtDe1QA==",
+      "path": "system.servicemodel.primitives/6.0.0",
+      "hashPath": "system.servicemodel.primitives.6.0.0.nupkg.sha512"
+    },
+    "System.ServiceModel.Security/4.8.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-vCBnopz067lS+7Tn+dvpWPH9Yn5CYvSMd5StRzqa7cFDX4O7jkChRSoFWeMaNNqJCwQjafphaQn9IViwqufHZQ==",
+      "path": "system.servicemodel.security/4.8.1",
+      "hashPath": "system.servicemodel.security.4.8.1.nupkg.sha512"
+    },
+    "System.Xml.XPath.XmlDocument/4.3.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-A/uxsWi/Ifzkmd4ArTLISMbfFs6XpRPsXZonrIqyTY70xi8t+mDtvSM5Os0RqyRDobjMBwIDHDL4NOIbkDwf7A==",
+      "path": "system.xml.xpath.xmldocument/4.3.0",
+      "hashPath": "system.xml.xpath.xmldocument.4.3.0.nupkg.sha512"
+    },
+    "AntShell/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BigGustave/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CoSimulationPlugin/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "crypto/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CxxDemangler/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ELFSharp/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FdtSharp/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Infrastructure/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "libtftp/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Migrant/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "OptionsParser/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "PacketDotNet/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Renode/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SampleCommandPlugin/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SystemCPlugin/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TermSharp/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TracePlugin/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "WiresharkPlugin/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Xwt/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Xwt.Gtk3/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AntShell.Reference/1.0.9563.42682": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BigGustave.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CoSimulationPlugin.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "crypto.Reference/1.9.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CxxDemangler.Reference/1.0.9563.42684": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ELFSharp.Reference/0.1.1.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FdtSharp.Reference/0.1.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Infrastructure.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IronPython.Reference/2.7.12.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "libtftp.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Migrant.Reference/0.14.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "OptionsParser.Reference/0.1.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "PacketDotNet.Reference/0.13.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Renode.Reference/1.16.1.42688": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SampleCommandPlugin.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SystemCPlugin.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TermSharp.Reference/0.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TracePlugin.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "WiresharkPlugin.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Xwt.Reference/0.1.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Xwt.Gtk3.Reference/0.1.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FlatBuffers/0.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Nini/1.1.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BitMiracle.LibJpeg.NET/1.5.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Sprache/2.1.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "protobuf-net/2.4.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IronPython.Modules/2.7.12.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "CookComputing.XmlRpcV2/2.5.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
