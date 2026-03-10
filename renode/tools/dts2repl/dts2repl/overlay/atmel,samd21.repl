@@ -1,4 +1,0 @@
-sysbus:
-    init add:
-        Tag <0x4000080C, 0x4000080F> "SYSCTRL_PCLKSR" 0xFFFFFFFF
-

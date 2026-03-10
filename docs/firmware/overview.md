@@ -1,31 +1,35 @@
 ---
-title: Overview
+title: Firmware Overview
 parent: Firmware
 nav_order: 1
 ---
 
 # Firmware Overview
 
-The firmware targets STM32H755 dual-core devices and supports both single-core (CM4-only smoke) and CM7-first dual-core bring-up. Dual-core synchronization is driven by the HSEM peripheral and shared boot configuration.
+The firmware runs on the **STM32H7 dual-core** with Cortex-M7 as the main core and Cortex-M4 as auxiliary.
 
-## Hardware Target
+## Core Split
 
-- Primary target: NUCLEO-H755ZI-Q (dual-core STM32H755)
-- CM7 flash bank: `0x08000000`
-- CM4 flash bank: `0x08100000`
+| Core | Clock | Role |
+|---|---|---|
+| Cortex-M7 | 480 MHz | FreeRTOS + LwIP + micro-ROS XRCE-DDS |
+| Cortex-M4 | 240 MHz | Auxiliary / future expansion |
 
-TODO: Confirm any other supported STM32H7 variants used in this repo.
+Both cores synchronize via **Hardware Semaphores (HSEM)**.
 
-## Dual-Core Boot Table
+## Software Stack (CM7)
 
-| Item | CM7 | CM4 |
-| --- | --- | --- |
-| Vector base | `0x08000000` | `0x08100000` |
-| Boot sync | HSEM fast take/release | Waits for CM7 release |
-| Mailbox | `0x10047F00` shared | `0x10047F00` shared |
-| Boot flow | CM7 releases CM4, waits for ACK | CM4 ACKs back to CM7 |
+```
+FreeRTOS tasks
+    └── LwIP (UDP stack)
+        └── micro-ROS XRCE-DDS transport
+            └── UDP → micro-ROS Agent (host:8888)
+```
 
-Sources:
-- `Test_Board_Sensore/CM7/Core/Src/main_smoke_dualcore_cm7.c`
-- `Test_Board_Sensore/Makefile/CM4/stm32h755xx_flash_CM4.ld`
-- `Test_Board_Sensore/simulation/platform/nucleo_h755zi_q_dual.repl`
+## Build Output
+
+| File | Purpose |
+|---|---|
+| `MicroRosEth_CM7.elf` | CM7 debug + symbol file |
+| `MicroRosEth_CM7.bin` | CM7 raw binary |
+| `MicroRosEth_CM4.elf` | CM4 debug + symbol file |

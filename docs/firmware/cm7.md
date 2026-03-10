@@ -1,25 +1,44 @@
 ---
-title: CM7
+title: CM7 Core
 parent: Firmware
 nav_order: 2
 ---
 
-# CM7 Boot Flow
+# Cortex-M7 Core
 
-The CM7 smoke firmware is the "release" core for dual-core bring-up. It initializes UART2 and GPIO, releases CM4 using HSEM, then waits for an ACK in the shared mailbox.
+The CM7 is the primary core. It runs FreeRTOS, initializes LwIP over Ethernet, and hosts the micro-ROS client.
 
-## HSEM Release Sequence
+## Critical Startup Configuration
 
-1. Initialize GPIO and UART2 for console output.
-2. Enable HSEM clock.
-3. Set mailbox to empty.
-4. Release CM4 with `HSEM_FastTakeRelease(0U)`.
-5. Write mailbox value `MAILBOX_CM7_RELEASED`.
-6. Busy-wait until CM4 writes `MAILBOX_CM4_ACKED`.
+D-Cache **must** be disabled before Ethernet DMA is used — otherwise DMA descriptor corruption occurs:
 
-## Empty Loop Note
+```c
+// In main.c — call before HAL_Init()
+SCB_DisableDCache();
+```
 
-The CM7 waits in a tight loop for CM4 to ACK. This is an intentional blocking wait for deterministic bring-up in the Renode smoke firmware. If this is used on hardware, consider adding a timeout or watchdog integration.
+## MPU Configuration
 
-Sources:
-- `Test_Board_Sensore/CM7/Core/Src/main_smoke_dualcore_cm7.c`
+The Ethernet DMA descriptor region (SRAM2 at `0x30000000`) must be configured as non-cacheable bufferable:
+
+```c
+MPU_Region_InitTypeDef MPU_InitStruct = {0};
+MPU_InitStruct.Enable           = MPU_REGION_ENABLE;
+MPU_InitStruct.BaseAddress      = 0x30000000;  // SRAM2
+MPU_InitStruct.Size             = MPU_REGION_SIZE_32KB;
+MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;
+MPU_InitStruct.IsCacheable      = MPU_ACCESS_NOT_CACHEABLE;
+HAL_MPU_ConfigRegion(&MPU_InitStruct);
+```
+
+## STM32CubeMX Key Settings
+
+TODO: Add the exact CubeMX settings table once verified in the project.
+
+## Build
+
+```bash
+cd microrosWs/Micro_ros_eth/microroseth/Makefile/CM7
+make clean && make -j$(nproc)
+```

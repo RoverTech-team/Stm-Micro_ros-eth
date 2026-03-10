@@ -1,6 +1,0 @@
-mach create
-machine LoadPlatformDescription @/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/tests/simulation/robot/../renode/stm32h755.repl
-sysbus LoadELF @/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/tests/simulation/robot/../../../Micro_ros_eth/microroseth/Makefile/CM7/build/MicroRosEth_CM7.elf
-start
-sleep 5
-quit

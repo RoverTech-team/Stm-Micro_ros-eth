@@ -1,3 +1,0 @@
-sysbus:
-    init add:
-        ApplySVD @https://dl.antmicro.com/projects/renode/svd/STM32G474xx.svd.gz

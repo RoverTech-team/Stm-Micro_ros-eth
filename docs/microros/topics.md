@@ -1,35 +1,51 @@
 ---
-title: Topics and Env Vars
+title: ROS 2 Topics
 parent: micro-ROS
 nav_order: 3
 ---
 
-# Topics and Environment Variables
+# ROS 2 Topics
 
-## ROS 2 Topics
+All topics use `std_msgs/String` with a JSON payload in the `data` field.
 
-Default topics used by the Renode bridge and dashboard:
+## Topic Reference
 
-- `heartbeat`
-- `microk3/node_status`
-- `microk3/system_alerts`
-- `microk3/commands`
+| Topic | Direction (from dashboard) | Description |
+|---|---|---|
+| `microk3/node_status` | Subscribe | Node heartbeat and status updates |
+| `microk3/system_alerts` | Subscribe | Failure and warning alerts |
+| `microk3/commands` | Publish | Commands sent to nodes |
 
-These are configurable via environment variables.
+## Message Formats
 
-## Environment Variables
+### `microk3/node_status`
+```json
+{
+  "id": 1,
+  "status": "active",
+  "health": 95,
+  "uptime": "12h 34m"
+}
+```
+If `heartbeat_raw` key is present, microk3 also logs a `RAW_HEARTBEAT` entry.
 
-From `microrosWs/microk3/docker-compose.yml`:
+### `microk3/system_alerts`
+```json
+{
+  "node_id": 1,
+  "msg": "Overheating detected",
+  "level": "warning"
+}
+```
 
-- `ROS_DOMAIN_ID`
-- `RENODE_NODE_ID`
-- `RENODE_NODE_NAME`
-- `RENODE_NODE_TYPE`
-- `RENODE_NODE_NETWORK`
-- `RENODE_HEARTBEAT_TOPIC`
-- `RENODE_HEARTBEAT_TIMEOUT_SEC`
-- `MICROK3_STATUS_TOPIC`
-- `MICROK3_ALERT_TOPIC`
-- `MICROK3_COMMAND_TOPIC`
+### `microk3/commands`
+```json
+{
+  "target_id": 1,
+  "command": "SET_STATUS:standby"
+}
+```
 
-TODO: Document any firmware-side topic names or XRCE-DDS session identifiers.
+## Node Auto-Discovery
+
+When a new `id` appears on `microk3/node_status` that does not match any known node, microk3 **automatically creates** a new `Node` object. No manual registration is needed.

@@ -1,2 +1,0 @@
-ocram_code: Memory.MappedMemory @ sysbus 0x900000
-    size: 0x20000

@@ -1,38 +1,31 @@
 ---
 title: Troubleshooting
-nav_order: 7
+nav_order: 10
 ---
 
-# Global Troubleshooting
+# Troubleshooting
 
-## Boot Issues
+## libmicroros.a not found — firmware build fails
 
-1. CM4 never starts
-   Check CM7 HSEM release sequence and mailbox ACK (`main_smoke_dualcore_cm7.c`).
+The static library must be built manually. Follow [Building the Library](microros/build.md) step by step. The file must land at:
+```
+microrosWs/Micro_ros_eth/microroseth/micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/libmicroros.a
+```
 
-2. CM4 vector table mismatch
-   Ensure CM4 VTOR is set to `0x08100000` and the CM4 linker script targets flash bank 2.
+## Ethernet DMA corruption / firmware hangs
 
-## Timer and Sensor Issues
+`SCB_DisableDCache()` must be called before `HAL_Init()` in `main.c`. The MPU must mark SRAM2 (`0x30000000`, 32 KB) as non-cacheable bufferable. See [CM7 Core](firmware/cm7.md).
 
-1. No echo detected
-   Verify TRIG/ECHO pins (PD1/PD0) and check timeout constants in `CM4/Core/Src/main.c`.
+## micro-ROS agent not connecting
 
-2. Distance blinks are zero or stuck
-   Confirm `echo_time / 58` conversion and timer base rate (`TIMER_TARGET_HZ`).
+- Verify STM32 IP is `192.168.50.2` and agent is on `192.168.50.1:8888`
+- In TAP/Docker mode verify `TAP_GATEWAY_CIDR=192.168.50.1/24` and agent binds `0.0.0.0:8888`
+- Check `MEMP_NUM_UDP_PCB` is set to 15 in LwIP config
 
-## Renode Issues
+## microk3 ROS 2 import fails at startup
 
-1. Script exits early
-   Confirm Renode path and that required ELFs are built.
+If `ros_interface.py` fails to import, microk3 still starts but without ROS — it shows a warning and runs in API-only mode. Install `rclpy` or use the Docker image which includes ROS 2 Humble.
 
-2. No UART output
-   Use validation scripts that mirror USART to console logs.
+## Rate limit 429 errors on API
 
-## Agent and Network Issues
-
-1. XRCE-DDS session never starts
-   Check agent UDP port (`8888`) and TAP gateway IP (`192.168.50.1`).
-
-2. Dashboard empty
-   Verify `microk3` and `renode-bridge` containers are healthy and topics match defaults.
+Default limits: 30/min (read), 10/min (write). Increase via `RATELIMIT_DEFAULT` env var in `.env`.

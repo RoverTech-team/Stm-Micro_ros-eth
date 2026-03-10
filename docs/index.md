@@ -3,30 +3,26 @@ title: Home
 nav_order: 1
 ---
 
-# Stm-Micro_ros-eth Docs
+# MICRO_ROS_ETH Documentation
 
-This site collects high-level documentation for the STM32H7 micro-ROS Ethernet stack, Renode simulation, and production deployment workflows. It is intentionally concise and links into the most relevant parts of the repo.
+Complete framework for Ethernet-based micro-ROS on STM32H7 dual-core microcontrollers.
 
-## Architecture Overview
+## What This Project Does
 
-```
-Host Machine / CI
-  |-- micro-ROS agent (UDP:8888)
-  |-- microk3 dashboard (:5050)
-  |-- Renode (STM32H755 simulation)
-           |
-           | XRCE-DDS / UDP
-           v
-STM32H7 (CM7 + CM4)
-  |-- LwIP + micro-ROS
-  |-- Sensor driver (JSN-SR04T)
-```
+- Runs a ROS 2 XRCE-DDS client on STM32H7 (Cortex-M7 + FreeRTOS + LwIP)
+- Communicates over UDP Ethernet to a micro-ROS agent on the host
+- Exposes ROS 2 topics consumed by the **microk3** Flask dashboard
+- Supports hardware simulation via Renode (no physical board needed)
 
-## Sections
+## Quick Links
 
-- [Firmware](firmware/index.md)
-- [micro-ROS](microros/index.md)
-- [Simulation](simulation/index.md)
-- [Production](production/index.md)
-- [Hardware Reference](hardware/reference.md)
-- [Global Troubleshooting](troubleshooting.md)
+| Section | Description |
+|---|---|
+| [Firmware](firmware/overview.md) | STM32H7 CM7/CM4 build and flash |
+| [micro-ROS](microros/overview.md) | Library build, transport, topics |
+| [microk3](microk3/overview.md) | Flask dashboard and REST API |
+| [Simulation](simulation/overview.md) | Renode scripts and test runner |
+| [Testing](testing/overview.md) | Full test pyramid |
+| [Production](production/overview.md) | Jetson Orin NX deployment |
+| [Hardware](hardware/reference.md) | Supported boards and wiring |
+| [Troubleshooting](troubleshooting.md) | Common issues and fixes |

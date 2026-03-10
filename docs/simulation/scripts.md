@@ -1,31 +1,35 @@
 ---
-title: Scripts
+title: Running Scripts
 parent: Simulation
 nav_order: 2
 ---
 
-# Renode Scripts
+# Running Renode Scripts
 
-The main simulation scripts live in `Test_Board_Sensore/simulation/scripts`.
+## macOS (Renode.app)
 
-## Script List
+```bash
+# Full micro-ROS validation (internal network)
+Renode.app/Contents/MacOS/renode \
+  Test_Board_Sensore/simulation/scripts/microroseth_validation.resc
 
-- `board_smoke.resc`
-- `board_smoke_tap.resc`
-- `board_validation.resc`
-- `board_dual_smoke.resc`
-- `board_dual_validation.resc`
-- `firmware_validation.resc`
-- `sensor_test.resc`
-- `run_simulation.resc`
-- `microroseth_validation.resc`
-- `microroseth_validation_tap.resc`
+# Dual-core smoke test
+Renode.app/Contents/MacOS/renode \
+  Test_Board_Sensore/simulation/scripts/board_dual_smoke.resc
+```
 
-Note: The repo currently contains 10 scripts in this folder; the original plan mentioned 9. TODO: Confirm the canonical subset and update this list.
+## Linux
 
-## Selection Guide
+```bash
+# TAP-based validation (requires root for TAP setup)
+sudo renode Test_Board_Sensore/simulation/scripts/microroseth_validation_tap.resc
+```
 
-- Use `board_smoke.resc` for interactive bring-up.
-- Use `board_dual_smoke.resc` for CM7-first dual-core validation.
-- Use `microroseth_validation*.resc` for Ethernet/XRCE-DDS flows.
-- Use `sensor_test.resc` for deterministic sensor checks.
+## Full Stack with microk3 (TAP mode)
+
+```bash
+# Sets up TAP, starts micro-ROS agent, Renode, and microk3 dashboard
+cd Test_Board_Sensore/simulation/scripts
+chmod +x run_microk3_host_tap.sh
+sudo ./run_microk3_host_tap.sh
+```

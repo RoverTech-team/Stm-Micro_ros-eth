@@ -1,32 +1,44 @@
 ---
 title: Hardware Reference
-nav_order: 6
+parent: Hardware
+nav_order: 1
 ---
 
 # Hardware Reference
 
-## NUCLEO-H755ZI-Q
+## Supported Boards
 
-TODO: Add the official pinout diagram and any required board jumpers.
+| Board | MCU | Ethernet PHY | Notes |
+|---|---|---|---|
+| STM32H755I-EV | STM32H755XIH6 | LAN8742A | Primary target (dual-core) |
+| STM32H743I-EVAL | STM32H743XIH6 | LAN8742A | Single-core variant |
+| STM32H747I-DISCO | STM32H747XIH6 | LAN8742A | Dual-core discovery kit |
+| NUCLEO-H743ZI2 | STM32H743ZIT6 | LAN8742A | Nucleo (single-core) |
 
-## JSN-SR04T Wiring
+## Network Wiring
 
-From the CM4 demo and simulation helper:
+| Connection | Detail |
+|---|---|
+| STM32 Ethernet | RJ45 to switch or direct to host |
+| PHY | LAN8742A via RMII |
+| STM32 IP | `192.168.50.2` (static) |
+| Host/Agent IP | `192.168.50.1` |
 
-- TRIG: `PD1`
-- ECHO: `PD0`
-- Power: 5V sensor power (verify board wiring)
-- Ground: common GND
+## Debug Probe
 
-TODO: Confirm the exact voltage-level strategy and any level shifting used.
+| Probe | Support |
+|---|---|
+| ST-Link/V2 | ✅ Minimum |
+| ST-Link/V3 | ✅ Recommended |
 
-## Flash Map
+## Flash Commands
 
-From linker scripts and Renode platform files:
+```bash
+# OpenOCD
+openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
+  -c "program build/MicroRosEth.elf verify reset exit"
 
-- Flash bank 1 (CM7): `0x08000000`
-- Flash bank 2 (CM4): `0x08100000`
-
-Sources:
-- `Test_Board_Sensore/Makefile/CM4/stm32h755xx_flash_CM4.ld`
-- `Test_Board_Sensore/simulation/platform/nucleo_h755zi_q_dual.repl`
+# STM32CubeProgrammer CLI
+STM32_Programmer_CLI -c port=SWD \
+  -w build/MicroRosEth.elf 0x08000000 -v -rst
+```

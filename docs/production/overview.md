@@ -1,32 +1,31 @@
 ---
-title: Overview
+title: Production Overview
 parent: Production
 nav_order: 1
 ---
 
-# Production Overview
+# Production Deployment (Jetson Orin NX)
 
-The production stack packages Renode, the micro-ROS agent, and the microk3 dashboard for Jetson Orin NX, with optional HIL mode.
+Production runs four Docker services on the Jetson Orin NX via `production/jetson-orin-nx/docker-compose.jetson.yml`.
 
-## Mode A: E2E (Renode)
+## Services
+
+| Service | Image | Role |
+|---|---|---|
+| `firmware-build` | `Dockerfile.firmware-build` | Compiles CM4 + CM7 ELFs on first run |
+| `microk3` | `microrosWs/microk3/Dockerfile` | Flask dashboard on port 5050 |
+| `renode-bridge` | Same as microk3 | Bridges Renode heartbeat → ROS 2 topics |
+| `renode-e2e` | `Dockerfile.renode-e2e` | Privileged Renode sim with TAP networking |
+
+## Startup Order
 
 ```
-Jetson Orin NX
-  |-- Renode (STM32H755 sim)
-  |-- micro-ROS agent (UDP 8888)
-  |-- microk3 dashboard (HTTP 5050)
+firmware-build (completes) 
+    └── renode-e2e (starts)
+    └── microk3 (health check: /health passes)
+            └── renode-bridge (starts)
 ```
 
-## Mode B: HIL (Hardware)
+## Network
 
-```
-Jetson Orin NX
-  |-- micro-ROS agent (UDP 8888)
-  |-- microk3 dashboard
-  |
-  |  Ethernet
-  v
-STM32H7 hardware board
-```
-
-Source: `production/jetson-orin-nx/README.md`
+All services share the `renode_jetson_net` bridge network. TAP gateway defaults to `192.168.50.1/24`, agent port `8888`.

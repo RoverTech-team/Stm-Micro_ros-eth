@@ -1,24 +1,32 @@
 ---
-title: Overview
+title: micro-ROS Overview
 parent: micro-ROS
 nav_order: 1
 ---
 
 # micro-ROS Overview
 
-The micro-ROS stack targets STM32H7 dual-core MCUs with LwIP and XRCE-DDS over UDP. It integrates with the host micro-ROS agent and the `microk3` dashboard.
+The firmware implements a micro-ROS **XRCE-DDS client** over UDP/Ethernet. It connects to a micro-ROS agent running on the host at `192.168.50.1:8888`.
 
-## Network Architecture
+## Data Flow
 
-- Firmware publishes XRCE-DDS packets over UDP to the agent (default port `8888`).
-- The agent forwards topics into ROS 2.
-- `microk3` and the Renode heartbeat bridge subscribe/publish on ROS 2 topics.
+```
+STM32H7 (192.168.50.2)
+  └── FreeRTOS task
+      └── micro-ROS executor
+          └── XRCE-DDS over UDP
+              └── micro-ROS Agent (192.168.50.1:8888)
+                  └── ROS 2 topics → microk3 dashboard
+```
 
-## HIL vs Simulation
+## RMW Configuration
 
-- HIL: STM32 board connected over Ethernet to the host/Jetson running the agent and dashboard.
-- Simulation: Renode runs the STM32 image, optionally bridged to host TAP (`tap0`).
-
-Sources:
-- `microrosWs/README.md`
-- `microrosWs/tests/e2e/README.md`
+| Parameter | Value |
+|---|---|
+| Max nodes | 1 |
+| Max publishers | 5 |
+| Max subscriptions | 5 |
+| Max services | 1 |
+| Max history | 4 |
+| Transport | Custom (UDP over LwIP) |
+| Serial profile | Disabled |

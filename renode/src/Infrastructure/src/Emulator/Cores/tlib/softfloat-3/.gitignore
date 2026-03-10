@@ -1,4 +1,0 @@
-build/**/*.o
-build/**/*.a
-build/**/Debug/*
-build/**/Release/*

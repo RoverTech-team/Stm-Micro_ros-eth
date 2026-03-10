@@ -1,3 +1,0 @@
-[submodule "src/Emulator/Cores/tlib"]
-	path = src/Emulator/Cores/tlib
-	url = https://github.com/antmicro/tlib.git

@@ -1,2 +1,0 @@
-mach create
-machine LoadPlatformDescription @/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/tests/simulation/robot/../renode/stm32h755.repl

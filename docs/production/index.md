@@ -1,6 +1,6 @@
 ---
 title: Production
-nav_order: 5
+nav_order: 7
 has_children: true
 ---
 
@@ -13,5 +13,4 @@ Deployment notes for the Jetson Orin NX stack and HIL workflows.
 - [Overview](overview.md)
 - [Quick Start](quickstart.md)
 - [Configuration](configuration.md)
-- [HIL](hil.md)
 - [Troubleshooting](troubleshooting.md)

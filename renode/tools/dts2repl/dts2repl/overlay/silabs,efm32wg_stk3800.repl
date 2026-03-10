@@ -1,3 +1,0 @@
-sysbus:
-    init add:
-        Tag <0x4390058C, 0x43900590> "peripherals_bit-band_region" 0xFFFFFFFF
