@@ -1,0 +1,38 @@
+FROM microros/micro-ros-agent:humble
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=humble
+ENV MICROROS_DISABLE_SHM=1
+
+RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
+    && apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true \
+    && apt-get install -y --allow-unauthenticated --no-install-recommends \
+    iproute2 \
+    iputils-ping \
+    libfontconfig1 \
+    libglib2.0-0 \
+    libicu70 \
+    libpython3.10 \
+    procps \
+    python3 \
+    tar \
+    wget \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/renode \
+    && wget -qO /tmp/renode-portable.tar.gz https://builds.renode.io/renode-latest.linux-arm64-portable.tar.gz \
+    && tar xf /tmp/renode-portable.tar.gz -C /opt/renode --strip-components=1 \
+    && rm -f /tmp/renode-portable.tar.gz
+
+ENV RENODE_PATH=/opt/renode/renode
+ENV PATH="/opt/renode:/opt/ros/${ROS_DISTRO}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/ros/${ROS_DISTRO}/lib:${LD_LIBRARY_PATH}"
+ENV PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}"
+
+COPY renode-e2e-entrypoint.sh /usr/local/bin/renode-e2e-entrypoint.sh
+RUN chmod +x /usr/local/bin/renode-e2e-entrypoint.sh
+
+WORKDIR /workspace
+
+ENTRYPOINT ["/usr/local/bin/renode-e2e-entrypoint.sh"]

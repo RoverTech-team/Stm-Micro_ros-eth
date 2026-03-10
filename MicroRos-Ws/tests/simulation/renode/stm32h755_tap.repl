@@ -1,0 +1,88 @@
+/*
+ * STM32H755 TAP Platform Description for Renode Simulation
+ * 
+ * This platform enables direct network communication between the simulated
+ * STM32H755 and the host system using a TAP interface. This allows the
+ * micro-ROS agent running on the host to communicate with the firmware
+ * in Renode simulation.
+ *
+ * Network topology (configured in .resc script):
+ *   STM32 (192.168.0.3) <---> TAP (192.168.0.1) <---> Agent (192.168.0.8:8888)
+ *
+ * Requirements:
+ *   - TAP interface configured (run setup_tap.sh)
+ *   - micro-ROS agent listening on 192.168.0.8:8888
+ */
+
+using "platforms/cpus/stm32h743.repl"
+
+// ========================================
+// CM7 CPU Configuration
+// ========================================
+
+cpu:
+    cpuType: "cortex-m7"
+    cpuId: 0
+    memoryType: "DTCM"
+    
+nvic:
+    systickFrequency: 480_000_000
+
+// ========================================
+// Memory Configuration
+// ========================================
+
+flashBank1:
+    size: 0x200000
+
+dtcm:
+    size: 0x20000
+
+axiSram:
+    size: 0x80000
+
+// ========================================
+// UART Configuration for Debug Output
+// ========================================
+
+usart3:
+    frequency: 125_000_000
+
+// ========================================
+// Timer Configuration for FreeRTOS
+// ========================================
+
+timer6:
+    frequency: 250_000_000
+
+timer7:
+    frequency: 250_000_000
+
+// ========================================
+// System Bus Memory Tags for Ethernet DMA
+// ========================================
+
+sysbus:
+    init:
+        Tag <0x40028C00, 0x40028DFF> "ETH_MTL"
+        Tag <0x40029000, 0x400291FF> "ETH_DMA"
+        Tag <0x30040000, 0x30043FFF> "ETH_DMA_Descriptors"
+        Tag <0x30044000, 0x30047FFF> "ETH_Buffers"
+
+// ========================================
+// GPIO Configuration (LEDs)
+// ========================================
+
+ledGreen: Miscellaneous.LED @ gpioPortB 0
+ledYellow: Miscellaneous.LED @ gpioPortE 1
+ledRed: Miscellaneous.LED @ gpioPortB 14
+
+userButton: Miscellaneous.Button @ gpioPortC 13
+    -> gpioPortC@13
+
+gpioPortB:
+    0 -> ledGreen@0
+    14 -> ledRed@0
+
+gpioPortE:
+    1 -> ledYellow@0

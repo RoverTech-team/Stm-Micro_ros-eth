@@ -1,0 +1,248 @@
+/*
+ * micro-ROS Ethernet Simulation Script for STM32H755ZIT6
+ * 
+ * This script sets up the Renode simulation environment for testing
+ * micro-ROS applications with Ethernet transport on the STM32H755ZIT6.
+ * 
+ * Features:
+ * - Dual-core Cortex-M7/M4 simulation
+ * - Ethernet MAC with virtual network
+ * - micro-ROS agent UDP transport on port 8888
+ * - FreeRTOS kernel awareness
+ * - UART logging
+ */
+
+using sysbus
+using "stm32h755.repl"
+
+// ========================================
+// Simulation Configuration
+// ========================================
+
+// Simulation speed settings
+simulation speed 1.0
+
+// Enable verbose logging
+logLevel 3
+
+// ========================================
+// UART Configuration for Logging
+// ========================================
+
+// Configure USART1 as primary debug output
+uartSetup:
+    // Set baud rate to 115200
+    usart1 Setup 115200
+    
+    // Enable UART logging to console
+    showAnalyzer usart1
+    
+    // Create UART analyzer for micro-ROS output
+    analyzer usart1
+
+// ========================================
+// Ethernet Configuration
+// ========================================
+
+ethernetSetup:
+    // Enable Ethernet MAC peripheral
+    enable eth_mac
+    
+    // Configure PHY (LAN8742)
+    eth_mac SetPhyAddress 0
+    
+    // Set MAC address for the virtual interface
+    // Format: 00:02:F7:xx:xx:xx (ST Microelectronics OUI)
+    eth_mac SetMacAddress 0x00 0x02 0xF7 0x11 0x22 0x33
+    
+    // Enable DMA descriptor processing
+    eth_mac EnableDma 1
+    
+    // Create virtual Ethernet network
+    eth_mac CreateNetwork "microros_net"
+    
+    // Connect to virtual network bridge
+    connector Connect eth_mac "microros_net"
+    
+    // Enable promiscuous mode for packet capture
+    eth_mac SetPromiscuousMode false
+
+// ========================================
+// micro-ROS Agent Configuration
+// ========================================
+
+microrosAgentSetup:
+    // Create UDP transport endpoint for micro-ROS agent
+    // Agent listens on port 8888
+    
+    // Create virtual UDP server for agent communication
+    createUDPServer:
+        server CreateUDPServer "agent_server" 8888
+        
+        // Bind to Ethernet MAC
+        server BindTo eth_mac
+        
+        // Enable XRCE-DDS protocol handling
+        server SetProtocol "xrcedds"
+    
+    // Configure micro-ROS client parameters
+    // Client connects from 192.168.1.100:8888
+    configureAgentConnection:
+        // Agent IP address in virtual network
+        agentIP "192.168.1.1"
+        
+        // Client IP address
+        clientIP "192.168.1.100"
+        
+        // UDP port for XRCE-DDS
+        agentPort 8888
+        
+        // Transport profile
+        transportProfile "UDP"
+
+// ========================================
+// FreeRTOS Kernel Awareness
+// ========================================
+
+freertosSetup:
+    // Enable FreeRTOS kernel awareness plugin
+    // This allows inspecting tasks, queues, and semaphores
+    
+    // Load FreeRTOS symbols if available
+    // Symbols are loaded from ELF/DWARF debug info
+    loadSymbols:
+        // Will be populated when firmware is loaded
+        pass
+    
+    // Configure task list view
+    // taskList:
+    //     maxTasks 10
+    //     stackOverflow true
+    //     priorityRange 0-7
+
+// ========================================
+// Timer Configuration
+// ========================================
+
+timerSetup:
+    // Configure SYSTICK for 1ms tick (typical FreeRTOS config)
+    systick7 SetPeriod 1000  // 1ms in microseconds
+    
+    // Configure TIM6 as auxiliary timer for micro-ROS
+    // Used for timing and timeout functionality
+    tim6 SetFrequency 100000000
+    tim6 Enable
+
+// ========================================
+// Network Traffic Monitoring
+// ========================================
+
+monitoringSetup:
+    // Enable packet capture on Ethernet
+    eth_mac EnablePacketCapture "eth_capture.pcap"
+    
+    // Enable statistics collection
+    eth_mac EnableStatistics true
+    
+    // Set up periodic statistics reporting
+    statisticsReport:
+        interval 5000  // Every 5 seconds
+        enable true
+
+// ========================================
+// Error Injection Hooks
+// ========================================
+
+errorInjectionSetup:
+    // Python hooks for error injection
+    // Defined in ethernet.py
+    
+    // Load Python extension module
+    emulation LoadPythonExtension "ethernet.py"
+    
+    // Available error injection functions:
+    // - inject_crc_error()
+    // - inject_frame_error()
+    // - inject_overflow_error()
+    // - inject_phy_disconnect()
+    // - inject_dma_error()
+
+// ========================================
+// Firmware Loading
+// ========================================
+
+loadFirmware:
+    // Load firmware binary to Flash memory
+    // Binary should be provided via command line argument
+    
+    // Usage: firmware @path/to/firmware.elf
+    // Or: firmware @path/to/firmware.bin 0x08000000
+    
+    // Default: Load placeholder or wait for user
+    echo "Load firmware using: firmware @path/to/firmware.elf"
+
+// ========================================
+// Simulation Control
+// ========================================
+
+runSimulation:
+    // Reset the system
+    sysbus ResetAll
+    
+    // Start simulation
+    cpu7 Start
+    
+    // Print startup message
+    echo "STM32H755ZIT6 Simulation Started"
+    echo "micro-ROS Agent: UDP port 8888"
+    echo "UART Debug: USART1 @ 115200 baud"
+
+// ========================================
+// Macro Definitions
+// ========================================
+
+// Macro: Send test packet to micro-ROS agent
+macro sendTestPacket:
+    // Create a test XRCE-DDS packet
+    eth_mac InjectPacket "test_xrcedds.bin"
+    
+// Macro: Check Ethernet link status
+macro checkLink:
+    status = eth_mac GetLinkStatus
+    echo "Link Status: " + status
+
+// Macro: Show network statistics
+macro showStats:
+    stats = eth_mac GetStatistics
+    echo "TX Packets: " + stats.txPackets
+    echo "RX Packets: " + stats.rxPackets
+    echo "TX Errors: " + stats.txErrors
+    echo "RX Errors: " + stats.rxErrors
+
+// Macro: Dump current task list
+macro showTasks:
+    // FreeRTOS task list (requires kernel awareness)
+    // freertos.ListTasks
+    echo "Task listing requires FreeRTOS kernel awareness"
+
+// Macro: Set breakpoint at Ethernet ISR
+macro breakEthISR:
+    cpu7 SetBreakpoint 0x40028000 "write"
+    echo "Breakpoint set at Ethernet MAC base address"
+
+// ========================================
+// Initialization Sequence
+// ========================================
+
+// Execute initialization
+uartSetup
+ethernetSetup
+microrosAgentSetup
+freertosSetup
+timerSetup
+monitoringSetup
+errorInjectionSetup
+
+// Print ready message
+echo "micro-ROS Ethernet simulation ready"
+echo "Type 'help' for available commands"

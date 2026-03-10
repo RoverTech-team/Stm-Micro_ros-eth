@@ -1,0 +1,38 @@
+$name?="microroseth-link-flap"
+$cm7?=@/workspace/microrosWs/Micro_ros_eth/microroseth/Makefile/CM7/build/MicroRosEth_CM7.elf
+$cm4?=@/workspace/microrosWs/Micro_ros_eth/microroseth/Makefile/CM4/build/MicroRosEth_CM4.elf
+$tapInterface?="tap0"
+
+mach create $name
+machine LoadPlatformDescription @/workspace/Test_Board_Sensore/simulation/platform/nucleo_h755zi_q_dual.repl
+
+logLevel 1
+logLevel 3 rcc
+logLevel 3 exti_cm7
+logLevel 3 hsem
+logLevel 3 syscfg
+logLevel 3 usart3
+logLevel 3 ethernet
+logLevel 3 phy
+
+emulation CreateSwitch "switch"
+emulation CreateTap $tapInterface "tap"
+connector Connect host.tap switch
+connector Connect ethernet switch
+
+sysbus LoadELF $cm7 cpu=cm7
+sysbus LoadELF $cm4 cpu=cm4
+
+sysbus AddWatchpointHook 0x40004828 1 Write "self.InfoLog('UART3:' + chr(value & 0xFF))"
+sysbus AddWatchpointHook 0x40004828 4 Write "self.InfoLog('UART3:' + chr(value & 0xFF))"
+sysbus AddWatchpointHook 0x58026400 4 Write "monitor.Parse('log \"CM7 HSEM release observed; unhalting CM4\"'); monitor.Parse('cm4 IsHalted false')"
+
+start
+sleep 60
+log "Injecting PHY link down"
+phy BasicStatus 0x7809
+phy AutoNegotiationLinkPartnerBasePageAbility 0x0000
+sleep 10
+log "Restoring PHY link up"
+phy BasicStatus 0x782D
+phy AutoNegotiationLinkPartnerBasePageAbility 0x0001

@@ -1,0 +1,137 @@
+/*
+ * STM32H755 Networked Platform Description for Renode Simulation
+ * Enhanced configuration with Ethernet for micro-ROS XRCE-DDS testing
+ * 
+ * Features:
+ * - Cortex-M7 CPU with FPU
+ * - Synopsys DWC Ethernet QoS controller
+ * - Virtual PHY for network bridging
+ * - External network connector for host communication
+ * - UART for debug output
+ */
+
+using "platforms/cpus/stm32h743.repl"
+
+// ========================================
+// CM7 CPU Configuration
+// ========================================
+
+cpu:
+    cpuType: "cortex-m7"
+    cpuId: 0
+    memoryType: "DTCM"
+    
+nvic:
+    systickFrequency: 480_000_000
+
+// ========================================
+// Additional Memory for CM7
+// ========================================
+
+flashBank1:
+    size: 0x200000
+
+dtcm:
+    size: 0x20000
+
+axiSram:
+    size: 0x80000
+
+// ========================================
+// Ethernet Configuration for micro-ROS
+// ========================================
+
+// The Synopsys DWC Ethernet QoS is the STM32H7 Ethernet MAC
+// Connected to external network for host communication
+ethernet:
+    systemClockFrequency: 100_000_000
+    dmaBusWidth: BusWidth.Bits64
+    // Interrupt line already connected in base platform (nvic@61)
+
+// Virtual PHY - simulates LAN8742A PHY found on Nucleo-H753ZI
+phy: Network.EthernetPhysicalLayer @ ethernet 0
+    BasicControl: 0x3100
+    BasicStatus: 0x782D
+    Id1: 0x0007
+    Id2: 0xC130
+    AutoNegotiationAdvertisement: 0x01E1
+    AutoNegotiationLinkPartnerBasePageAbility: 0x0001
+    AutoNegotiationExpansion: 0x0064
+    AutoNegotiationNextPageTransmit: 0x2001
+
+// ========================================
+// External Network Bridge
+// ========================================
+
+// Connector to bridge Renode Ethernet with host network
+// This enables communication with micro-ROS agent running on host/Docker
+connector: Network.ExternalControlServer @ {}
+    enable: true
+
+// Virtual network switch for connecting multiple network endpoints
+switch: Network.Switch @ {}
+
+// Bridge the Ethernet MAC to the virtual switch
+// The switch enables packet forwarding between simulated and external networks
+ethernetBridge:
+    // Connect ethernet MAC to switch
+    switch Connect ethernet
+    
+// ========================================
+// UART Configuration for Debug Output
+// ========================================
+
+usart3:
+    frequency: 125_000_000
+
+// UART analyzer for capturing debug output
+uartAnalyzer:
+    // Will be configured in the RESC script
+
+// ========================================
+// Timer Configuration for FreeRTOS
+// ========================================
+
+timer6:
+    frequency: 250_000_000
+
+timer7:
+    frequency: 250_000_000
+
+// ========================================
+// System Bus Configuration
+// ========================================
+
+sysbus:
+    init:
+        // Tag Ethernet DMA regions
+        Tag <0x40028C00, 0x40028DFF> "ETH_MTL"
+        Tag <0x40029000, 0x400291FF> "ETH_DMA"
+        // Configure Ethernet DMA descriptors region
+        Tag <0x30040000, 0x30043FFF> "ETH_DMA_Descriptors"
+        // Configure Ethernet buffers region  
+        Tag <0x30044000, 0x30047FFF> "ETH_Buffers"
+
+// ========================================
+// GPIO Configuration (LEDs and User Button)
+// ========================================
+
+// Nucleo-H755ZI-Q LED1 (Green) on PB0
+ledGreen: Miscellaneous.LED @ gpioPortB 0
+
+// LED2 (Yellow) on PE1  
+ledYellow: Miscellaneous.LED @ gpioPortE 1
+
+// LED3 (Red) on PB14
+ledRed: Miscellaneous.LED @ gpioPortB 14
+
+// User Button on PC13
+userButton: Miscellaneous.Button @ gpioPortC 13
+    -> gpioPortC@13
+
+gpioPortB:
+    0 -> ledGreen@0
+    14 -> ledRed@0
+
+gpioPortE:
+    1 -> ledYellow@0

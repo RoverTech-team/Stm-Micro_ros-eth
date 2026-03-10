@@ -1,0 +1,27 @@
+/*
+ * STM32H755 CM7 Boot Test Script for Renode Simulation
+ * 
+ * This script loads the STM32H755 platform and CM7 firmware
+ * for basic boot verification testing.
+ */
+
+using sysbus
+using "stm32h755.repl"
+
+// Set log level for debugging
+logLevel 3
+
+// Simulation configuration
+simulation speed 1.0
+
+// Load CM7 firmware
+sysbus LoadELF @../../../Micro_ros_eth/microroseth/Makefile/CM7/build/MicroRosEth_CM7.elf
+
+// Setup UART analyzer for output monitoring
+showAnalyzer usart1
+
+// Reset and start
+sysbus ResetAll
+
+echo "STM32H755 CM7 Boot Test Ready"
+echo "Starting simulation..."
