@@ -10,7 +10,7 @@ Renode-based simulation, JSN-SR04T sensor model, and test harnesses.
 
 ## Pages
 
-- [Overview](overview.md)
-- [Scripts](scripts.md)
-- [Sensor Model](sensor.md)
-- [Tests](tests.md)
+- [Overview](overview.html)
+- [Scripts](scripts.html)
+- [Sensor Model](sensor.html)
+- [Tests](tests.html)

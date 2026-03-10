@@ -4,28 +4,48 @@ parent: Production
 nav_order: 1
 ---
 
-# Production Deployment (Jetson Orin NX)
+# Production Overview
+{: .no_toc }
 
-Production runs four Docker services on the Jetson Orin NX via `production/jetson-orin-nx/docker-compose.jetson.yml`.
+Deployment notes for the Jetson Orin NX stack and Hardware-in-the-Loop (HIL) workflows.
 
-## Services
+---
 
-| Service | Image | Role |
-|---|---|---|
-| `firmware-build` | `Dockerfile.firmware-build` | Compiles CM4 + CM7 ELFs on first run |
-| `microk3` | `microrosWs/microk3/Dockerfile` | Flask dashboard on port 5050 |
-| `renode-bridge` | Same as microk3 | Bridges Renode heartbeat → ROS 2 topics |
-| `renode-e2e` | `Dockerfile.renode-e2e` | Privileged Renode sim with TAP networking |
+## Startup Sequence
 
-## Startup Order
+The system follows a strict dependency chain during startup to ensure all network bridges are ready before the firmware simulation or hardware begins publishing.
 
+```mermaid
+flowchart TD
+    FB["firmware-build\n(completes)"]
+    RE["renode-e2e\n(starts)"]
+    MK["microk3\n✓ /health passes"]
+    RB["renode-bridge\n(starts)"]
+
+    FB --> RE
+    FB --> MK
+    MK --> RB
+
+    style FB fill:#1a3a2a,stroke:#2ea44f,color:#cdd9e5
+    style RE fill:#1f3a5f,stroke:#388bfd,color:#cdd9e5
+    style MK fill:#1f3a5f,stroke:#388bfd,color:#cdd9e5
+    style RB fill:#2d2a1a,stroke:#d29922,color:#cdd9e5
 ```
-firmware-build (completes) 
-    └── renode-e2e (starts)
-    └── microk3 (health check: /health passes)
-            └── renode-bridge (starts)
-```
 
-## Network
+---
 
-All services share the `renode_jetson_net` bridge network. TAP gateway defaults to `192.168.50.1/24`, agent port `8888`.
+## Services Reference
+
+| Service | Image | Port | Role |
+|---|---|---|---|
+| `firmware-build` | `Dockerfile.firmware-build` | — | Compiles CM4 + CM7 ELFs on first run |
+| `microk3` | `microrosWs/microk3/Dockerfile` | **5050** | Flask dashboard & ROS bridge |
+| `renode-bridge` | Same as microk3 | — | Bridges Renode heartbeat → ROS 2 topics |
+| `renode-e2e` | `Dockerfile.renode-e2e` | — | Privileged Renode sim with TAP networking |
+
+---
+
+## Deployment Modes
+
+1.  **Simulation Mode**: Everything runs in Docker on the Jetson Orin NX using Renode.
+2.  **HIL Mode**: `renode-e2e` is disabled; STM32H7 hardware is connected via physical Ethernet.

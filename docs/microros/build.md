@@ -5,10 +5,23 @@ nav_order: 2
 ---
 
 # Building the micro-ROS Static Library
+{: .no_toc }
 
-The pre-built `libmicroros.a` must be generated on a **Linux machine** with ROS 2 Humble installed, then copied to your project. Follow `microrosWs/step.txt` exactly.
+The pre-built `libmicroros.a` must be generated on a **Linux machine** with ROS 2 Humble installed.
 
-## Step 1 — Clone and navigate
+---
+
+## Prerequisites
+{: .fs-6 }
+
+Select your environment below to see the setup instructions:
+
+<details>
+<summary><b>Option A: Native Ubuntu 22.04 / WSL2 (Recommended)</b></summary>
+<br>
+<blockquote>
+  <p><b>IMPORTANT:</b> Requires a native Ubuntu 22.04 install or WSL2 with ROS 2 Humble.</p>
+</blockquote>
 
 ```bash
 mkdir -p ~/microros_build && cd ~/microros_build
@@ -17,8 +30,31 @@ cd micro_ros_stm32cubemx_utils/microros_static_library
 source /opt/ros/humble/setup.bash
 sudo apt install -y python3-colcon-common-extensions gcc-arm-none-eabi g++-arm-none-eabi
 ```
+</details>
 
-## Step 2 — Create `toolchain.cmake`
+<details>
+<summary><b>Option B: Docker (Mac/Windows/Linux)</b></summary>
+<br>
+<blockquote>
+  <p><b>TIP:</b> Use Docker to avoid installing ROS 2 and toolchains on your host.</p>
+</blockquote>
+
+```bash
+docker run -it --rm \
+  -v $(pwd):/project \
+  microros/micro-ros-agent:humble /bin/bash
+
+# Inside container:
+git clone https://github.com/micro-ROS/micro_ros_stm32cubemx_utils.git
+```
+</details>
+
+---
+
+## Step 1: Create `toolchain.cmake`
+{: .fs-6 }
+
+Define the cross-compiler and hardware-specific flags for the Cortex-M7.
 
 ```cmake
 set(CMAKE_SYSTEM_NAME Generic)
@@ -38,7 +74,12 @@ set(CMAKE_CXX_FLAGS_INIT "-std=c++11 ${FLAGS} -fno-rtti -D'__attribute__(x)='" C
 set(__BIG_ENDIAN__ 0)
 ```
 
-## Step 3 — Create `colcon.meta`
+---
+
+## Step 2: Create `colcon.meta`
+{: .fs-6 }
+
+Optimize the RMW layers for STM32 memory constraints.
 
 ```json
 {
@@ -53,7 +94,10 @@ set(__BIG_ENDIAN__ 0)
 }
 ```
 
-## Step 4 — Build
+---
+
+## Step 3: Execute Build
+{: .fs-6 }
 
 ```bash
 colcon build --merge-install \
@@ -61,19 +105,19 @@ colcon build --merge-install \
   --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-## Step 5 — Package and transfer
+---
+
+## Step 4: Transfer to Project
+{: .fs-6 }
+
+Extract the library and include files and copy them to the `micro_ros_stm32cubemx_utils` directory in your workspace.
 
 ```bash
 mkdir -p ~/microros_output/libmicroros
 find install -name "*.a" -exec cp {} ~/microros_output/libmicroros/ \;
 cp -r install/include ~/microros_output/libmicroros/microros_include
 cd ~ && tar -czvf microros_library.tar.gz microros_output
-# scp microros_library.tar.gz user@mac:/path/to/project
 ```
 
-## Step 6 — Place in project
-
-Extract and copy into:
-```
-microrosWs/Micro_ros_eth/microroseth/micro_ros_stm32cubemx_utils/microros_static_library/
-```
+> [!TIP]
+> Use `scp` to transfer the `.tar.gz` file to your development machine if building remotely.

@@ -4,40 +4,51 @@ parent: microk3
 nav_order: 1
 ---
 
-# microk3 Dashboard
+# microk3 Overview
+{: .no_toc }
 
-microk3 is a **Flask + rclpy** web application that monitors ROS 2 nodes in real time. It subscribes to micro-ROS topics and exposes a REST API plus a Jinja2 HTML dashboard.
+**microk3** is a lightweight Flask-based dashboard and rclpy-powered bridge that monitors micro-ROS nodes.
+
+---
+
+## Live Dashboard
+{: .fs-6 }
+
+The dashboard provides a real-time view of all nodes, their health scores, and recent failures.
+
+![microk3 Dashboard Screenshot]({{ '/assets/images/Screenshot 2026-03-10 at 22.21.08.png' | relative_url }})
+*Above: The microk3 web interface showing active nodes and system status.*
+
+---
 
 ## Architecture
 
-```
-rclpy (MicroK3RosNode)
-  ├── Subscribes: microk3/node_status
-  ├── Subscribes: microk3/system_alerts
-  └── Publishes:  microk3/commands
-        │
-        └── ros_update_callback() → Flask system_data (in-memory + JSON file)
-                                        └── REST API / HTML templates
+```mermaid
+graph LR
+    STM32[STM32H7] -- UDP --> Agent[micro-ROS Agent]
+    Agent -- ROS 2 --> Bridge[microk3 Bridge]
+    Bridge -- JSON --> UI[microk3 Flask UI]
+    Bridge -- SQLite --> DB[(Database)]
 ```
 
-## Key Behaviours
+The bridge task (powered by `rclpy`) subscribes to ROS 2 topics and persists status updates to a local JSON file or SQLite database.
 
-- **Auto-discovery**: New node IDs appearing on `microk3/node_status` are automatically registered — no pre-configuration needed.
-- **No cached state**: On startup microk3 always starts with an empty node list and waits for live ROS discovery. Persisted JSON is ignored for nodes.
-- **Duplicate failure suppression**: Consecutive identical failures are deduplicated automatically.
-- **Rate limiting**: Read endpoints 30/min, write endpoints 10/min.
+---
 
-## Running
+## REST API Integration
+
+The dashboard exposes a REST API that can be consumed by other services for automated health monitoring.
+
+[View API Reference](api.html){: .btn .btn-outline }
+
+---
+
+## Quick Setup
 
 ```bash
-# Docker (recommended)
-cd microrosWs/microk3
-docker-compose up --build
-
-# Native (requires ROS 2 Humble sourced)
-source /opt/ros/humble/setup.bash
+cd microk3
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-python app.py
+python3 app.py
 ```
-
-Access at: `http://localhost:5050`

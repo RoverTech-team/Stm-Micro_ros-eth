@@ -10,7 +10,7 @@ Micro-ROS firmware and host tooling for Ethernet-based XRCE-DDS communication.
 
 ## Pages
 
-- [Overview](overview.md)
-- [Build](build.md)
-- [Topics and Env Vars](topics.md)
-- [Host + Agent](host.md)
+- [Overview](overview.html)
+- [Build](build.html)
+- [Topics and Env Vars](topics.html)
+- [Host + Agent](host.html)

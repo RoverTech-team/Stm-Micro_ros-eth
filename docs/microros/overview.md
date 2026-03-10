@@ -5,21 +5,38 @@ nav_order: 1
 ---
 
 # micro-ROS Overview
+{: .no_toc }
 
-The firmware implements a micro-ROS **XRCE-DDS client** over UDP/Ethernet. It connects to a micro-ROS agent running on the host at `192.168.50.1:8888`.
+The firmware implements a micro-ROS **XRCE-DDS client** over UDP/Ethernet.
+
+---
 
 ## Data Flow
 
-```
-STM32H7 (192.168.50.2)
-  └── FreeRTOS task
-      └── micro-ROS executor
-          └── XRCE-DDS over UDP
-              └── micro-ROS Agent (192.168.50.1:8888)
-                  └── ROS 2 topics → microk3 dashboard
+The system communicates with a host agent residing on the same subnet (`192.168.50.x`).
+
+```mermaid
+sequenceDiagram
+    participant S as STM32H7 (CM7)
+    participant A as micro-ROS Agent
+    participant D as microk3 Dashboard
+    
+    Note over S: 192.168.50.2
+    Note over A: 192.168.50.1
+    
+    S->>A: UDP Connect (8888)
+    A->>S: Session Ack
+    loop Publishing
+        S->>A: XRCE Data Message
+        A->>D: ROS 2 Topic update
+    end
 ```
 
+---
+
 ## RMW Configuration
+
+The Client library is tuned for STM32 memory constraints.
 
 | Parameter | Value |
 |---|---|
@@ -30,3 +47,18 @@ STM32H7 (192.168.50.2)
 | Max history | 4 |
 | Transport | Custom (UDP over LwIP) |
 | Serial profile | Disabled |
+
+---
+
+## Client Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Init
+    Init --> AgentDiscovery: Ping Agent
+    AgentDiscovery --> SessionEstablish: Connect
+    SessionEstablish --> EntityCreation: Create Nodes/Pubs
+    EntityCreation --> Spin: Executor Loop
+    Spin --> Spin: Process Callbacks
+    Spin --> [*]: Error/Shutdown
+```

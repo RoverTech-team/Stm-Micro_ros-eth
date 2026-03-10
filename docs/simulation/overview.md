@@ -4,29 +4,51 @@ parent: Simulation
 nav_order: 1
 ---
 
-# Renode Simulation
+# Simulation Overview
+{: .no_toc }
 
-The project uses **Renode** to simulate the STM32H7 without physical hardware. Both bare-board and full networked (TAP) modes are supported.
+This project uses **Renode** for functional simulation of the STM32H755 firmware and the JSN-SR04T ultrasonic sensor.
 
-## Two Network Modes
+---
 
-| Mode | Interface | IP range | Use case |
-|---|---|---|---|
-| Internal | Renode virtual net | TODO | macOS dev, no TAP needed |
-| TAP | Linux TAP interface | `192.168.50.x` | CI, Docker, Jetson |
+## Renode in Action
+{: .fs-6 }
 
-## Script Inventory (`Test_Board_Sensore/simulation/scripts/`)
+Simulation allows for rapid testing of the micro-ROS state machine without physical hardware.
 
-| Script | Purpose |
-|---|---|
-| `board_smoke.resc` | Quick boot smoke test (single core) |
-| `board_smoke_tap.resc` | Smoke test over TAP interface |
-| `board_dual_smoke.resc` | Dual-core (CM7+CM4) smoke test |
-| `board_validation.resc` | Single-core full validation |
-| `board_dual_validation.resc` | Dual-core full validation |
-| `firmware_validation.resc` | Firmware-only validation (no network) |
-| `microroseth_validation.resc` | Full micro-ROS Ethernet validation |
-| `microroseth_validation_tap.resc` | micro-ROS validation over TAP |
-| `run_simulation.resc` | General-purpose simulation runner |
-| `sensor_test.resc` | Sensor board test |
-| `run_microk3_host_tap.sh` | Start TAP + agent + Renode + microk3 |
+<div class="screenshot-placeholder">
+  <span>📷 Renode Simulation Screenshot — Coming Soon</span>
+</div>
+*Above: Renode simulating the CM7 core with Ethernet peripheral activity.*
+
+---
+
+## Simulated Components
+
+1.  **STM32H755**: Functional model including Cortex-M7 and Cortex-M4.
+2.  **Ethernet (MAC)**: TAP-based networking bridge to the host.
+3.  **JSN-SR04T**: Custom C# sensor model providing distance data over UART/GPIO.
+
+---
+
+## Running a Simulation
+
+To start the simulation with the TAP interface:
+
+```bash
+# Terminal 1: Setup TAP
+sudo ip tuntap add dev tap0 mode tap
+sudo ip link set dev tap0 up
+
+# Terminal 2: Run Renode
+renode simulation/stm32h755.resc
+```
+
+---
+
+## Automated Test Harness
+
+The simulation is integrated with a Python-based test runner that verifies:
+*   Successful Ethernet DHCP/Static IP assignment.
+*   micro-ROS agent discovery.
+*   Topic publishing frequency.

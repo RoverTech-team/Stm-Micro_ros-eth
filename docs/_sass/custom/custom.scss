@@ -1,0 +1,124 @@
+// _sass/custom/custom.scss
+
+// 1. Screenshot Placeholder
+.screenshot-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  border: 2px dashed #444c56;
+  border-radius: 8px;
+  color: #8b949e;
+  background: rgba(13, 17, 23, 0.4);
+  opacity: 0.6;
+  font-style: italic;
+  margin: 1.5rem 0;
+  text-align: center;
+  padding: 1rem;
+}
+
+// 2. Callout System
+.callout {
+  border-left: 4px solid #444c56;
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.5rem 0;
+  background: rgba(13, 17, 23, 0.2);
+}
+.callout p { margin: 0; }
+.callout-label { margin-right: 0.5rem; }
+
+.callout-tip       { border-left-color: #2ea44f; background: rgba(46,164,79,.08); }
+.callout-note      { border-left-color: #388bfd; background: rgba(56,139,253,.08); }
+.callout-caution   { border-left-color: #d29922; background: rgba(210,153,34,.08); }
+.callout-warning   { border-left-color: #f85149; background: rgba(248,81,73,.08); }
+.callout-important { border-left-color: #a371f7; background: rgba(163,113,247,.08); }
+
+// 3. API & Severity Badges
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--mono-font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.badge-get    { background: #1a4a2e; color: #3fb950; border: 1px solid #238636; }
+.badge-post   { background: #0d2a4a; color: #58a6ff; border: 1px solid #1f6feb; }
+.badge-delete { background: #4a1a1a; color: #f85149; border: 1px solid #da3633; }
+
+.severity {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: var(--mono-font);
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+.severity-critical { background: rgba(248,81,73,.15); color: #f85149; border: 1px solid #da3633; }
+.severity-warning  { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid #9e6a03; }
+.severity-info     { background: rgba(56,139,253,.15); color: #388bfd; border: 1px solid #1f6feb; }
+
+// 4. Code Blocks
+.main-content pre {
+  overflow-x: auto;
+  white-space: pre;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #30363d;
+  background-color: #0d1117;
+}
+.main-content p code, .main-content li code {
+  background: rgba(110, 118, 129, 0.2);
+  border: 1px solid rgba(110, 118, 129, 0.4);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 0.85em;
+  color: #e6edf3;
+}
+
+// 5. Tables
+.main-content table tbody tr { transition: background-color 0.1s; }
+.main-content table tbody tr:hover { background-color: rgba(56, 139, 253, 0.1) !important; }
+
+// 6. Heading Anchors
+.heading-anchor {
+  opacity: 0;
+  font-size: 0.8em;
+  color: #58a6ff;
+  text-decoration: none;
+  margin-left: 0.4rem;
+  transition: opacity 0.2s;
+}
+h2:hover .heading-anchor, h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
+
+// 7. Accordions (FAQ)
+details {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  background: #0d1117;
+}
+details summary {
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #161b22;
+  user-select: none;
+  font-weight: 600;
+}
+details summary::after { content: "▸"; transition: transform 0.2s; }
+details[open] summary::after { transform: rotate(90deg); }
+details > div, details > p { padding: 1rem 1.25rem; margin: 0; }
+
+// 8. Global Layout
+.main-content { max-width: 860px; }
+@media (min-width: 1400px) { .main-content { max-width: 960px; } }

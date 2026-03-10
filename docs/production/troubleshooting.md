@@ -33,11 +33,11 @@ docker-compose run firmware-build arm-none-eabi-gcc --version
 ls microrosWs/Micro_ros_eth/microroseth/micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/libmicroros.a
 ```
 
-If the file is missing, follow [Building the Library](../../microros/build.md).
+If the file is missing, follow [Building the Library](../../microros/build.html).
 
 ## Ethernet DMA issues / firmware hangs at boot
 
-Ensure `SCB_DisableDCache()` is called in `main.c` **before** `HAL_Init()` and that the MPU is configured for SRAM2 as non-cacheable. See [CM7 Core](../../firmware/cm7.md).
+Ensure `SCB_DisableDCache()` is called in `main.c` **before** `HAL_Init()` and that the MPU is configured for SRAM2 as non-cacheable. See [CM7 Core](../../firmware/cm7.html).
 
 ## TAP interface not found
 

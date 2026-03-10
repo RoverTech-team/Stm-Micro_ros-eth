@@ -1,0 +1,842 @@
+{"0": {
+    "doc": "REST API Reference",
+    "title": "REST API Reference",
+    "content": "Authentication uses HTTP Basic Auth (username/password from .env). Read endpoints require no auth. READ 30 req/min · no auth | Method | Endpoint | Description | . | GET | /api/system_status | System summary + ROS connection status | . | GET | /api/nodes | All registered nodes | . | GET | /api/nodes/&lt;id&gt; | Single node detail | . | GET | /api/failures | Full failure history | . | GET | /api/nodes/&lt;id&gt;/logs | Log lines filtered for node | . | GET | /api/tasks | Task status dict | . | GET | /health | Health check (rate-limit exempt) | . WRITE 10 req/min · Basic Auth required | Method | Endpoint | Description | . | POST | /api/update_node | Update node status or health score | . | POST | /api/add_failure | Log a new failure for a node | . ",
+    "url": "/Stm-Micro_ros-eth/microk3/api.html",
+    
+    "relUrl": "/microk3/api.html"
+  },"1": {
+    "doc": "REST API Reference",
+    "title": "Examples",
+    "content": "# System status curl http://localhost:5050/api/system_status # Update node status (auth required) curl -u admin:password \\ -X POST -H \"Content-Type: application/json\" \\ -d '{\"node_id\": 1, \"status\": \"standby\"}' \\ http://localhost:5050/api/update_node . ",
+    "url": "/Stm-Micro_ros-eth/microk3/api.html#examples",
+    
+    "relUrl": "/microk3/api.html#examples"
+  },"2": {
+    "doc": "Building the Library",
+    "title": "Building the micro-ROS Static Library",
+    "content": "The pre-built libmicroros.a must be generated on a Linux machine with ROS 2 Humble installed. ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html#building-the-micro-ros-static-library",
+    
+    "relUrl": "/microros/build.html#building-the-micro-ros-static-library"
+  },"3": {
+    "doc": "Building the Library",
+    "title": "Prerequisites",
+    "content": "Select your environment below to see the setup instructions: . Option A: Native Ubuntu 22.04 / WSL2 (Recommended) IMPORTANT: Requires a native Ubuntu 22.04 install or WSL2 with ROS 2 Humble. ```bash mkdir -p ~/microros_build &amp;&amp; cd ~/microros_build git clone https://github.com/micro-ROS/micro_ros_stm32cubemx_utils.git cd micro_ros_stm32cubemx_utils/microros_static_library source /opt/ros/humble/setup.bash sudo apt install -y python3-colcon-common-extensions gcc-arm-none-eabi g++-arm-none-eabi ``` Option B: Docker (Mac/Windows/Linux) TIP: Use Docker to avoid installing ROS 2 and toolchains on your host. ```bash docker run -it --rm \\ -v $(pwd):/project \\ microros/micro-ros-agent:humble /bin/bash # Inside container: git clone https://github.com/micro-ROS/micro_ros_stm32cubemx_utils.git ``` . ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html#prerequisites",
+    
+    "relUrl": "/microros/build.html#prerequisites"
+  },"4": {
+    "doc": "Building the Library",
+    "title": "Step 1: Create toolchain.cmake",
+    "content": "Define the cross-compiler and hardware-specific flags for the Cortex-M7. set(CMAKE_SYSTEM_NAME Generic) set(CMAKE_CROSSCOMPILING 1) set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY) set(CMAKE_C_COMPILER arm-none-eabi-gcc) set(CMAKE_CXX_COMPILER arm-none-eabi-g++) set(CMAKE_C_COMPILER_WORKS 1 CACHE INTERNAL \"\") set(CMAKE_CXX_COMPILER_WORKS 1 CACHE INTERNAL \"\") set(FLAGS \"-O2 -ffunction-sections -fdata-sections -fno-exceptions \\ -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=softfp \\ -nostdlib --param max-inline-insns-single=500 \\ -DCLOCK_MONOTONIC=0 \\ -D'RCUTILS_LOG_MIN_SEVERITY=RCUTILS_LOG_MIN_SEVERITY_NONE'\" CACHE STRING \"\" FORCE) set(CMAKE_C_FLAGS_INIT \"-std=c11 ${FLAGS} -D'__attribute__(x)='\" CACHE STRING \"\" FORCE) set(CMAKE_CXX_FLAGS_INIT \"-std=c++11 ${FLAGS} -fno-rtti -D'__attribute__(x)='\" CACHE STRING \"\" FORCE) set(__BIG_ENDIAN__ 0) . ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html#step-1-create-toolchaincmake",
+    
+    "relUrl": "/microros/build.html#step-1-create-toolchaincmake"
+  },"5": {
+    "doc": "Building the Library",
+    "title": "Step 2: Create colcon.meta",
+    "content": "Optimize the RMW layers for STM32 memory constraints. { \"names\": { \"rcl\": { \"cmake-args\": [\"-DBUILD_TESTING=OFF\", \"-DRCL_COMMAND_LINE_ENABLED=OFF\", \"-DRCL_LOGGING_ENABLED=OFF\"] }, \"rcutils\": { \"cmake-args\": [\"-DENABLE_TESTING=OFF\", \"-DRCUTILS_NO_FILESYSTEM=ON\", \"-DRCUTILS_NO_THREAD_SUPPORT=ON\", \"-DRCUTILS_NO_64_ATOMIC=ON\", \"-DRCUTILS_AVOID_DYNAMIC_ALLOCATION=ON\"] }, \"rosidl_typesupport\":{ \"cmake-args\": [\"-DROSIDL_TYPESUPPORT_SINGLE_TYPESUPPORT=ON\"] }, \"tracetools\": { \"cmake-args\": [\"-DTRACETOOLS_DISABLED=ON\", \"-DTRACETOOLS_STATUS_CHECKING_TOOL=OFF\"] }, \"microxrcedds_client\":{ \"cmake-args\": [\"-DUCLIENT_PIC=OFF\", \"-DUCLIENT_PROFILE_UDP=ON\", \"-DUCLIENT_PROFILE_TCP=ON\", \"-DUCLIENT_PROFILE_DISCOVERY=OFF\", \"-DUCLIENT_PROFILE_SERIAL=OFF\", \"-DUCLIENT_PROFILE_STREAM_FRAMING=ON\", \"-DUCLIENT_PROFILE_CUSTOM_TRANSPORT=ON\"] }, \"rmw_microxrcedds\": { \"cmake-args\": [\"-DRMW_UXRCE_MAX_NODES=1\", \"-DRMW_UXRCE_MAX_PUBLISHERS=5\", \"-DRMW_UXRCE_MAX_SUBSCRIPTIONS=5\", \"-DRMW_UXRCE_MAX_SERVICES=1\", \"-DRMW_UXRCE_MAX_CLIENTS=1\", \"-DRMW_UXRCE_MAX_HISTORY=4\", \"-DRMW_UXRCE_TRANSPORT=custom\"] } } } . ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html#step-2-create-colconmeta",
+    
+    "relUrl": "/microros/build.html#step-2-create-colconmeta"
+  },"6": {
+    "doc": "Building the Library",
+    "title": "Step 3: Execute Build",
+    "content": "colcon build --merge-install \\ --cmake-toolchain-file toolchain.cmake \\ --cmake-args -DCMAKE_BUILD_TYPE=Release . ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html#step-3-execute-build",
+    
+    "relUrl": "/microros/build.html#step-3-execute-build"
+  },"7": {
+    "doc": "Building the Library",
+    "title": "Step 4: Transfer to Project",
+    "content": "Extract the library and include files and copy them to the micro_ros_stm32cubemx_utils directory in your workspace. mkdir -p ~/microros_output/libmicroros find install -name \"*.a\" -exec cp {} ~/microros_output/libmicroros/ \\; cp -r install/include ~/microros_output/libmicroros/microros_include cd ~ &amp;&amp; tar -czvf microros_library.tar.gz microros_output . [!TIP] Use scp to transfer the .tar.gz file to your development machine if building remotely. ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html#step-4-transfer-to-project",
+    
+    "relUrl": "/microros/build.html#step-4-transfer-to-project"
+  },"8": {
+    "doc": "Building the Library",
+    "title": "Building the Library",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/microros/build.html",
+    
+    "relUrl": "/microros/build.html"
+  },"9": {
+    "doc": "CM4 Core",
+    "title": "Cortex-M4 Core",
+    "content": "The CM4 runs at 240 MHz and is reserved for auxiliary processing. It boots after CM7 releases it via HSEM. ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm4.html#cortex-m4-core",
+    
+    "relUrl": "/firmware/cm4.html#cortex-m4-core"
+  },"10": {
+    "doc": "CM4 Core",
+    "title": "Build",
+    "content": "cd microrosWs/Micro_ros_eth/microroseth/Makefile/CM4 make clean &amp;&amp; make -j$(nproc) . ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm4.html#build",
+    
+    "relUrl": "/firmware/cm4.html#build"
+  },"11": {
+    "doc": "CM4 Core",
+    "title": "Synchronization",
+    "content": "CM7 uses Hardware Semaphore HSEM to signal CM4 boot readiness. No shared memory is used by default — extend Common/Src/ for inter-core communication. ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm4.html#synchronization",
+    
+    "relUrl": "/firmware/cm4.html#synchronization"
+  },"12": {
+    "doc": "CM4 Core",
+    "title": "CM4 Core",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm4.html",
+    
+    "relUrl": "/firmware/cm4.html"
+  },"13": {
+    "doc": "CM7 Core",
+    "title": "Cortex-M7 Core",
+    "content": "The CM7 is the primary core. It runs FreeRTOS, initializes LwIP over Ethernet, and hosts the micro-ROS client. ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm7.html#cortex-m7-core",
+    
+    "relUrl": "/firmware/cm7.html#cortex-m7-core"
+  },"14": {
+    "doc": "CM7 Core",
+    "title": "Critical Startup Configuration",
+    "content": "D-Cache must be disabled before Ethernet DMA is used — otherwise DMA descriptor corruption occurs: . [!CAUTION] If D-Cache is enabled for the DMA memory region, the Ethernet peripheral may read stale data or fail to update descriptors correctly. main.c // In main.c — call before HAL_Init() SCB_DisableDCache(); . ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm7.html#critical-startup-configuration",
+    
+    "relUrl": "/firmware/cm7.html#critical-startup-configuration"
+  },"15": {
+    "doc": "CM7 Core",
+    "title": "MPU Configuration",
+    "content": "The Ethernet DMA descriptor region (SRAM2 at 0x30000000) must be configured as non-cacheable bufferable to ensure consistency between the CPU and the Ethernet MAC. MPU Config MPU_Region_InitTypeDef MPU_InitStruct = {0}; MPU_InitStruct.Enable = MPU_REGION_ENABLE; MPU_InitStruct.BaseAddress = 0x30000000; // SRAM2 MPU_InitStruct.Size = MPU_REGION_SIZE_32KB; MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS; MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE; MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE; HAL_MPU_ConfigRegion(&amp;MPU_InitStruct); . ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm7.html#mpu-configuration",
+    
+    "relUrl": "/firmware/cm7.html#mpu-configuration"
+  },"16": {
+    "doc": "CM7 Core",
+    "title": "STM32CubeMX Key Settings",
+    "content": "| Peripheral | Setting | Value | . | ETH | Mode | RMII | . | ETH | RX Mode | Polling/Interrupt | . | LWIP | DHCP | Disabled (Static IP) | . | FREERTOS | CMSIS_V2 | Enabled | . ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm7.html#stm32cubemx-key-settings",
+    
+    "relUrl": "/firmware/cm7.html#stm32cubemx-key-settings"
+  },"17": {
+    "doc": "CM7 Core",
+    "title": "Build Commands",
+    "content": "To compile the CM7 firmware binary: . cd microrosWs/Micro_ros_eth/microroseth/Makefile/CM7 make clean &amp;&amp; make -j$(nproc) . [!NOTE] Ensure the libmicroros.a is already present in the expected utility folder before building. ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm7.html#build-commands",
+    
+    "relUrl": "/firmware/cm7.html#build-commands"
+  },"18": {
+    "doc": "CM7 Core",
+    "title": "CM7 Core",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/firmware/cm7.html",
+    
+    "relUrl": "/firmware/cm7.html"
+  },"19": {
+    "doc": "Configuration",
+    "title": "Production Configuration",
+    "content": "All values are set via environment variables in .env or the compose file. ",
+    "url": "/Stm-Micro_ros-eth/production/configuration.html#production-configuration",
+    
+    "relUrl": "/production/configuration.html#production-configuration"
+  },"20": {
+    "doc": "Configuration",
+    "title": "Environment Variables",
+    "content": "| Variable | Default | Description | . | SECRET_KEY | — (required) | Flask session secret key | . | ADMIN_USERNAME | admin | Dashboard admin login | . | ADMIN_PASSWORD | testpass123 | Dashboard admin password | . | DASHBOARD_PORT | 5050 | Host port for dashboard | . | LOG_LEVEL | INFO | Logging verbosity | . | ROS_DOMAIN_ID | 0 | ROS 2 domain isolation | . | TAP_INTERFACE | tap0 | TAP interface name | . | TAP_GATEWAY_CIDR | 192.168.50.1/24 | TAP network gateway | . | AGENT_PORT | 8888 | micro-ROS agent UDP port | . | RENODE_NODE_ID | 755 | Node ID reported by Renode sim | . | RENODE_NODE_NAME | renode-stm32h755 | Node display name | . | RENODE_HEARTBEAT_TIMEOUT_SEC | 5.0 | Seconds before node marked offline | . | RENODE_SCRIPT | microroseth_docker_tap.resc | Renode script to run | . | CM7_ELF | ...MicroRosEth_CM7.elf | Path to CM7 firmware ELF | . | CM4_ELF | ...MicroRosEth_CM4.elf | Path to CM4 firmware ELF | . ",
+    "url": "/Stm-Micro_ros-eth/production/configuration.html#environment-variables",
+    
+    "relUrl": "/production/configuration.html#environment-variables"
+  },"21": {
+    "doc": "Configuration",
+    "title": "Chaos / Resilience Testing Variables",
+    "content": "| Variable | Default | Effect | . | AGENT_RESTART_AFTER_SEC | 0 (off) | Restart agent after N seconds | . | AGENT_RESTART_DOWNTIME_SEC | 0 | Agent downtime duration | . | TAP_FLAP_AFTER_SEC | 0 (off) | Bring TAP down after N seconds | . | RENODE_RESTART_AFTER_SEC | 0 (off) | Restart Renode after N seconds | . ",
+    "url": "/Stm-Micro_ros-eth/production/configuration.html#chaos--resilience-testing-variables",
+    
+    "relUrl": "/production/configuration.html#chaos--resilience-testing-variables"
+  },"22": {
+    "doc": "Configuration",
+    "title": "Configuration",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/production/configuration.html",
+    
+    "relUrl": "/production/configuration.html"
+  },"23": {
+    "doc": "Contributing",
+    "title": "Contributing",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/contributing.html",
+    
+    "relUrl": "/contributing.html"
+  },"24": {
+    "doc": "Contributing",
+    "title": "Branch Strategy",
+    "content": "| Branch | Purpose | . | main | Stable source code | . | Documentation | Docs site (docs/ folder) | . ",
+    "url": "/Stm-Micro_ros-eth/contributing.html#branch-strategy",
+    
+    "relUrl": "/contributing.html#branch-strategy"
+  },"25": {
+    "doc": "Contributing",
+    "title": "Commit Convention",
+    "content": "Use Conventional Commits: . feat(firmware): add CM4 HSEM interrupt handler fix(microk3): deduplicate failure entries on rapid alerts docs(microros): add colcon.meta reference test(e2e): add TAP flap resilience scenario . ",
+    "url": "/Stm-Micro_ros-eth/contributing.html#commit-convention",
+    
+    "relUrl": "/contributing.html#commit-convention"
+  },"26": {
+    "doc": "Contributing",
+    "title": "Running Tests Before PR",
+    "content": "# Unit tests cd microrosWs/tests/host &amp;&amp; make &amp;&amp; ./build/test_runner # All Docker tests cd microrosWs/tests &amp;&amp; ./run_docker_tests.sh . ",
+    "url": "/Stm-Micro_ros-eth/contributing.html#running-tests-before-pr",
+    
+    "relUrl": "/contributing.html#running-tests-before-pr"
+  },"27": {
+    "doc": "Contributing",
+    "title": "Pull Request Checklist",
+    "content": ". | make passes for both CM7 and CM4 | Unit tests pass (tests/host) | No new cppcheck / clang-tidy warnings | Docker tests pass if touching integration/E2E | Docs updated if changing API, topics, or config | . ",
+    "url": "/Stm-Micro_ros-eth/contributing.html#pull-request-checklist",
+    
+    "relUrl": "/contributing.html#pull-request-checklist"
+  },"28": {
+    "doc": "FAQ",
+    "title": "Frequently Asked Questions (FAQ)",
+    "content": "Why use Ethernet instead of Serial for micro-ROS? Ethernet offers significantly higher bandwidth, lower latency, and better scalability for complex ROS 2 systems. It also allows the microcontroller to reside on a standard IP network. Can I use both cores for micro-ROS? In this implementation, only the CM7 core runs the micro-ROS client and the LwIP stack. The CM4 core is reserved for time-critical auxiliary tasks (like high-speed sensor reading) that communicate with the CM7 via shared memory and HSEM. Does this support ROS 2 Humble? Yes, this project is fully compatible with ROS 2 Humble. Ensure your host agent and microk3 environment are also running Humble. How do I change the IP address? The static IP is currently configured in the CM7 source code within the LwIP initialization. See CM7 Configuration for details. Why is my build failing on macOS? Building the libmicroros.a library currently requires a Linux-based ROS 2 environment. We recommend using the provided Docker build method if you are on macOS or Windows. ",
+    "url": "/Stm-Micro_ros-eth/faq.html#frequently-asked-questions-faq",
+    
+    "relUrl": "/faq.html#frequently-asked-questions-faq"
+  },"29": {
+    "doc": "FAQ",
+    "title": "FAQ",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/faq.html",
+    
+    "relUrl": "/faq.html"
+  },"30": {
+    "doc": "Glossary",
+    "title": "Glossary",
+    "content": "A list of technical terms and abbreviations used throughout this project. | Term | Definition | . | CM7 | Cortex-M7 — The high-performance primary core of the STM32H755. | . | CM4 | Cortex-M4 — The auxiliary core of the STM32H755. | . | DDS | Data Distribution Service — A middleware standard for data-centric connectivity. | . | HSEM | Hardware Semaphore — A hardware block used for synchronization between the CM7 and CM4 cores. | . | LwIP | Lightweight IP — A small open-source TCP/IP stack used for embedded systems. | . | micro-ROS | An implementation of ROS 2 specifically for microcontrollers. | . | MPU | Memory Protection Unit — Used to define memory regions and their attributes (e.g., cacheability). | . | RMW | ROS Middleware Interface — The layer that abstracts the underlying DDS implementation in ROS 2. | . | TAP | Network TAP — A virtual network interface on the host used for simulation. | . | XRCE-DDS | eXtremely Resource Constrained Environments DDS — The protocol used by micro-ROS to communicate with a ROS 2 agent. | . ",
+    "url": "/Stm-Micro_ros-eth/glossary.html",
+    
+    "relUrl": "/glossary.html"
+  },"31": {
+    "doc": "HIL",
+    "title": "Hardware-In-The-Loop (HIL)",
+    "content": "HIL replaces Renode with a real STM32 board while keeping the agent and dashboard on Jetson. From production/jetson-orin-nx/README.md: . | Build the HIL firmware: | . make -C ../../microrosWs/Micro_ros_eth/microroseth/Makefile/CM7_hil -j$(nproc) . | Start the HIL stack: | . STACK=hil ./scripts/start.sh . | Verify and inspect logs: | . STACK=hil ./scripts/healthcheck.sh STACK=hil ./scripts/logs.sh micro-ros-agent --tail 200 STACK=hil ./scripts/logs.sh renode-bridge --tail 200 . TODO: Add board IP configuration steps if they are documented elsewhere. ",
+    "url": "/Stm-Micro_ros-eth/production/hil.html#hardware-in-the-loop-hil",
+    
+    "relUrl": "/production/hil.html#hardware-in-the-loop-hil"
+  },"32": {
+    "doc": "HIL",
+    "title": "HIL",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/production/hil.html",
+    
+    "relUrl": "/production/hil.html"
+  },"33": {
+    "doc": "Running the Agent",
+    "title": "Running the micro-ROS Agent (Host)",
+    "content": "The agent bridges XRCE-DDS (UDP) from the STM32 to ROS 2 DDS on the host. ",
+    "url": "/Stm-Micro_ros-eth/microros/host.html#running-the-micro-ros-agent-host",
+    
+    "relUrl": "/microros/host.html#running-the-micro-ros-agent-host"
+  },"34": {
+    "doc": "Running the Agent",
+    "title": "Via Docker (recommended)",
+    "content": "docker run -it --rm \\ --net=host \\ microros/micro-ros-agent:humble \\ udp4 --port 8888 . ",
+    "url": "/Stm-Micro_ros-eth/microros/host.html#via-docker-recommended",
+    
+    "relUrl": "/microros/host.html#via-docker-recommended"
+  },"35": {
+    "doc": "Running the Agent",
+    "title": "Via docker-compose (microk3 stack)",
+    "content": "The microk3/docker-compose.yml includes the agent as a service. Run: . cd microrosWs/microk3 docker-compose up . ",
+    "url": "/Stm-Micro_ros-eth/microros/host.html#via-docker-compose-microk3-stack",
+    
+    "relUrl": "/microros/host.html#via-docker-compose-microk3-stack"
+  },"36": {
+    "doc": "Running the Agent",
+    "title": "Network Requirements",
+    "content": "| Item | Value | . | Agent IP | 192.168.50.1 | . | Agent port | 8888 (UDP) | . | STM32 IP | 192.168.50.2 | . | Subnet | 192.168.50.0/24 | . In Renode/TAP mode the subnet shifts to 192.168.50.0/24 via environment variable TAP_GATEWAY_CIDR. ",
+    "url": "/Stm-Micro_ros-eth/microros/host.html#network-requirements",
+    
+    "relUrl": "/microros/host.html#network-requirements"
+  },"37": {
+    "doc": "Running the Agent",
+    "title": "Running the Agent",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/microros/host.html",
+    
+    "relUrl": "/microros/host.html"
+  },"38": {
+    "doc": "Simulation",
+    "title": "Simulation",
+    "content": "Renode-based simulation, JSN-SR04T sensor model, and test harnesses. ",
+    "url": "/Stm-Micro_ros-eth/simulation/",
+    
+    "relUrl": "/simulation/"
+  },"39": {
+    "doc": "Simulation",
+    "title": "Pages",
+    "content": ". | Overview | Scripts | Sensor Model | Tests | . ",
+    "url": "/Stm-Micro_ros-eth/simulation/#pages",
+    
+    "relUrl": "/simulation/#pages"
+  },"40": {
+    "doc": "microk3",
+    "title": "microk3",
+    "content": "Flask + rclpy dashboard for monitoring micro-ROS nodes. ",
+    "url": "/Stm-Micro_ros-eth/microk3/",
+    
+    "relUrl": "/microk3/"
+  },"41": {
+    "doc": "microk3",
+    "title": "Pages",
+    "content": ". | Overview | REST API Reference | . ",
+    "url": "/Stm-Micro_ros-eth/microk3/#pages",
+    
+    "relUrl": "/microk3/#pages"
+  },"42": {
+    "doc": "Firmware",
+    "title": "Firmware",
+    "content": "Documentation for the STM32H755 dual-core firmware and the JSN-SR04T demo flow. 📋 Overview . Architecture, core split, and shared memory synchronization. 🧠 Cortex-M7 . Primary core setup: FreeRTOS, LwIP, and micro-ROS client. ⚡ Cortex-M4 . Auxiliary core: High-speed sensor interfacing and IPC. ",
+    "url": "/Stm-Micro_ros-eth/firmware/",
+    
+    "relUrl": "/firmware/"
+  },"43": {
+    "doc": "Hardware",
+    "title": "Hardware",
+    "content": "Reference information for supported boards and wiring. 🔌 Reference . Wiring diagrams, pinouts, and hardware specifications. ",
+    "url": "/Stm-Micro_ros-eth/hardware/",
+    
+    "relUrl": "/hardware/"
+  },"44": {
+    "doc": "Testing",
+    "title": "Testing",
+    "content": "Test layers spanning unit tests to full end-to-end Docker pipelines. 🔍 Overview . Test philosophy and the multi-layer test pyramid. ",
+    "url": "/Stm-Micro_ros-eth/testing/",
+    
+    "relUrl": "/testing/"
+  },"45": {
+    "doc": "Home",
+    "title": "MICRO_ROS_ETH",
+    "content": "Ethernet-based micro-ROS on STM32H7 dual-core microcontrollers. Get Started View on GitHub . ",
+    "url": "/Stm-Micro_ros-eth/#micro_ros_eth",
+    
+    "relUrl": "/#micro_ros_eth"
+  },"46": {
+    "doc": "Home",
+    "title": "Key Features",
+    "content": "⚡ High Performance . Cortex-M7 (480 MHz) + Cortex-M4 (240 MHz) with FreeRTOS and LwIP for low-latency communication. 📡 micro-ROS Ready . Optimized XRCE-DDS over Ethernet transport layer for seamless ROS 2 integration. 📊 Live Dashboard . Real-time monitoring via microk3 Flask-based REST API and web UI. 🛠️ Simulation First . Test firmware in Renode with custom sensor models before hardware deployment. ",
+    "url": "/Stm-Micro_ros-eth/#key-features",
+    
+    "relUrl": "/#key-features"
+  },"47": {
+    "doc": "Home",
+    "title": "Documentation Sections",
+    "content": "💾 Firmware . STM32H7 dual-core build system, CM7/CM4 split, and HSEM synchronization. 🤖 micro-ROS . Transport layer, RMW configuration, and ROS 2 topic mapping. 🕸️ microk3 . Flask dashboard setup, REST API reference, and rclpy bridge. 🔄 Simulation . Renode scripts, sensor modeling, and automated test runner. 🚀 Production . Jetson Orin NX deployment and Hardware-in-the-Loop workflows. 🔌 Hardware . Wiring diagrams, pinouts, and supported development boards. Glossary FAQ Troubleshooting ",
+    "url": "/Stm-Micro_ros-eth/#documentation-sections",
+    
+    "relUrl": "/#documentation-sections"
+  },"48": {
+    "doc": "Home",
+    "title": "Home",
+    "content": ". ",
+    "url": "/Stm-Micro_ros-eth/",
+    
+    "relUrl": "/"
+  },"49": {
+    "doc": "micro-ROS",
+    "title": "micro-ROS",
+    "content": "Micro-ROS firmware and host tooling for Ethernet-based XRCE-DDS communication. ",
+    "url": "/Stm-Micro_ros-eth/microros/",
+    
+    "relUrl": "/microros/"
+  },"50": {
+    "doc": "micro-ROS",
+    "title": "Pages",
+    "content": ". | Overview | Build | Topics and Env Vars | Host + Agent | . ",
+    "url": "/Stm-Micro_ros-eth/microros/#pages",
+    
+    "relUrl": "/microros/#pages"
+  },"51": {
+    "doc": "Production",
+    "title": "Production",
+    "content": "Deployment notes for the Jetson Orin NX stack and HIL workflows. ",
+    "url": "/Stm-Micro_ros-eth/production/",
+    
+    "relUrl": "/production/"
+  },"52": {
+    "doc": "Production",
+    "title": "Pages",
+    "content": ". | Overview | Quick Start | Configuration | Troubleshooting | . ",
+    "url": "/Stm-Micro_ros-eth/production/#pages",
+    
+    "relUrl": "/production/#pages"
+  },"53": {
+    "doc": "Testing Overview",
+    "title": "Test Pyramid",
+    "content": "The project has seven test layers covering firmware through full end-to-end pipeline. ",
+    "url": "/Stm-Micro_ros-eth/testing/overview.html#test-pyramid",
+    
+    "relUrl": "/testing/overview.html#test-pyramid"
+  },"54": {
+    "doc": "Testing Overview",
+    "title": "Test Layers",
+    "content": "| Layer | Location | Framework | What it tests | . | Unit | microrosWs/tests/host/ | Unity (C) | Memory, IP config, UDP transport, allocators | . | Fuzzing | microrosWs/tests/fuzzing/ | LibFuzzer | UDP framing, Ethernet frames, allocators | . | Integration | microrosWs/tests/integration/ | pytest | micro-ROS agent comms, ROS 2 topics, UDP layer | . | E2E (macOS) | microrosWs/tests/e2e/ | pytest | Full pipeline: firmware → agent → dashboard | . | E2E (Linux) | microrosWs/tests/e2eLinux/ | pytest | TAP-based pipeline on Linux | . | Simulation | microrosWs/tests/simulation/ | Robot Framework | Renode platform validation | . | Dashboard | microrosWs/microk3/tests/ | pytest | Flask API and ROS interface | . ",
+    "url": "/Stm-Micro_ros-eth/testing/overview.html#test-layers",
+    
+    "relUrl": "/testing/overview.html#test-layers"
+  },"55": {
+    "doc": "Testing Overview",
+    "title": "Running Tests",
+    "content": "Unit tests (host, no hardware) . cd microrosWs/tests/host make &amp;&amp; ./build/test_runner . Integration tests . cd microrosWs/tests/integration pip install -r requirements.txt pytest -v . All Docker tests (recommended for CI) . cd microrosWs/tests chmod +x run_docker_tests.sh ./run_docker_tests.sh . Fuzzing (sanitizers required) . cd microrosWs/tests/fuzzing make fuzz . ",
+    "url": "/Stm-Micro_ros-eth/testing/overview.html#running-tests",
+    
+    "relUrl": "/testing/overview.html#running-tests"
+  },"56": {
+    "doc": "Testing Overview",
+    "title": "Testing Overview",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/testing/overview.html",
+    
+    "relUrl": "/testing/overview.html"
+  },"57": {
+    "doc": "micro-ROS Overview",
+    "title": "micro-ROS Overview",
+    "content": "The firmware implements a micro-ROS XRCE-DDS client over UDP/Ethernet. ",
+    "url": "/Stm-Micro_ros-eth/microros/overview.html",
+    
+    "relUrl": "/microros/overview.html"
+  },"58": {
+    "doc": "micro-ROS Overview",
+    "title": "Data Flow",
+    "content": "The system communicates with a host agent residing on the same subnet (192.168.50.x). sequenceDiagram participant S as STM32H7 (CM7) participant A as micro-ROS Agent participant D as microk3 Dashboard Note over S: 192.168.50.2 Note over A: 192.168.50.1 S-&gt;&gt;A: UDP Connect (8888) A-&gt;&gt;S: Session Ack loop Publishing S-&gt;&gt;A: XRCE Data Message A-&gt;&gt;D: ROS 2 Topic update end . ",
+    "url": "/Stm-Micro_ros-eth/microros/overview.html#data-flow",
+    
+    "relUrl": "/microros/overview.html#data-flow"
+  },"59": {
+    "doc": "micro-ROS Overview",
+    "title": "RMW Configuration",
+    "content": "The Client library is tuned for STM32 memory constraints. | Parameter | Value | . | Max nodes | 1 | . | Max publishers | 5 | . | Max subscriptions | 5 | . | Max services | 1 | . | Max history | 4 | . | Transport | Custom (UDP over LwIP) | . | Serial profile | Disabled | . ",
+    "url": "/Stm-Micro_ros-eth/microros/overview.html#rmw-configuration",
+    
+    "relUrl": "/microros/overview.html#rmw-configuration"
+  },"60": {
+    "doc": "micro-ROS Overview",
+    "title": "Client Lifecycle",
+    "content": "stateDiagram-v2 [*] --&gt; Init Init --&gt; AgentDiscovery: Ping Agent AgentDiscovery --&gt; SessionEstablish: Connect SessionEstablish --&gt; EntityCreation: Create Nodes/Pubs EntityCreation --&gt; Spin: Executor Loop Spin --&gt; Spin: Process Callbacks Spin --&gt; [*]: Error/Shutdown . ",
+    "url": "/Stm-Micro_ros-eth/microros/overview.html#client-lifecycle",
+    
+    "relUrl": "/microros/overview.html#client-lifecycle"
+  },"61": {
+    "doc": "Simulation Overview",
+    "title": "Simulation Overview",
+    "content": "This project uses Renode for functional simulation of the STM32H755 firmware and the JSN-SR04T ultrasonic sensor. ",
+    "url": "/Stm-Micro_ros-eth/simulation/overview.html",
+    
+    "relUrl": "/simulation/overview.html"
+  },"62": {
+    "doc": "Simulation Overview",
+    "title": "Renode in Action",
+    "content": "Simulation allows for rapid testing of the micro-ROS state machine without physical hardware. 📷 Renode Simulation Screenshot — Coming Soon Above: Renode simulating the CM7 core with Ethernet peripheral activity. ",
+    "url": "/Stm-Micro_ros-eth/simulation/overview.html#renode-in-action",
+    
+    "relUrl": "/simulation/overview.html#renode-in-action"
+  },"63": {
+    "doc": "Simulation Overview",
+    "title": "Simulated Components",
+    "content": ". | STM32H755: Functional model including Cortex-M7 and Cortex-M4. | Ethernet (MAC): TAP-based networking bridge to the host. | JSN-SR04T: Custom C# sensor model providing distance data over UART/GPIO. | . ",
+    "url": "/Stm-Micro_ros-eth/simulation/overview.html#simulated-components",
+    
+    "relUrl": "/simulation/overview.html#simulated-components"
+  },"64": {
+    "doc": "Simulation Overview",
+    "title": "Running a Simulation",
+    "content": "To start the simulation with the TAP interface: . # Terminal 1: Setup TAP sudo ip tuntap add dev tap0 mode tap sudo ip link set dev tap0 up # Terminal 2: Run Renode renode simulation/stm32h755.resc . ",
+    "url": "/Stm-Micro_ros-eth/simulation/overview.html#running-a-simulation",
+    
+    "relUrl": "/simulation/overview.html#running-a-simulation"
+  },"65": {
+    "doc": "Simulation Overview",
+    "title": "Automated Test Harness",
+    "content": "The simulation is integrated with a Python-based test runner that verifies: . | Successful Ethernet DHCP/Static IP assignment. | micro-ROS agent discovery. | Topic publishing frequency. | . ",
+    "url": "/Stm-Micro_ros-eth/simulation/overview.html#automated-test-harness",
+    
+    "relUrl": "/simulation/overview.html#automated-test-harness"
+  },"66": {
+    "doc": "Firmware Overview",
+    "title": "Firmware Overview",
+    "content": "The firmware runs on the STM32H7 dual-core with Cortex-M7 as the main core and Cortex-M4 as auxiliary. ",
+    "url": "/Stm-Micro_ros-eth/firmware/overview.html",
+    
+    "relUrl": "/firmware/overview.html"
+  },"67": {
+    "doc": "Firmware Overview",
+    "title": "Core Split",
+    "content": "Both cores synchronize via Hardware Semaphores (HSEM) to prevent shared memory corruption. graph TD M7[Cortex-M7 @ 480 MHz] M4[Cortex-M4 @ 240 MHz] HSEM[Hardware Semaphores] M7 &lt;--&gt; HSEM M4 &lt;--&gt; HSEM M7 --- Shared[Shared RAM] --- M4 style M7 fill:#1f3a5f,stroke:#388bfd,color:#fff style M4 fill:#1a3a2a,stroke:#2ea44f,color:#fff style HSEM fill:#2d2a1a,stroke:#d29922,color:#fff . | Core | Clock | Role | . | Cortex-M7 | 480 MHz | FreeRTOS + LwIP + micro-ROS XRCE-DDS | . | Cortex-M4 | 240 MHz | Auxiliary / future expansion | . ",
+    "url": "/Stm-Micro_ros-eth/firmware/overview.html#core-split",
+    
+    "relUrl": "/firmware/overview.html#core-split"
+  },"68": {
+    "doc": "Firmware Overview",
+    "title": "Memory Map",
+    "content": "The STM32H755 memory is partitioned to support dual-core operation and Ethernet DMA. graph LR subgraph D1[\"Domain D1 (High Speed)\"] M7_Code[AXI SRAM: CM7 Program] end subgraph D2[\"Domain D2 (Communication)\"] ETH_DMA[SRAM2: Ethernet DMA] M4_Code[SRAM1: CM4 Program] end subgraph D3[\"Domain D3 (Always On)\"] Shared[SRAM4: Shared Data] end style D1 fill:#0d1117,stroke:#388bfd style D2 fill:#0d1117,stroke:#2ea44f style D3 fill:#0d1117,stroke:#d29922 . ",
+    "url": "/Stm-Micro_ros-eth/firmware/overview.html#memory-map",
+    
+    "relUrl": "/firmware/overview.html#memory-map"
+  },"69": {
+    "doc": "Firmware Overview",
+    "title": "Software Stack (CM7)",
+    "content": "The CM7 core handles all communication using the LwIP UDP stack. flowchart TB subgraph CM7[\"Cortex-M7 Stack\"] FreeRTOS[FreeRTOS Task] --&gt; XRCE[\"XRCE-DDS Transport\"] XRCE --&gt; LwIP[\"LwIP UDP Stack\"] LwIP --&gt; EMAC[\"Ethernet MAC\"] end subgraph Net[\"Network\"] Agent[\"micro-ROS Agent\"] end EMAC --&gt;|\"UDP :8888\"| Agent style CM7 fill:#0d1117,stroke:#388bfd style Net fill:#0d1117,stroke:#2ea44f . ",
+    "url": "/Stm-Micro_ros-eth/firmware/overview.html#software-stack-cm7",
+    
+    "relUrl": "/firmware/overview.html#software-stack-cm7"
+  },"70": {
+    "doc": "Firmware Overview",
+    "title": "Build Output",
+    "content": "| File | Purpose | . | MicroRosEth_CM7.elf | CM7 debug + symbol file | . | MicroRosEth_CM7.bin | CM7 raw binary | . | MicroRosEth_CM4.elf | CM4 debug + symbol file | . ",
+    "url": "/Stm-Micro_ros-eth/firmware/overview.html#build-output",
+    
+    "relUrl": "/firmware/overview.html#build-output"
+  },"71": {
+    "doc": "Production Overview",
+    "title": "Production Overview",
+    "content": "Deployment notes for the Jetson Orin NX stack and Hardware-in-the-Loop (HIL) workflows. ",
+    "url": "/Stm-Micro_ros-eth/production/overview.html",
+    
+    "relUrl": "/production/overview.html"
+  },"72": {
+    "doc": "Production Overview",
+    "title": "Startup Sequence",
+    "content": "The system follows a strict dependency chain during startup to ensure all network bridges are ready before the firmware simulation or hardware begins publishing. flowchart TD FB[\"firmware-build\\n(completes)\"] RE[\"renode-e2e\\n(starts)\"] MK[\"microk3\\n✓ /health passes\"] RB[\"renode-bridge\\n(starts)\"] FB --&gt; RE FB --&gt; MK MK --&gt; RB style FB fill:#1a3a2a,stroke:#2ea44f,color:#cdd9e5 style RE fill:#1f3a5f,stroke:#388bfd,color:#cdd9e5 style MK fill:#1f3a5f,stroke:#388bfd,color:#cdd9e5 style RB fill:#2d2a1a,stroke:#d29922,color:#cdd9e5 . ",
+    "url": "/Stm-Micro_ros-eth/production/overview.html#startup-sequence",
+    
+    "relUrl": "/production/overview.html#startup-sequence"
+  },"73": {
+    "doc": "Production Overview",
+    "title": "Services Reference",
+    "content": "| Service | Image | Port | Role | . | firmware-build | Dockerfile.firmware-build | — | Compiles CM4 + CM7 ELFs on first run | . | microk3 | microrosWs/microk3/Dockerfile | 5050 | Flask dashboard &amp; ROS bridge | . | renode-bridge | Same as microk3 | — | Bridges Renode heartbeat → ROS 2 topics | . | renode-e2e | Dockerfile.renode-e2e | — | Privileged Renode sim with TAP networking | . ",
+    "url": "/Stm-Micro_ros-eth/production/overview.html#services-reference",
+    
+    "relUrl": "/production/overview.html#services-reference"
+  },"74": {
+    "doc": "Production Overview",
+    "title": "Deployment Modes",
+    "content": ". | Simulation Mode: Everything runs in Docker on the Jetson Orin NX using Renode. | HIL Mode: renode-e2e is disabled; STM32H7 hardware is connected via physical Ethernet. | . ",
+    "url": "/Stm-Micro_ros-eth/production/overview.html#deployment-modes",
+    
+    "relUrl": "/production/overview.html#deployment-modes"
+  },"75": {
+    "doc": "microk3 Overview",
+    "title": "microk3 Overview",
+    "content": "microk3 is a lightweight Flask-based dashboard and rclpy-powered bridge that monitors micro-ROS nodes. ",
+    "url": "/Stm-Micro_ros-eth/microk3/overview.html",
+    
+    "relUrl": "/microk3/overview.html"
+  },"76": {
+    "doc": "microk3 Overview",
+    "title": "Live Dashboard",
+    "content": "The dashboard provides a real-time view of all nodes, their health scores, and recent failures. Above: The microk3 web interface showing active nodes and system status. ",
+    "url": "/Stm-Micro_ros-eth/microk3/overview.html#live-dashboard",
+    
+    "relUrl": "/microk3/overview.html#live-dashboard"
+  },"77": {
+    "doc": "microk3 Overview",
+    "title": "Architecture",
+    "content": "graph LR STM32[STM32H7] -- UDP --&gt; Agent[micro-ROS Agent] Agent -- ROS 2 --&gt; Bridge[microk3 Bridge] Bridge -- JSON --&gt; UI[microk3 Flask UI] Bridge -- SQLite --&gt; DB[(Database)] . The bridge task (powered by rclpy) subscribes to ROS 2 topics and persists status updates to a local JSON file or SQLite database. ",
+    "url": "/Stm-Micro_ros-eth/microk3/overview.html#architecture",
+    
+    "relUrl": "/microk3/overview.html#architecture"
+  },"78": {
+    "doc": "microk3 Overview",
+    "title": "REST API Integration",
+    "content": "The dashboard exposes a REST API that can be consumed by other services for automated health monitoring. View API Reference . ",
+    "url": "/Stm-Micro_ros-eth/microk3/overview.html#rest-api-integration",
+    
+    "relUrl": "/microk3/overview.html#rest-api-integration"
+  },"79": {
+    "doc": "microk3 Overview",
+    "title": "Quick Setup",
+    "content": "cd microk3 python3 -m venv venv source venv/bin/activate pip install -r requirements.txt python3 app.py . ",
+    "url": "/Stm-Micro_ros-eth/microk3/overview.html#quick-setup",
+    
+    "relUrl": "/microk3/overview.html#quick-setup"
+  },"80": {
+    "doc": "Quick Start",
+    "title": "Production Quick Start",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/production/quickstart.html#production-quick-start",
+    
+    "relUrl": "/production/quickstart.html#production-quick-start"
+  },"81": {
+    "doc": "Quick Start",
+    "title": "1 — Clone and configure",
+    "content": "git clone https://github.com/RoverTech-team/Stm-Micro_ros-eth.git cd Stm-Micro_ros-eth/production/jetson-orin-nx cp .env.example .env # Edit .env — set SECRET_KEY and ADMIN_PASSWORD . ",
+    "url": "/Stm-Micro_ros-eth/production/quickstart.html#1--clone-and-configure",
+    
+    "relUrl": "/production/quickstart.html#1--clone-and-configure"
+  },"82": {
+    "doc": "Quick Start",
+    "title": "2 — Start the stack",
+    "content": "docker-compose -f docker-compose.jetson.yml up --build . First run compiles the firmware on-device (takes 5–10 min). Subsequent starts are fast. ",
+    "url": "/Stm-Micro_ros-eth/production/quickstart.html#2--start-the-stack",
+    
+    "relUrl": "/production/quickstart.html#2--start-the-stack"
+  },"83": {
+    "doc": "Quick Start",
+    "title": "3 — Verify",
+    "content": "# Dashboard health curl http://localhost:5050/health # System status curl http://localhost:5050/api/system_status . ",
+    "url": "/Stm-Micro_ros-eth/production/quickstart.html#3--verify",
+    
+    "relUrl": "/production/quickstart.html#3--verify"
+  },"84": {
+    "doc": "Quick Start",
+    "title": "4 — Monitor logs",
+    "content": "docker-compose -f docker-compose.jetson.yml logs -f microk3 docker-compose -f docker-compose.jetson.yml logs -f renode-e2e . ",
+    "url": "/Stm-Micro_ros-eth/production/quickstart.html#4--monitor-logs",
+    
+    "relUrl": "/production/quickstart.html#4--monitor-logs"
+  },"85": {
+    "doc": "Quick Start",
+    "title": "Quick Start",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/production/quickstart.html",
+    
+    "relUrl": "/production/quickstart.html"
+  },"86": {
+    "doc": "Hardware Reference",
+    "title": "Hardware Reference",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/hardware/reference.html",
+    
+    "relUrl": "/hardware/reference.html"
+  },"87": {
+    "doc": "Hardware Reference",
+    "title": "Supported Boards",
+    "content": "| Board | MCU | Ethernet PHY | Notes | . | STM32H755I-EV | STM32H755XIH6 | LAN8742A | Primary target (dual-core) | . | STM32H743I-EVAL | STM32H743XIH6 | LAN8742A | Single-core variant | . | STM32H747I-DISCO | STM32H747XIH6 | LAN8742A | Dual-core discovery kit | . | NUCLEO-H743ZI2 | STM32H743ZIT6 | LAN8742A | Nucleo (single-core) | . ",
+    "url": "/Stm-Micro_ros-eth/hardware/reference.html#supported-boards",
+    
+    "relUrl": "/hardware/reference.html#supported-boards"
+  },"88": {
+    "doc": "Hardware Reference",
+    "title": "Network Wiring",
+    "content": "| Connection | Detail | . | STM32 Ethernet | RJ45 to switch or direct to host | . | PHY | LAN8742A via RMII | . | STM32 IP | 192.168.50.2 (static) | . | Host/Agent IP | 192.168.50.1 | . ",
+    "url": "/Stm-Micro_ros-eth/hardware/reference.html#network-wiring",
+    
+    "relUrl": "/hardware/reference.html#network-wiring"
+  },"89": {
+    "doc": "Hardware Reference",
+    "title": "Debug Probe",
+    "content": "| Probe | Support | . | ST-Link/V2 | ✅ Minimum | . | ST-Link/V3 | ✅ Recommended | . ",
+    "url": "/Stm-Micro_ros-eth/hardware/reference.html#debug-probe",
+    
+    "relUrl": "/hardware/reference.html#debug-probe"
+  },"90": {
+    "doc": "Hardware Reference",
+    "title": "Flash Commands",
+    "content": "# OpenOCD openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \\ -c \"program build/MicroRosEth.elf verify reset exit\" # STM32CubeProgrammer CLI STM32_Programmer_CLI -c port=SWD \\ -w build/MicroRosEth.elf 0x08000000 -v -rst . ",
+    "url": "/Stm-Micro_ros-eth/hardware/reference.html#flash-commands",
+    
+    "relUrl": "/hardware/reference.html#flash-commands"
+  },"91": {
+    "doc": "Running Scripts",
+    "title": "Running Renode Scripts",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/simulation/scripts.html#running-renode-scripts",
+    
+    "relUrl": "/simulation/scripts.html#running-renode-scripts"
+  },"92": {
+    "doc": "Running Scripts",
+    "title": "macOS (Renode.app)",
+    "content": "# Full micro-ROS validation (internal network) Renode.app/Contents/MacOS/renode \\ Test_Board_Sensore/simulation/scripts/microroseth_validation.resc # Dual-core smoke test Renode.app/Contents/MacOS/renode \\ Test_Board_Sensore/simulation/scripts/board_dual_smoke.resc . ",
+    "url": "/Stm-Micro_ros-eth/simulation/scripts.html#macos-renodeapp",
+    
+    "relUrl": "/simulation/scripts.html#macos-renodeapp"
+  },"93": {
+    "doc": "Running Scripts",
+    "title": "Linux",
+    "content": "# TAP-based validation (requires root for TAP setup) sudo renode Test_Board_Sensore/simulation/scripts/microroseth_validation_tap.resc . ",
+    "url": "/Stm-Micro_ros-eth/simulation/scripts.html#linux",
+    
+    "relUrl": "/simulation/scripts.html#linux"
+  },"94": {
+    "doc": "Running Scripts",
+    "title": "Full Stack with microk3 (TAP mode)",
+    "content": "# Sets up TAP, starts micro-ROS agent, Renode, and microk3 dashboard cd Test_Board_Sensore/simulation/scripts chmod +x run_microk3_host_tap.sh sudo ./run_microk3_host_tap.sh . ",
+    "url": "/Stm-Micro_ros-eth/simulation/scripts.html#full-stack-with-microk3-tap-mode",
+    
+    "relUrl": "/simulation/scripts.html#full-stack-with-microk3-tap-mode"
+  },"95": {
+    "doc": "Running Scripts",
+    "title": "Running Scripts",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/simulation/scripts.html",
+    
+    "relUrl": "/simulation/scripts.html"
+  },"96": {
+    "doc": "Sensor Model",
+    "title": "JSN-SR04T Sensor Model",
+    "content": "The JSN-SR04T ultrasonic sensor behavior is implemented in Python and optionally mirrored by a C# Renode plugin. ",
+    "url": "/Stm-Micro_ros-eth/simulation/sensor.html#jsn-sr04t-sensor-model",
+    
+    "relUrl": "/simulation/sensor.html#jsn-sr04t-sensor-model"
+  },"97": {
+    "doc": "Sensor Model",
+    "title": "C# Plugin",
+    "content": "Path: Test_Board_Sensore/simulation/src/JSN_SR04T_Plugin/JSN_SR04T.cs . Key behavior: . | Validates trigger pulse width (~10 us) | Computes echo pulse width as distance_cm * 58 | Enforces timeout handling | . ",
+    "url": "/Stm-Micro_ros-eth/simulation/sensor.html#c-plugin",
+    
+    "relUrl": "/simulation/sensor.html#c-plugin"
+  },"98": {
+    "doc": "Sensor Model",
+    "title": "Python Helper",
+    "content": "Path: Test_Board_Sensore/simulation/python/sensor_helper.py . State machine (from the helper): . idle -&gt; triggered -&gt; measuring -&gt; ready ^ | | v v v +----- timeout &lt;---- echo end ----+ . GPIO bindings (Renode helper): . | ECHO: PD0 | TRIG: PD1 | . TODO: Confirm any alternative pin maps for hardware builds. ",
+    "url": "/Stm-Micro_ros-eth/simulation/sensor.html#python-helper",
+    
+    "relUrl": "/simulation/sensor.html#python-helper"
+  },"99": {
+    "doc": "Sensor Model",
+    "title": "Sensor Model",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/simulation/sensor.html",
+    
+    "relUrl": "/simulation/sensor.html"
+  },"100": {
+    "doc": "Tests",
+    "title": "Simulation Tests",
+    "content": "Robot Framework tests live under Test_Board_Sensore/simulation/tests/robot. ",
+    "url": "/Stm-Micro_ros-eth/simulation/tests.html#simulation-tests",
+    
+    "relUrl": "/simulation/tests.html#simulation-tests"
+  },"101": {
+    "doc": "Tests",
+    "title": "Run Tests",
+    "content": "From Test_Board_Sensore/simulation: . robot tests/robot/test_sensor_ultrasonic.robot . The tests parse RESULT key=value lines emitted by Renode scripts. ",
+    "url": "/Stm-Micro_ros-eth/simulation/tests.html#run-tests",
+    
+    "relUrl": "/simulation/tests.html#run-tests"
+  },"102": {
+    "doc": "Tests",
+    "title": "CI Example",
+    "content": "TODO: Add the actual CI YAML once it exists. Example placeholder: . name: renode-sim on: [push] jobs: test: runs-on: ubuntu-latest steps: - uses: actions/checkout@v4 - run: sudo apt-get install -y renode robotframework - run: make -C Test_Board_Sensore/Makefile/CM4_smoke - run: robot Test_Board_Sensore/simulation/tests/robot/test_sensor_ultrasonic.robot . ",
+    "url": "/Stm-Micro_ros-eth/simulation/tests.html#ci-example",
+    
+    "relUrl": "/simulation/tests.html#ci-example"
+  },"103": {
+    "doc": "Tests",
+    "title": "Tests",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/simulation/tests.html",
+    
+    "relUrl": "/simulation/tests.html"
+  },"104": {
+    "doc": "ROS 2 Topics",
+    "title": "ROS 2 Topics",
+    "content": "All topics use std_msgs/String with a JSON payload in the data field. ",
+    "url": "/Stm-Micro_ros-eth/microros/topics.html",
+    
+    "relUrl": "/microros/topics.html"
+  },"105": {
+    "doc": "ROS 2 Topics",
+    "title": "Topic Reference",
+    "content": "| Topic | Direction (from dashboard) | Description | . | microk3/node_status | Subscribe | Node heartbeat and status updates | . | microk3/system_alerts | Subscribe | Failure and warning alerts | . | microk3/commands | Publish | Commands sent to nodes | . ",
+    "url": "/Stm-Micro_ros-eth/microros/topics.html#topic-reference",
+    
+    "relUrl": "/microros/topics.html#topic-reference"
+  },"106": {
+    "doc": "ROS 2 Topics",
+    "title": "Message Formats",
+    "content": "microk3/node_status . { \"id\": 1, \"status\": \"active\", \"health\": 95, \"uptime\": \"12h 34m\" } . If heartbeat_raw key is present, microk3 also logs a RAW_HEARTBEAT entry. microk3/system_alerts . { \"node_id\": 1, \"msg\": \"Overheating detected\", \"level\": \"warning\" } . microk3/commands . { \"target_id\": 1, \"command\": \"SET_STATUS:standby\" } . ",
+    "url": "/Stm-Micro_ros-eth/microros/topics.html#message-formats",
+    
+    "relUrl": "/microros/topics.html#message-formats"
+  },"107": {
+    "doc": "ROS 2 Topics",
+    "title": "Node Auto-Discovery",
+    "content": "When a new id appears on microk3/node_status that does not match any known node, microk3 automatically creates a new Node object. No manual registration is needed. ",
+    "url": "/Stm-Micro_ros-eth/microros/topics.html#node-auto-discovery",
+    
+    "relUrl": "/microros/topics.html#node-auto-discovery"
+  },"108": {
+    "doc": "Troubleshooting",
+    "title": "Troubleshooting",
+    "content": "Quick Jump: libmicroros.a not found · Ethernet DMA hang · Agent not connecting · ROS import fails · Rate limit 429 . WARNING . ",
+    "url": "/Stm-Micro_ros-eth/troubleshooting.html",
+    
+    "relUrl": "/troubleshooting.html"
+  },"109": {
+    "doc": "Troubleshooting",
+    "title": "libmicroros.a not found — firmware build fails",
+    "content": "The static library must be built manually. Follow Building the Library step by step. The file must land at: . microrosWs/Micro_ros_eth/microroseth/micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/libmicroros.a . CRITICAL . ",
+    "url": "/Stm-Micro_ros-eth/troubleshooting.html#libmicrorosa-not-found--firmware-build-fails",
+    
+    "relUrl": "/troubleshooting.html#libmicrorosa-not-found--firmware-build-fails"
+  },"110": {
+    "doc": "Troubleshooting",
+    "title": "Ethernet DMA corruption / firmware hangs",
+    "content": "D-Cache must be disabled before HAL_Init() in main.c. The MPU must mark SRAM2 (0x30000000, 32 KB) as non-cacheable bufferable. See CM7 Core. WARNING . ",
+    "url": "/Stm-Micro_ros-eth/troubleshooting.html#ethernet-dma-corruption--firmware-hangs",
+    
+    "relUrl": "/troubleshooting.html#ethernet-dma-corruption--firmware-hangs"
+  },"111": {
+    "doc": "Troubleshooting",
+    "title": "micro-ROS agent not connecting",
+    "content": ". | Verify STM32 IP is 192.168.50.2 and agent is on 192.168.50.1:8888 | In TAP/Docker mode verify TAP_GATEWAY_CIDR=192.168.50.1/24 and agent binds 0.0.0.0:8888 | Check MEMP_NUM_UDP_PCB is set to 15 in LwIP config | . INFO . ",
+    "url": "/Stm-Micro_ros-eth/troubleshooting.html#micro-ros-agent-not-connecting",
+    
+    "relUrl": "/troubleshooting.html#micro-ros-agent-not-connecting"
+  },"112": {
+    "doc": "Troubleshooting",
+    "title": "microk3 ROS 2 import fails at startup",
+    "content": "If ros_interface.py fails to import, microk3 still starts but without ROS — it shows a warning and runs in API-only mode. Install rclpy or use the Docker image which includes ROS 2 Humble. INFO . ",
+    "url": "/Stm-Micro_ros-eth/troubleshooting.html#microk3-ros-2-import-fails-at-startup",
+    
+    "relUrl": "/troubleshooting.html#microk3-ros-2-import-fails-at-startup"
+  },"113": {
+    "doc": "Troubleshooting",
+    "title": "Rate limit 429 errors on API",
+    "content": "Default limits: 30/min (read), 10/min (write). Increase via RATELIMIT_DEFAULT env var in .env. ",
+    "url": "/Stm-Micro_ros-eth/troubleshooting.html#rate-limit-429-errors-on-api",
+    
+    "relUrl": "/troubleshooting.html#rate-limit-429-errors-on-api"
+  },"114": {
+    "doc": "Troubleshooting",
+    "title": "Production Troubleshooting",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/production/troubleshooting.html#production-troubleshooting",
+    
+    "relUrl": "/production/troubleshooting.html#production-troubleshooting"
+  },"115": {
+    "doc": "Troubleshooting",
+    "title": "Dashboard shows “waiting_for_nodes”",
+    "content": "microk3 starts with an empty node list and waits for live ROS 2 messages. Check: . # Is Renode running and publishing? docker-compose logs renode-e2e # Is the bridge translating heartbeats? docker-compose logs renode-bridge # Are topics being published? docker exec -it &lt;microk3-container&gt; bash source /opt/ros/humble/setup.bash ros2 topic echo /microk3/node_status . ",
+    "url": "/Stm-Micro_ros-eth/production/troubleshooting.html#dashboard-shows-waiting_for_nodes",
+    
+    "relUrl": "/production/troubleshooting.html#dashboard-shows-waiting_for_nodes"
+  },"116": {
+    "doc": "Troubleshooting",
+    "title": "firmware-build fails",
+    "content": "# Check ARM toolchain is present in the build image docker-compose run firmware-build arm-none-eabi-gcc --version # Check libmicroros.a exists ls microrosWs/Micro_ros_eth/microroseth/micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/libmicroros.a . If the file is missing, follow Building the Library. ",
+    "url": "/Stm-Micro_ros-eth/production/troubleshooting.html#firmware-build-fails",
+    
+    "relUrl": "/production/troubleshooting.html#firmware-build-fails"
+  },"117": {
+    "doc": "Troubleshooting",
+    "title": "Ethernet DMA issues / firmware hangs at boot",
+    "content": "Ensure SCB_DisableDCache() is called in main.c before HAL_Init() and that the MPU is configured for SRAM2 as non-cacheable. See CM7 Core. ",
+    "url": "/Stm-Micro_ros-eth/production/troubleshooting.html#ethernet-dma-issues--firmware-hangs-at-boot",
+    
+    "relUrl": "/production/troubleshooting.html#ethernet-dma-issues--firmware-hangs-at-boot"
+  },"118": {
+    "doc": "Troubleshooting",
+    "title": "TAP interface not found",
+    "content": "# Renode-e2e needs NET_ADMIN capability and privileged mode # Verify in compose file: cap_add: - NET_ADMIN privileged: true . ",
+    "url": "/Stm-Micro_ros-eth/production/troubleshooting.html#tap-interface-not-found",
+    
+    "relUrl": "/production/troubleshooting.html#tap-interface-not-found"
+  },"119": {
+    "doc": "Troubleshooting",
+    "title": "Troubleshooting",
+    "content": " ",
+    "url": "/Stm-Micro_ros-eth/production/troubleshooting.html",
+    
+    "relUrl": "/production/troubleshooting.html"
+  }
+}

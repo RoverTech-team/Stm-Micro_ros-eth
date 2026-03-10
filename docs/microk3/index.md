@@ -10,5 +10,5 @@ Flask + rclpy dashboard for monitoring micro-ROS nodes.
 
 ## Pages
 
-- [Overview](overview.md)
-- [REST API Reference](api.md)
+- [Overview](overview.html)
+- [REST API Reference](api.html)

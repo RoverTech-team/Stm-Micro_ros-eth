@@ -3,7 +3,30 @@ description: "Ethernet-based micro-ROS on STM32H7"
 remote_theme: just-the-docs/just-the-docs
 baseurl: "/Stm-Micro_ros-eth"
 url: "https://rovertech-team.github.io/Stm-Micro_ros-eth"
-color_scheme: light
+logo: "/assets/images/logo.svg"
+
+# Color and Style
+color_scheme: dark
 search_enabled: true
+enable_copy_code_button: true
+heading_anchors: true
+toc:
+  enabled: true
+  min_level: 2
+  max_level: 3
+
+# Navigation
+nav_footer_links:
+  prev: true
+  next: true
+  GitHub: "https://github.com/RoverTech-team/Stm-Micro_ros-eth"
+
+mermaid:
+  version: "10.9.1"
+
 aux_links:
   GitHub: "https://github.com/RoverTech-team/Stm-Micro_ros-eth"
+
+# Custom head for FontAwesome or other icons
+head_scripts:
+  - "https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"

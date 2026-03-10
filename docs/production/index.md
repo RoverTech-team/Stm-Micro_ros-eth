@@ -10,7 +10,7 @@ Deployment notes for the Jetson Orin NX stack and HIL workflows.
 
 ## Pages
 
-- [Overview](overview.md)
-- [Quick Start](quickstart.md)
-- [Configuration](configuration.md)
-- [Troubleshooting](troubleshooting.md)
+- [Overview](overview.html)
+- [Quick Start](quickstart.html)
+- [Configuration](configuration.html)
+- [Troubleshooting](troubleshooting.html)
