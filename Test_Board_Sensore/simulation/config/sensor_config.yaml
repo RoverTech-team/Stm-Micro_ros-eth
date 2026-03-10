@@ -1,0 +1,84 @@
+# JSN-SR04T Ultrasonic Sensor Configuration
+# 
+# Configuration file for the JSN-SR04T / AJ-SR04M waterproof ultrasonic
+# distance sensor simulation.
+# 
+# Generated: 2026-03-03
+# Author: Test_Board_Sensore
+
+---
+# Sensor Hardware Configuration
+sensor:
+  # Sensor Model
+  model: "JSN-SR04T"
+  variant: "AJ-SR04M"
+  mode: 1  # Digital/Pulse mode (not UART mode)
+  
+  # Communication Pins
+  gpio:
+    trig:
+      port: "GPIOD"
+      pin: 1
+      mode: "OUTPUT_PP"
+      name: "PD1"
+    echo:
+      port: "GPIOD"
+      pin: 0
+      mode: "INPUT"
+      pull: "PULLDOWN"
+      name: "PD0"
+    led:
+      port: "GPIOB"
+      pin: 0
+      mode: "OUTPUT_PP"
+      name: "PB0"
+
+  # Timer Configuration
+  timer:
+    instance: "TIM2"
+    address: "0x40000000"
+    irq: 28
+    usage: "ECHO pulse width measurement"
+
+# Sensor Parameters
+parameters:
+  # Distance Range (centimeters)
+  min_distance: 20
+  max_distance: 450
+  default_distance: 50
+  
+  # Timing (microseconds)
+  trigger_pulse_width: 10    # Required TRIG pulse width
+  timeout: 30000            # No-echo timeout (30ms)
+  echo_multiplier: 58       # distance * 58 = echo width (µs)
+  
+  # Accuracy
+  accuracy: 1  # ±1 cm
+
+# Simulation Configuration
+simulation:
+  # Renode Settings
+  renode:
+    platform: "stm32h755_with_sensors.repl"
+    log_level: 3
+    speed: 1.0  # Real-time
+  
+  # Firmware
+  firmware:
+    path: "../../CM4/build/Polispace_Stm_CM4.elf"
+    core: "CM4"
+  
+  # Test Settings
+  tests:
+    default_timeout: 60  # seconds
+    log_output: true
+
+# GPIO Pin Mapping Summary
+# ========================
+# PD1 (TRIG) → Sensor TRIG (output from MCU)
+# PD0 (ECHO) → Sensor ECHO (input to MCU)
+# PB0 (LED)  → Status LED
+# 
+# Note: In the JSN-SR04T:
+#   - TRIG receives the 10µs trigger pulse from MCU
+#   - ECHO outputs pulse width proportional to distance

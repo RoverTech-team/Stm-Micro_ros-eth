@@ -1,0 +1,8 @@
+using "./nucleo_h755zi_q_dual.repl"
+
+phy:
+    Id1: 0xFFFF
+    Id2: 0xFFFF
+    BasicStatus: 0x7809
+    AutoNegotiationLinkPartnerBasePageAbility: 0x0000
+    AutoNegotiationExpansion: 0x0000

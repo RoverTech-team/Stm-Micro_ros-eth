@@ -1,0 +1,28 @@
+$name?="nucleo-h755zi-q-dual-validation"
+$cm7?=@/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/Makefile/CM7_dual_smoke/build/Polispace_Stm_CM7_Dual_Smoke.elf
+$cm4?=@/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/Makefile/CM4_dual_smoke/build/Polispace_Stm_CM4_Dual_Smoke.elf
+
+mach create $name
+machine LoadPlatformDescription @/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/platform/nucleo_h755zi_q_dual.repl
+
+logLevel 1
+
+emulation CreateSwitch "switch"
+connector Connect ethernet switch
+
+sysbus LoadELF $cm7 cpu=cm7
+sysbus LoadELF $cm4 cpu=cm4
+
+sysbus AddWatchpointHook 0x40004428 1 Write "self.InfoLog('UART2:' + chr(value & 0xFF))"
+sysbus AddWatchpointHook 0x40004428 4 Write "self.InfoLog('UART2:' + chr(value & 0xFF))"
+sysbus AddWatchpointHook 0x40004828 1 Write "self.InfoLog('UART3:' + chr(value & 0xFF))"
+sysbus AddWatchpointHook 0x40004828 4 Write "self.InfoLog('UART3:' + chr(value & 0xFF))"
+sysbus AddWatchpointHook 0x58026400 4 Write "monitor.Parse('log \"CM7 HSEM release observed; unhalting CM4\"'); monitor.Parse('cm4 IsHalted false')"
+
+start
+sleep 4
+
+python "print('RESULT dual_board_model_loaded=1')"
+python "print('RESULT dual_validation_complete=1')"
+
+quit

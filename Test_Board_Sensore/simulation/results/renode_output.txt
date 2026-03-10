@@ -1,0 +1,28 @@
+23:47:31.2946 [INFO] Loaded monitor commands from: /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/scripts/monitor.py
+[0mRenode, version 1.16.0 (20ad06d9-202508030050)
+
+[31;1m(monitor) [0mi @/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/sensor_test.resc
+23:47:31.4278 [INFO] Including script: /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/scripts/sensor_test.resc
+23:47:31.4409 [INFO] System bus created.
+[JSN_SR04T] helper initialized
+RESULT initialized=1
+RESULT default_distance=50
+RESULT distance_100=100
+RESULT distance_min=20
+RESULT echo_min=1160
+RESULT distance_max=450
+RESULT echo_max=26100
+RESULT clamped_high=450
+RESULT clamped_negative=0
+RESULT sequence_ok=1
+RESULT echo_20=1160
+RESULT echo_50=2900
+RESULT echo_100=5800
+RESULT echo_200=11600
+RESULT echo_450=26100
+RESULT timeout_us=30000
+RESULT trigger_echo_width=11600
+RESULT state_after_trigger=idle
+RESULT distance_after_reset=50
+[;032mR[0m[;032me[0m[;032mn[0m[;032mo[0m[;032md[0m[;032me[0m[;032m [0m[;032mi[0m[;032ms[0m[;032m [0m[;032mq[0m[;032mu[0m[;032mi[0m[;032mt[0m[;032mt[0m[;032mi[0m[;032mn[0m[;032mg[0m[;032m[0m[;032m
+[0m[;032m[0m[0m[0m

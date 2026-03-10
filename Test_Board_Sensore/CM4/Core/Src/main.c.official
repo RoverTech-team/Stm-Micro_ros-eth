@@ -1,0 +1,367 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : HC-SR04 Ultrasonic Sensor
+  *
+  * Startup sequence (all pre-HAL blinks use direct registers + busy-loop):
+  *   2 green+red blinks   = CPU alive, GPIO reachable (before HAL_Init)
+  *   1 green blink        = after HAL_Init
+  *   2 green blinks       = after SystemClock_Config
+  *   3 green blinks       = TIM2 running, measurement loop starting
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+#include "main.h"
+
+/* --- GLOBALS --- */
+TIM_HandleTypeDef htim2;
+
+volatile uint32_t raw_time    = 0;
+volatile uint32_t distanza_cm = 0;
+
+#define TIMER_TARGET_HZ        1000000U
+#define TRIG_RESET_TIME_US     2U
+#define TRIG_PULSE_TIME_US     10U
+#define ECHO_WAIT_TIMEOUT_US   30000U
+#define ECHO_PULSE_TIMEOUT_US  50000U
+#define DIST_NO_ECHO           9999U
+
+/* Busy-loop delay — used before SysTick is running.
+ * At HSI 64 MHz default clock, ~4 cycles/iteration:
+ *   1000000 ≈ 62 ms,  3000000 ≈ 187 ms,  5000000 ≈ 312 ms          */
+#define BUSY(n)  do { for (volatile int _i = 0; _i < (n); _i++); } while(0)
+
+/* Direct-register LED helpers (safe before HAL_Init) */
+#define LED_GREEN_ON()   (GPIOB->BSRR = (1U <<  0))
+#define LED_GREEN_OFF()  (GPIOB->BSRR = (1U << 16))
+#define LED_RED_ON()     (GPIOB->BSRR = (1U << 14))
+#define LED_RED_OFF()    (GPIOB->BSRR = (1U << 30))
+
+static void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_TIM2_Init(void);
+
+
+int main(void)
+{
+    /* ------------------------------------------------------------------ */
+    /* STAGE 0: Pre-HAL GPIO init — direct register writes                 */
+    /* Enables GPIOB clock and configures PB0 (green) + PB14 (red) as     */
+    /* push-pull outputs. This works even if HAL / clocks are broken.      */
+    /* ------------------------------------------------------------------ */
+    RCC->AHB4ENR |= (1U << 1);           /* GPIOBEN */
+    BUSY(10000);                          /* let clock gate settle */
+
+    /* PB0  → output (green LED) */
+    GPIOB->MODER &= ~(3U << 0);
+    GPIOB->MODER |=  (1U << 0);
+    /* PB14 → output (red LED) */
+    GPIOB->MODER &= ~(3U << 28);
+    GPIOB->MODER |=  (1U << 28);
+
+    /* ------------------------------------------------------------------ */
+    /* STAGE 0 blink: 2× green+red — CPU is alive                         */
+    /* ------------------------------------------------------------------ */
+    for (int j = 0; j < 2; j++) {
+        LED_GREEN_ON();  LED_RED_ON();
+        BUSY(3000000);
+        LED_GREEN_OFF(); LED_RED_OFF();
+        BUSY(3000000);
+    }
+    BUSY(5000000);
+
+    /* ------------------------------------------------------------------ */
+    /* STAGE 1: HAL_Init                                                   */
+    /* ------------------------------------------------------------------ */
+    HAL_Init();
+
+    LED_GREEN_ON();
+    BUSY(2000000);
+    LED_GREEN_OFF();
+    BUSY(3000000);
+
+    /* ------------------------------------------------------------------ */
+    /* STAGE 2: SystemClock_Config                                         */
+    /* ------------------------------------------------------------------ */
+    SystemClock_Config();
+    /* Re-assert VTOR for CM4 flash bank after SystemClock_Config          */
+    SCB->VTOR = 0x08100000;
+
+    for (int j = 0; j < 2; j++) {
+        LED_GREEN_ON();
+        BUSY(2000000);
+        LED_GREEN_OFF();
+        BUSY(2000000);
+    }
+    BUSY(3000000);
+
+    /* ------------------------------------------------------------------ */
+    /* STAGE 3: Peripheral init                                            */
+    /* ------------------------------------------------------------------ */
+    MX_GPIO_Init();
+    MX_TIM2_Init();
+
+    /* Configure TIM2 prescaler for 1 µs tick.
+     *
+     * Clock tree with this SystemClock_Config:
+     *   HSI=64MHz, /M=4 → 16MHz, ×N=28 → 448MHz VCO
+     *   SYSCLK = 448/P=2 = 224 MHz
+     *   HCLK   = 224/1   = 224 MHz   (AHBCLKDivider = DIV1)
+     *   PCLK1  = 224/2   = 112 MHz   (APB1CLKDivider = DIV2)
+     *   TIM2   = 112×2   = 224 MHz   (APB prescaler ≠ 1 → ×2 rule)
+     *
+     * prescaler = (224 000 000 / 1 000 000) - 1 = 223
+     *
+     * We compute it at runtime via HAL + APB-prescaler correction:       */
+    uint32_t pclk1   = HAL_RCC_GetPCLK1Freq();
+    uint32_t apb1pre = (RCC->D2CFGR & RCC_D2CFGR_D2PPRE1_Msk)
+                        >> RCC_D2CFGR_D2PPRE1_Pos;
+    uint32_t tim2clk = (apb1pre >= 0x04U) ? (pclk1 * 2U) : pclk1;
+    uint32_t psc     = (tim2clk / TIMER_TARGET_HZ);
+    if (psc > 0U) { psc -= 1U; }
+    __HAL_TIM_SET_PRESCALER(&htim2, psc);
+
+    __HAL_TIM_SET_COUNTER(&htim2, 0);
+    HAL_TIM_GenerateEvent(&htim2, TIM_EVENTSOURCE_UPDATE);
+    HAL_TIM_Base_Start(&htim2);
+
+    /* ------------------------------------------------------------------ */
+    /* STAGE 3 blink: 3× green — timer running, loop starting             */
+    /* ------------------------------------------------------------------ */
+    for (int j = 0; j < 3; j++) {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+        HAL_Delay(200U);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+        HAL_Delay(200U);
+    }
+    HAL_Delay(500U);
+
+
+    /* ------------------------------------------------------------------ */
+    /* SENSOR CONNECTION CHECK                                             */
+    /* Send one test trigger and wait for any ECHO response.              */
+    /*   3× red blinks = ECHO received → sensor wired correctly           */
+    /*   5× rapid red  = no ECHO       → check TRIG/ECHO wiring           */
+    /* ------------------------------------------------------------------ */
+    {
+        /* Reset trigger */
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COUNTER(&htim2, 0);
+        while (__HAL_TIM_GET_COUNTER(&htim2) < TRIG_RESET_TIME_US);
+
+        /* Send 10 µs trigger pulse */
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET);
+        __HAL_TIM_SET_COUNTER(&htim2, 0);
+        while (__HAL_TIM_GET_COUNTER(&htim2) < TRIG_PULSE_TIME_US);
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+
+        /* Wait for ECHO to go HIGH */
+        uint8_t sensor_ok = 0U;
+        uint32_t chk_start = __HAL_TIM_GET_COUNTER(&htim2);
+        while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_RESET) {
+            if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - chk_start)
+                    > ECHO_WAIT_TIMEOUT_US) {
+                break;
+            }
+        }
+        if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_SET) {
+            sensor_ok = 1U;
+        }
+
+        if (sensor_ok) {
+            /* 3× red = sensor responding */
+            for (int j = 0; j < 3; j++) {
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+                HAL_Delay(300U);
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+                HAL_Delay(300U);
+            }
+        } else {
+            /* 5× rapid red = no echo — check wiring */
+            for (int j = 0; j < 5; j++) {
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+                HAL_Delay(100U);
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+                HAL_Delay(100U);
+            }
+        }
+        HAL_Delay(500U);
+    }
+    /* ------------------------------------------------------------------ */
+
+
+
+    /* ================================================================== */
+    /* MAIN MEASUREMENT LOOP                                               */
+    /* ================================================================== */
+    while (1)
+    {
+        /* 1. Trigger low ≥ 2 µs */
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COUNTER(&htim2, 0);
+        while (__HAL_TIM_GET_COUNTER(&htim2) < TRIG_RESET_TIME_US);
+
+        /* 2. Trigger pulse 10 µs */
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET);
+        __HAL_TIM_SET_COUNTER(&htim2, 0);
+        while (__HAL_TIM_GET_COUNTER(&htim2) < TRIG_PULSE_TIME_US);
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+
+        /* 3. Wait for ECHO high */
+        uint8_t  echo_received = 1U;
+        uint32_t wait_start    = __HAL_TIM_GET_COUNTER(&htim2);
+
+        while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_RESET) {
+            if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - wait_start)
+                    > ECHO_WAIT_TIMEOUT_US) {
+                echo_received = 0U;
+                break;
+            }
+        }
+
+        /* 4. Measure echo pulse */
+        if (echo_received) {
+            uint32_t echo_start = __HAL_TIM_GET_COUNTER(&htim2);
+
+            while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_SET) {
+                if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - echo_start)
+                        > ECHO_PULSE_TIMEOUT_US) {
+                    break;
+                }
+            }
+
+            raw_time    = (uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - echo_start);
+            distanza_cm = raw_time / 58U;
+        } else {
+            raw_time    = 0U;
+            distanza_cm = DIST_NO_ECHO;
+        }
+
+        /* 5. LED on if object < 10 cm */
+        if (distanza_cm > 0U && distanza_cm < 10U) {
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+        } else {
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+        }
+
+        /* 6. 60 ms inter-measurement pause */
+        HAL_Delay(60U);
+    }
+}
+
+
+static void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
+    while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY));
+
+    RCC_OscInitStruct.OscillatorType      = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState            = RCC_HSI_DIV1;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState        = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource       = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM            = 4;
+    RCC_OscInitStruct.PLL.PLLN            = 28;
+    RCC_OscInitStruct.PLL.PLLP            = 2;
+    RCC_OscInitStruct.PLL.PLLQ            = 5;
+    RCC_OscInitStruct.PLL.PLLR            = 2;
+    RCC_OscInitStruct.PLL.PLLRGE          = RCC_PLL1VCIRANGE_3;
+    RCC_OscInitStruct.PLL.PLLVCOSEL       = RCC_PLL1VCOWIDE;
+    RCC_OscInitStruct.PLL.PLLFRACN        = 1024;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) { Error_Handler(); }
+
+    RCC_ClkInitStruct.ClockType      = RCC_CLOCKTYPE_HCLK  | RCC_CLOCKTYPE_SYSCLK |
+                                       RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2  |
+                                       RCC_CLOCKTYPE_D3PCLK1 | RCC_CLOCKTYPE_D1PCLK1;
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.SYSCLKDivider  = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_HCLK_DIV1;      /* HCLK = 224 MHz */
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
+    RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
+    RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) { Error_Handler(); }
+}
+
+
+static void MX_TIM2_Init(void)
+{
+    __HAL_RCC_TIM2_CLK_ENABLE();
+
+    TIM_ClockConfigTypeDef  sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig      = {0};
+
+    htim2.Instance               = TIM2;
+    htim2.Init.Prescaler         = 0;
+    htim2.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    htim2.Init.Period            = 0xFFFFFFFFU;
+    htim2.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&htim2) != HAL_OK) { Error_Handler(); }
+
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) { Error_Handler(); }
+
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK) { Error_Handler(); }
+}
+
+
+static void MX_GPIO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+    /* PB14 — red LED output */
+    GPIO_InitStruct.Pin   = GPIO_PIN_14;
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+
+    /* PD0 — ECHO input */
+    GPIO_InitStruct.Pin  = GPIO_PIN_0;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+    /* PD1 — TRIG output */
+    GPIO_InitStruct.Pin   = GPIO_PIN_1;
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+    /* PB0 — green LED output (already configured above, reinit via HAL) */
+    GPIO_InitStruct.Pin   = GPIO_PIN_0;
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+
+void Error_Handler(void)
+{
+    __disable_irq();
+    /* Rapid red blink = fatal error */
+    while (1) {
+        LED_RED_ON();
+        BUSY(500000);
+        LED_RED_OFF();
+        BUSY(500000);
+    }
+}

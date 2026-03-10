@@ -1,0 +1,13 @@
+# Deterministic sensor helper validation script.
+# This script exercises the full JSN-SR04T state machine and prints
+# machine-readable lines in the format:
+#   RESULT key=value
+
+mach create "sensor-test"
+
+logLevel 2
+include @python/sensor_helper.py
+
+python "sensor_dump_standard_results()"
+
+quit

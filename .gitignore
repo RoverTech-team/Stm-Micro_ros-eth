@@ -1,0 +1,34 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Build outputs
+build/
+dist/
+obj/
+*.o
+*.a
+*.elf
+*.hex
+*.bin
+
+# Logs / artifacts
+*.log
+logs/
+*.tmp
+
+# App bundles
+Renode.app/

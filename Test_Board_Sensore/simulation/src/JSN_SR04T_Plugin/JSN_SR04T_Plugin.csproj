@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Antmicro.Renode.Plugins.JSN_SR04T</RootNamespace>
+    <AssemblyName>JSN_SR04T_Plugin</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>Test_Board_Sensore</Authors>
+    <Description>JSN-SR04T Ultrasonic Sensor Plugin for Renode</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      Resolve Renode binaries in this order:
+      1) /p:RenodeBinDir=...
+      2) RENODE_BIN_DIR env var
+      3) local Renode source build
+      4) dotnet-tool Renode cache path
+    -->
+    <RenodeBinDir Condition="'$(RenodeBinDir)'=='' and '$(RENODE_BIN_DIR)'!=''">$(RENODE_BIN_DIR)</RenodeBinDir>
+    <RenodeBinDir Condition="'$(RenodeBinDir)'=='' and Exists('$(MSBuildProjectDirectory)/../../../../renode/output/bin/Release')">$(MSBuildProjectDirectory)/../../../../renode/output/bin/Release</RenodeBinDir>
+    <RenodeBinDir Condition="'$(RenodeBinDir)'=='' and Exists('$(HOME)/.net/renode/ThLhnt0ejjXPsWUsqImYupJxhG6fITM=')">$(HOME)/.net/renode/ThLhnt0ejjXPsWUsqImYupJxhG6fITM=</RenodeBinDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Renode">
+      <HintPath>$(RenodeBinDir)/Renode.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Infrastructure">
+      <HintPath>$(RenodeBinDir)/Infrastructure.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+  </PropertyGroup>
+
+</Project>

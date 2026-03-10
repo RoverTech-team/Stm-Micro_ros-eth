@@ -1,0 +1,2106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.12.7 on darwin)" generated="2026-03-03T23:47:25.466980" rpa="false" schemaversion="5">
+<suite id="s1" name="Test Sensor Ultrasonic" source="/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/test_sensor_ultrasonic.robot">
+<kw name="Setup Test Suite" type="SETUP">
+<kw name="Prepare Results Directory" owner="common">
+<kw name="Create Directory" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:25.519356" level="INFO" html="true">Directory '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results&lt;/a&gt;' already exists.</msg>
+<arg>${RESULTS_DIR}</arg>
+<doc>Creates the specified directory.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.519174" elapsed="0.000245"/>
+</kw>
+<doc>Ensure results output directory exists.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.518656" elapsed="0.000832"/>
+</kw>
+<kw name="Run Renode Script" owner="common">
+<kw name="Get Renode Path" owner="common">
+<kw name="Run Keyword And Return Status" owner="BuiltIn">
+<kw name="File Should Exist" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:25.520553" level="INFO" html="true">File '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode&lt;/a&gt;' exists.</msg>
+<arg>${RENODE_PATH_ENV}</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.520386" elapsed="0.000217"/>
+</kw>
+<msg time="2026-03-03T23:47:25.520681" level="INFO">${has_env} = True</msg>
+<var>${has_env}</var>
+<arg>File Should Exist</arg>
+<arg>${RENODE_PATH_ENV}</arg>
+<doc>Runs the specified keyword and returns the status as a Boolean value.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.520028" elapsed="0.000670"/>
+</kw>
+<if>
+<branch type="IF" condition="${has_env}">
+<return>
+<value>${RENODE_PATH_ENV}</value>
+<status status="PASS" start="2026-03-03T23:47:25.520836" elapsed="0.000034"/>
+</return>
+<status status="PASS" start="2026-03-03T23:47:25.520771" elapsed="0.000128"/>
+</branch>
+<status status="PASS" start="2026-03-03T23:47:25.520749" elapsed="0.000170"/>
+</if>
+<kw name="Run Keyword And Return Status" owner="BuiltIn">
+<var>${has_app}</var>
+<arg>File Should Exist</arg>
+<arg>${RENODE_APP_PATH}</arg>
+<doc>Runs the specified keyword and returns the status as a Boolean value.</doc>
+<status status="NOT RUN" start="2026-03-03T23:47:25.521002" elapsed="0.000016"/>
+</kw>
+<if>
+<branch type="IF" condition="${has_app}">
+<return>
+<value>${RENODE_APP_PATH}</value>
+<status status="NOT RUN" start="2026-03-03T23:47:25.521094" elapsed="0.000009"/>
+</return>
+<status status="NOT RUN" start="2026-03-03T23:47:25.521067" elapsed="0.000053"/>
+</branch>
+<status status="NOT RUN" start="2026-03-03T23:47:25.521055" elapsed="0.000080"/>
+</if>
+<kw name="Fail" owner="BuiltIn">
+<arg>Renode executable not found. Set RENODE_PATH env var or install Renode at ${RENODE_APP_PATH}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-03-03T23:47:25.521195" elapsed="0.000013"/>
+</kw>
+<msg time="2026-03-03T23:47:25.521302" level="INFO">${renode} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode</msg>
+<var>${renode}</var>
+<doc>Resolve Renode executable path.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.519908" elapsed="0.001410"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:25.521643" level="INFO">${script_path} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/firmware_validation.resc</msg>
+<var>${script_path}</var>
+<arg>${SIM_ROOT}/scripts/${script_name}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.521380" elapsed="0.000291"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:25.522195" level="INFO">Starting process:
+/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode --disable-xwt --console /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/firmware_validation.resc</msg>
+<msg time="2026-03-03T23:47:25.525295" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:29.904530" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:29.905093" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>${renode}</arg>
+<arg>--disable-xwt</arg>
+<arg>--console</arg>
+<arg>${script_path}</arg>
+<arg>cwd=${SIM_ROOT}</arg>
+<arg>shell=False</arg>
+<arg>timeout=${timeout}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.521789" elapsed="4.383343"/>
+</kw>
+<return>
+<value>${result}</value>
+<status status="PASS" start="2026-03-03T23:47:29.905323" elapsed="0.000133"/>
+</return>
+<msg time="2026-03-03T23:47:29.905704" level="INFO">${fw_result} = &lt;result object with rc 0&gt;</msg>
+<var>${fw_result}</var>
+<arg>firmware_validation.resc</arg>
+<arg>timeout=30s</arg>
+<doc>Run a script from simulation/scripts and return process result.</doc>
+<status status="PASS" start="2026-03-03T23:47:25.519623" elapsed="4.386102"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:29.906956" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${fw_result.rc}</arg>
+<arg>0</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.905976" elapsed="0.001060"/>
+</kw>
+<kw name="Set Suite Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:29.907657" level="INFO">${FIRMWARE_OUTPUT} = 23:47:26.8343 [INFO] Loaded monitor commands from: /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/scripts/monitor.py
+[0mRenode, version 1.16.0 (20ad06...</msg>
+<arg>${FIRMWARE_OUTPUT}</arg>
+<arg>${fw_result.stdout}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.907145" elapsed="0.000544"/>
+</kw>
+<kw name="Run Renode Script" owner="common">
+<kw name="Get Renode Path" owner="common">
+<kw name="Run Keyword And Return Status" owner="BuiltIn">
+<kw name="File Should Exist" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:29.908884" level="INFO" html="true">File '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode&lt;/a&gt;' exists.</msg>
+<arg>${RENODE_PATH_ENV}</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.908701" elapsed="0.000220"/>
+</kw>
+<msg time="2026-03-03T23:47:29.908979" level="INFO">${has_env} = True</msg>
+<var>${has_env}</var>
+<arg>File Should Exist</arg>
+<arg>${RENODE_PATH_ENV}</arg>
+<doc>Runs the specified keyword and returns the status as a Boolean value.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.908496" elapsed="0.000497"/>
+</kw>
+<if>
+<branch type="IF" condition="${has_env}">
+<return>
+<value>${RENODE_PATH_ENV}</value>
+<status status="PASS" start="2026-03-03T23:47:29.909111" elapsed="0.000021"/>
+</return>
+<status status="PASS" start="2026-03-03T23:47:29.909052" elapsed="0.000102"/>
+</branch>
+<status status="PASS" start="2026-03-03T23:47:29.909036" elapsed="0.000137"/>
+</if>
+<kw name="Run Keyword And Return Status" owner="BuiltIn">
+<var>${has_app}</var>
+<arg>File Should Exist</arg>
+<arg>${RENODE_APP_PATH}</arg>
+<doc>Runs the specified keyword and returns the status as a Boolean value.</doc>
+<status status="NOT RUN" start="2026-03-03T23:47:29.909244" elapsed="0.000012"/>
+</kw>
+<if>
+<branch type="IF" condition="${has_app}">
+<return>
+<value>${RENODE_APP_PATH}</value>
+<status status="NOT RUN" start="2026-03-03T23:47:29.909390" elapsed="0.000008"/>
+</return>
+<status status="NOT RUN" start="2026-03-03T23:47:29.909366" elapsed="0.000049"/>
+</branch>
+<status status="NOT RUN" start="2026-03-03T23:47:29.909356" elapsed="0.000074"/>
+</if>
+<kw name="Fail" owner="BuiltIn">
+<arg>Renode executable not found. Set RENODE_PATH env var or install Renode at ${RENODE_APP_PATH}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-03-03T23:47:29.909487" elapsed="0.000012"/>
+</kw>
+<msg time="2026-03-03T23:47:29.909577" level="INFO">${renode} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode</msg>
+<var>${renode}</var>
+<doc>Resolve Renode executable path.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.908375" elapsed="0.001217"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:29.909846" level="INFO">${script_path} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/sensor_test.resc</msg>
+<var>${script_path}</var>
+<arg>${SIM_ROOT}/scripts/${script_name}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.909653" elapsed="0.000209"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:29.910326" level="INFO">Starting process:
+/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode --disable-xwt --console /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/sensor_test.resc</msg>
+<msg time="2026-03-03T23:47:29.912471" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.697299" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.697612" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>${renode}</arg>
+<arg>--disable-xwt</arg>
+<arg>--console</arg>
+<arg>${script_path}</arg>
+<arg>cwd=${SIM_ROOT}</arg>
+<arg>shell=False</arg>
+<arg>timeout=${timeout}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.909932" elapsed="1.787712"/>
+</kw>
+<return>
+<value>${result}</value>
+<status status="PASS" start="2026-03-03T23:47:31.697770" elapsed="0.000064"/>
+</return>
+<msg time="2026-03-03T23:47:31.698002" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>sensor_test.resc</arg>
+<arg>timeout=30s</arg>
+<doc>Run a script from simulation/scripts and return process result.</doc>
+<status status="PASS" start="2026-03-03T23:47:29.907875" elapsed="1.790146"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.698996" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.698199" elapsed="0.000852"/>
+</kw>
+<kw name="Set Suite Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.699613" level="INFO">${SENSOR_OUTPUT} = 23:47:31.2946 [INFO] Loaded monitor commands from: /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/scripts/monitor.py
+[0mRenode, version 1.16.0 (20ad06...</msg>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>${result.stdout}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.699149" elapsed="0.000495"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:25.518443" elapsed="6.181252"/>
+</kw>
+<test id="s1-t1" name="F01 - Firmware Loads Successfully" line="13">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.700857" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.700655" elapsed="0.000221"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.701468" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.700952" elapsed="0.000558"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.701939" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py firmware_loaded /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.704143" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.738339" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.738625" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.701591" elapsed="0.037065"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.740083" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.738918" elapsed="0.001223"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.740684" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.740239" elapsed="0.000462"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.740892" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.740775" elapsed="0.000132"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.740946" elapsed="0.000045"/>
+</return>
+<msg time="2026-03-03T23:47:31.741097" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.700464" elapsed="0.040650"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.741379" level="INFO">${value_int} = 1</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.741189" elapsed="0.000205"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.741681" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.741522" elapsed="0.000194"/>
+</kw>
+<arg>${FIRMWARE_OUTPUT}</arg>
+<arg>firmware_loaded</arg>
+<arg>1</arg>
+<status status="PASS" start="2026-03-03T23:47:31.700196" elapsed="0.041558"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:31.699784" elapsed="0.042076"/>
+</test>
+<test id="s1-t2" name="F02 - Firmware Initialization Complete" line="16">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.743027" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.742835" elapsed="0.000211"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.743672" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.743119" elapsed="0.000595"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.744119" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py firmware_init_ok /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.746246" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.779968" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.780238" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.743793" elapsed="0.036473"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.781661" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.780534" elapsed="0.001185"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.782241" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.781814" elapsed="0.000444"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.782449" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.782331" elapsed="0.000134"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.782508" elapsed="0.000047"/>
+</return>
+<msg time="2026-03-03T23:47:31.782651" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.742653" elapsed="0.040013"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.782927" level="INFO">${value_int} = 1</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.782741" elapsed="0.000201"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.783159" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.783005" elapsed="0.000188"/>
+</kw>
+<arg>${FIRMWARE_OUTPUT}</arg>
+<arg>firmware_init_ok</arg>
+<arg>1</arg>
+<status status="PASS" start="2026-03-03T23:47:31.742389" elapsed="0.040840"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:31.742064" elapsed="0.041260"/>
+</test>
+<test id="s1-t3" name="T01 - Sensor Initialization" line="19">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.784462" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.784274" elapsed="0.000205"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.784919" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.784550" elapsed="0.000407"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.785347" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py initialized /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.787457" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.822024" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.822301" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.785032" elapsed="0.037298"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.823788" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.822605" elapsed="0.001246"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.824397" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.823952" elapsed="0.000462"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.824682" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.824560" elapsed="0.000137"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.824740" elapsed="0.000045"/>
+</return>
+<msg time="2026-03-03T23:47:31.824942" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.784086" elapsed="0.040884"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.825311" level="INFO">${value_int} = 1</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.825068" elapsed="0.000261"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.825574" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.825405" elapsed="0.000210"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>initialized</arg>
+<arg>1</arg>
+<status status="PASS" start="2026-03-03T23:47:31.783819" elapsed="0.041883"/>
+</kw>
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.826618" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.826437" elapsed="0.000199"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.827110" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.826712" elapsed="0.000434"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.827535" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py default_distance /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.829580" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.864180" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.864442" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.827223" elapsed="0.037248"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.865897" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.864737" elapsed="0.001216"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.866477" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.866050" elapsed="0.000445"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.866683" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.866570" elapsed="0.000128"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.866737" elapsed="0.000043"/>
+</return>
+<msg time="2026-03-03T23:47:31.866878" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.826250" elapsed="0.040645"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.867346" level="INFO">${value_int} = 50</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.866973" elapsed="0.000389"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.867585" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.867427" elapsed="0.000196"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>default_distance</arg>
+<arg>${DEFAULT_DISTANCE}</arg>
+<status status="PASS" start="2026-03-03T23:47:31.825939" elapsed="0.041721"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:31.783505" elapsed="0.084233"/>
+</test>
+<test id="s1-t4" name="T02 - Read Default Distance" line="23">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.868951" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.868739" elapsed="0.000237"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.869422" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.869053" elapsed="0.000409"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.869855" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py default_distance /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.871875" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.906118" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.906466" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.869537" elapsed="0.036958"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.908108" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.906844" elapsed="0.001328"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.908782" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.908279" elapsed="0.000522"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.909053" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.908888" elapsed="0.000190"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.909132" elapsed="0.000067"/>
+</return>
+<msg time="2026-03-03T23:47:31.909317" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.868538" elapsed="0.040798"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.909738" level="INFO">${value_int} = 50</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.909461" elapsed="0.000302"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.910017" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.909844" elapsed="0.000212"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>default_distance</arg>
+<arg>${DEFAULT_DISTANCE}</arg>
+<status status="PASS" start="2026-03-03T23:47:31.868226" elapsed="0.041877"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:31.867893" elapsed="0.042302"/>
+</test>
+<test id="s1-t5" name="T03 - Update Distance" line="26">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.911315" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.911131" elapsed="0.000203"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.911797" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.911412" elapsed="0.000421"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.912213" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py distance_100 /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.914245" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.948152" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.948424" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.911905" elapsed="0.036545"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.949871" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.948713" elapsed="0.001213"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.950439" level="INFO">${value} = 100</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.950015" elapsed="0.000441"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.950659" level="INFO">${value} = 100</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.950531" elapsed="0.000142"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.950712" elapsed="0.000041"/>
+</return>
+<msg time="2026-03-03T23:47:31.950849" level="INFO">${value} = 100</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.910950" elapsed="0.039917"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.951123" level="INFO">${value_int} = 100</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.950942" elapsed="0.000196"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.951358" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.951203" elapsed="0.000189"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>distance_100</arg>
+<arg>100</arg>
+<status status="PASS" start="2026-03-03T23:47:31.910680" elapsed="0.040748"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:31.910367" elapsed="0.041148"/>
+</test>
+<test id="s1-t6" name="T04 - Minimum Distance" line="29">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.952837" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.952646" elapsed="0.000210"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.953335" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.952977" elapsed="0.000392"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.953747" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py distance_min /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.955944" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:31.988822" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:31.989103" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.953438" elapsed="0.035693"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.990758" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.989416" elapsed="0.001404"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.991401" level="INFO">${value} = 20</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.990931" elapsed="0.000489"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:31.991612" level="INFO">${value} = 20</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.991495" elapsed="0.000147"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:31.991683" elapsed="0.000043"/>
+</return>
+<msg time="2026-03-03T23:47:31.991828" level="INFO">${value} = 20</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.952453" elapsed="0.039391"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.992112" level="INFO">${value_int} = 20</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.991921" elapsed="0.000206"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.992360" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.992205" elapsed="0.000189"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>distance_min</arg>
+<arg>${MIN_DISTANCE}</arg>
+<status status="PASS" start="2026-03-03T23:47:31.951982" elapsed="0.040448"/>
+</kw>
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:31.992995" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.992827" elapsed="0.000185"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:31.993532" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.993118" elapsed="0.000462"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:31.994008" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_min /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:31.996114" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.029327" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.029581" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.993668" elapsed="0.035941"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.030991" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.029862" elapsed="0.001187"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.031573" level="INFO">${value} = 1160</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.031144" elapsed="0.000446"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.031784" level="INFO">${value} = 1160</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.031667" elapsed="0.000132"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.031841" elapsed="0.000041"/>
+</return>
+<msg time="2026-03-03T23:47:32.031982" level="INFO">${echo_min} = 1160</msg>
+<var>${echo_min}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_min</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:31.992608" elapsed="0.039391"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.032329" level="INFO">${expected} = 1160</msg>
+<var>${expected}</var>
+<arg>${MIN_DISTANCE} * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.032099" elapsed="0.000246"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.032572" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_min}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.032413" elapsed="0.000194"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:31.951677" elapsed="0.081070"/>
+</test>
+<test id="s1-t7" name="T05 - Maximum Distance" line="35">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.033831" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.033650" elapsed="0.000199"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.034313" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.033921" elapsed="0.000427"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.034729" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py distance_max /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.036664" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.069362" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.069609" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.034418" elapsed="0.035221"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.071067" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.069901" elapsed="0.001224"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.071913" level="INFO">${value} = 450</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.071235" elapsed="0.000695"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.072127" level="INFO">${value} = 450</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.072010" elapsed="0.000133"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.072184" elapsed="0.000046"/>
+</return>
+<msg time="2026-03-03T23:47:32.072321" level="INFO">${value} = 450</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.033473" elapsed="0.038861"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.072611" level="INFO">${value_int} = 450</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.072418" elapsed="0.000208"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.072852" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.072693" elapsed="0.000194"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>distance_max</arg>
+<arg>${MAX_DISTANCE}</arg>
+<status status="PASS" start="2026-03-03T23:47:32.033200" elapsed="0.039724"/>
+</kw>
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.073450" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.073285" elapsed="0.000182"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.073930" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.073530" elapsed="0.000436"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.074329" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_max /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.076248" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.109516" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.109784" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.074036" elapsed="0.035776"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.111216" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.110072" elapsed="0.001199"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.111785" level="INFO">${value} = 26100</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.111365" elapsed="0.000441"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.112004" level="INFO">${value} = 26100</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.111882" elapsed="0.000138"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.112060" elapsed="0.000044"/>
+</return>
+<msg time="2026-03-03T23:47:32.112265" level="INFO">${echo_max} = 26100</msg>
+<var>${echo_max}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_max</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.073088" elapsed="0.039193"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.112596" level="INFO">${expected} = 26100</msg>
+<var>${expected}</var>
+<arg>${MAX_DISTANCE} * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.112363" elapsed="0.000248"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.112834" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_max}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.112676" elapsed="0.000192"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.032903" elapsed="0.080044"/>
+</test>
+<test id="s1-t8" name="T06 - Out Of Range Clamping" line="41">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.114049" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.113864" elapsed="0.000204"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.114514" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.114143" elapsed="0.000410"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.114924" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py clamped_high /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.116845" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.149561" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.149825" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.114623" elapsed="0.035228"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.151243" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.150113" elapsed="0.001187"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.151835" level="INFO">${value} = 450</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.151406" elapsed="0.000446"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.152053" level="INFO">${value} = 450</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.151933" elapsed="0.000136"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.152114" elapsed="0.000049"/>
+</return>
+<msg time="2026-03-03T23:47:32.152265" level="INFO">${value} = 450</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.113683" elapsed="0.038598"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.152542" level="INFO">${value_int} = 450</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.152359" elapsed="0.000202"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.152781" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.152626" elapsed="0.000189"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>clamped_high</arg>
+<arg>${MAX_DISTANCE}</arg>
+<status status="PASS" start="2026-03-03T23:47:32.113414" elapsed="0.039442"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.113105" elapsed="0.039842"/>
+</test>
+<test id="s1-t9" name="T07 - Negative Distance Handling" line="44">
+<kw name="Assert Result Int At Least" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.154245" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.154073" elapsed="0.000193"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.154731" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.154334" elapsed="0.000440"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.155156" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py clamped_negative /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.157179" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.189996" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.190262" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.154845" elapsed="0.035445"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.191701" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.190554" elapsed="0.001260"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.192338" level="INFO">${value} = 0</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.191908" elapsed="0.000447"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.192542" level="INFO">${value} = 0</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.192428" elapsed="0.000131"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.192598" elapsed="0.000041"/>
+</return>
+<msg time="2026-03-03T23:47:32.192739" level="INFO">${value} = 0</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.153684" elapsed="0.039072"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.193013" level="INFO">${value_int} = 0</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.192832" elapsed="0.000196"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${value_int} &gt;= ${min_value}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.193097" elapsed="0.000245"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>clamped_negative</arg>
+<arg>0</arg>
+<status status="PASS" start="2026-03-03T23:47:32.153426" elapsed="0.039956"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.153111" elapsed="0.040352"/>
+</test>
+<test id="s1-t10" name="T08 - Multiple Readings" line="47">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.194524" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.194342" elapsed="0.000199"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.194973" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.194614" elapsed="0.000393"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.195377" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py sequence_ok /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.197257" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.230311" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.230567" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.195080" elapsed="0.035514"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.231963" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.230844" elapsed="0.001173"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.232542" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.232110" elapsed="0.000453"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.232755" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.232637" elapsed="0.000135"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.232811" elapsed="0.000041"/>
+</return>
+<msg time="2026-03-03T23:47:32.232947" level="INFO">${value} = 1</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.194166" elapsed="0.038798"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.233219" level="INFO">${value_int} = 1</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.233037" elapsed="0.000197"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.233455" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.233298" elapsed="0.000190"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>sequence_ok</arg>
+<arg>1</arg>
+<status status="PASS" start="2026-03-03T23:47:32.193909" elapsed="0.039619"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.193620" elapsed="0.039990"/>
+</test>
+<test id="s1-t11" name="T09 - Echo Pulse Width Calculation" line="50">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.234529" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.234339" elapsed="0.000208"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.235020" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.234617" elapsed="0.000446"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.235459" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_20 /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.237455" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.273530" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.273804" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.235137" elapsed="0.038695"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.275624" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.274131" elapsed="0.001558"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.276257" level="INFO">${value} = 1160</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.275794" elapsed="0.000484"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.276488" level="INFO">${value} = 1160</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.276362" elapsed="0.000141"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.276544" elapsed="0.000043"/>
+</return>
+<msg time="2026-03-03T23:47:32.276684" level="INFO">${echo_20} = 1160</msg>
+<var>${echo_20}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_20</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.234129" elapsed="0.042573"/>
+</kw>
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.277250" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.277077" elapsed="0.000190"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.277775" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.277348" elapsed="0.000468"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.278195" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_50 /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.280256" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.313763" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.314038" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.277884" elapsed="0.036181"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.315475" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.314331" elapsed="0.001200"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.316067" level="INFO">${value} = 2900</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.315629" elapsed="0.000455"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.316283" level="INFO">${value} = 2900</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.316165" elapsed="0.000133"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.316343" elapsed="0.000047"/>
+</return>
+<msg time="2026-03-03T23:47:32.316494" level="INFO">${echo_50} = 2900</msg>
+<var>${echo_50}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_50</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.276877" elapsed="0.039632"/>
+</kw>
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.317090" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.316911" elapsed="0.000195"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.317565" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.317176" elapsed="0.000426"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.317980" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_100 /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.319961" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.353069" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.353351" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.317672" elapsed="0.035708"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.354854" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.353667" elapsed="0.001243"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.355513" level="INFO">${value} = 5800</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.355072" elapsed="0.000458"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.355718" level="INFO">${value} = 5800</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.355605" elapsed="0.000128"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.355773" elapsed="0.000042"/>
+</return>
+<msg time="2026-03-03T23:47:32.355912" level="INFO">${echo_100} = 5800</msg>
+<var>${echo_100}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_100</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.316693" elapsed="0.039234"/>
+</kw>
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.356481" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.356304" elapsed="0.000197"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.356995" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.356586" elapsed="0.000447"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.357437" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_200 /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.359325" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.392683" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.392997" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.357123" elapsed="0.035928"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.394510" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.393358" elapsed="0.001209"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.395088" level="INFO">${value} = 11600</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.394663" elapsed="0.000442"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.395306" level="INFO">${value} = 11600</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.395183" elapsed="0.000138"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.395366" elapsed="0.000045"/>
+</return>
+<msg time="2026-03-03T23:47:32.395519" level="INFO">${echo_200} = 11600</msg>
+<var>${echo_200}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_200</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.356098" elapsed="0.039438"/>
+</kw>
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.396316" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.395940" elapsed="0.000395"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.396834" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.396409" elapsed="0.000463"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.397261" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py echo_450 /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.399251" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.432356" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.432616" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.396944" elapsed="0.035698"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.434075" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.432900" elapsed="0.001231"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.434677" level="INFO">${value} = 26100</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.434230" elapsed="0.000465"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.434895" level="INFO">${value} = 26100</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.434774" elapsed="0.000137"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.434953" elapsed="0.000046"/>
+</return>
+<msg time="2026-03-03T23:47:32.435158" level="INFO">${echo_450} = 26100</msg>
+<var>${echo_450}</var>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>echo_450</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.395726" elapsed="0.039449"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.435476" level="INFO">${exp_20} = 1160</msg>
+<var>${exp_20}</var>
+<arg>20 * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.435264" elapsed="0.000228"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.435723" level="INFO">${exp_50} = 2900</msg>
+<var>${exp_50}</var>
+<arg>50 * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.435560" elapsed="0.000178"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.435954" level="INFO">${exp_100} = 5800</msg>
+<var>${exp_100}</var>
+<arg>100 * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.435803" elapsed="0.000169"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.436192" level="INFO">${exp_200} = 11600</msg>
+<var>${exp_200}</var>
+<arg>200 * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.436039" elapsed="0.000168"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.436421" level="INFO">${exp_450} = 26100</msg>
+<var>${exp_450}</var>
+<arg>450 * 58</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.436272" elapsed="0.000163"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.436653" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_20}</arg>
+<arg>${exp_20}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.436500" elapsed="0.000187"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.436898" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_50}</arg>
+<arg>${exp_50}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.436750" elapsed="0.000179"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.437146" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_100}</arg>
+<arg>${exp_100}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.436998" elapsed="0.000178"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.437387" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_200}</arg>
+<arg>${exp_200}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.437240" elapsed="0.000177"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.437619" level="INFO">Argument types are:
+&lt;class 'str'&gt;
+&lt;class 'int'&gt;</msg>
+<arg>${echo_450}</arg>
+<arg>${exp_450}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.437475" elapsed="0.000174"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.233777" elapsed="0.203951"/>
+</test>
+<test id="s1-t12" name="T10 - Sensor Reset" line="69">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.439048" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.438740" elapsed="0.000331"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.439556" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.439156" elapsed="0.000438"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.440013" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py distance_after_reset /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.442162" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.475210" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.475513" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.439673" elapsed="0.035873"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.476928" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.475804" elapsed="0.001178"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.477507" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.477073" elapsed="0.000452"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.477733" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.477614" elapsed="0.000134"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.477790" elapsed="0.000041"/>
+</return>
+<msg time="2026-03-03T23:47:32.477926" level="INFO">${value} = 50</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.438476" elapsed="0.039466"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.478201" level="INFO">${value_int} = 50</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.478016" elapsed="0.000200"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.478437" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.478279" elapsed="0.000195"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>distance_after_reset</arg>
+<arg>${DEFAULT_DISTANCE}</arg>
+<status status="PASS" start="2026-03-03T23:47:32.438198" elapsed="0.040371"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.437896" elapsed="0.040759"/>
+</test>
+<test id="s1-t13" name="T11 - Timeout Configuration" line="72">
+<kw name="Assert Result Int Equals" owner="common">
+<kw name="Extract Result Value" owner="common">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.479983" level="INFO">${temp_file} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<var>${temp_file}</var>
+<arg>${RESULTS_DIR}/renode_output.txt</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.479789" elapsed="0.000212"/>
+</kw>
+<kw name="Create File" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.480472" level="INFO" html="true">Created file '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/results/renode_output.txt&lt;/a&gt;'.</msg>
+<arg>${temp_file}</arg>
+<arg>${output}</arg>
+<doc>Creates a file with the given content and encoding.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.480071" elapsed="0.000436"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.480905" level="INFO">Starting process:
+python /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../tests/python/parse_renode_output.py timeout_us /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../results/renode_output.txt</msg>
+<msg time="2026-03-03T23:47:32.483026" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:32.515444" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:32.515692" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>python</arg>
+<arg>${SIM_ROOT}/tests/python/parse_renode_output.py</arg>
+<arg>${key}</arg>
+<arg>${temp_file}</arg>
+<arg>shell=False</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.480580" elapsed="0.035140"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.517124" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Failed to extract key '${key}'. Python stderr: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.515981" elapsed="0.001202"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.517760" level="INFO">${value} = 30000</msg>
+<var>${value}</var>
+<arg>${result.stdout}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.517293" elapsed="0.000484"/>
+</kw>
+<kw name="Strip String" owner="String">
+<msg time="2026-03-03T23:47:32.517979" level="INFO">${value} = 30000</msg>
+<var>${value}</var>
+<arg>${value}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.517856" elapsed="0.000138"/>
+</kw>
+<return>
+<value>${value}</value>
+<status status="PASS" start="2026-03-03T23:47:32.518035" elapsed="0.000046"/>
+</return>
+<msg time="2026-03-03T23:47:32.518189" level="INFO">${value} = 30000</msg>
+<var>${value}</var>
+<arg>${output}</arg>
+<arg>${key}</arg>
+<doc>Parse RESULT key=value from script output using Python helper.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.479599" elapsed="0.038606"/>
+</kw>
+<kw name="Convert To Integer" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.518482" level="INFO">${value_int} = 30000</msg>
+<var>${value_int}</var>
+<arg>${value}</arg>
+<doc>Converts the given item to an integer number.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.518287" elapsed="0.000213"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.518720" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${value_int}</arg>
+<arg>${expected}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.518564" elapsed="0.000191"/>
+</kw>
+<arg>${SENSOR_OUTPUT}</arg>
+<arg>timeout_us</arg>
+<arg>${DEFAULT_TIMEOUT_US}</arg>
+<status status="PASS" start="2026-03-03T23:47:32.479134" elapsed="0.039658"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.478823" elapsed="0.040055"/>
+</test>
+<test id="s1-t14" name="T12 - Integration With Platform" line="75">
+<kw name="Run Renode Script" owner="common">
+<kw name="Get Renode Path" owner="common">
+<kw name="Run Keyword And Return Status" owner="BuiltIn">
+<kw name="File Should Exist" owner="OperatingSystem">
+<msg time="2026-03-03T23:47:32.520223" level="INFO" html="true">File '&lt;a href="file:///Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode"&gt;/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode&lt;/a&gt;' exists.</msg>
+<arg>${RENODE_PATH_ENV}</arg>
+<doc>Fails unless the given ``path`` points to an existing file.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.520081" elapsed="0.000176"/>
+</kw>
+<msg time="2026-03-03T23:47:32.520311" level="INFO">${has_env} = True</msg>
+<var>${has_env}</var>
+<arg>File Should Exist</arg>
+<arg>${RENODE_PATH_ENV}</arg>
+<doc>Runs the specified keyword and returns the status as a Boolean value.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.519859" elapsed="0.000467"/>
+</kw>
+<if>
+<branch type="IF" condition="${has_env}">
+<return>
+<value>${RENODE_PATH_ENV}</value>
+<status status="PASS" start="2026-03-03T23:47:32.520438" elapsed="0.000020"/>
+</return>
+<status status="PASS" start="2026-03-03T23:47:32.520386" elapsed="0.000097"/>
+</branch>
+<status status="PASS" start="2026-03-03T23:47:32.520370" elapsed="0.000129"/>
+</if>
+<kw name="Run Keyword And Return Status" owner="BuiltIn">
+<var>${has_app}</var>
+<arg>File Should Exist</arg>
+<arg>${RENODE_APP_PATH}</arg>
+<doc>Runs the specified keyword and returns the status as a Boolean value.</doc>
+<status status="NOT RUN" start="2026-03-03T23:47:32.520566" elapsed="0.000013"/>
+</kw>
+<if>
+<branch type="IF" condition="${has_app}">
+<return>
+<value>${RENODE_APP_PATH}</value>
+<status status="NOT RUN" start="2026-03-03T23:47:32.520641" elapsed="0.000007"/>
+</return>
+<status status="NOT RUN" start="2026-03-03T23:47:32.520620" elapsed="0.000048"/>
+</branch>
+<status status="NOT RUN" start="2026-03-03T23:47:32.520610" elapsed="0.000071"/>
+</if>
+<kw name="Fail" owner="BuiltIn">
+<arg>Renode executable not found. Set RENODE_PATH env var or install Renode at ${RENODE_APP_PATH}</arg>
+<doc>Fails the test with the given message and optionally alters its tags.</doc>
+<status status="NOT RUN" start="2026-03-03T23:47:32.520734" elapsed="0.000010"/>
+</kw>
+<msg time="2026-03-03T23:47:32.520819" level="INFO">${renode} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode</msg>
+<var>${renode}</var>
+<doc>Resolve Renode executable path.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.519704" elapsed="0.001131"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-03-03T23:47:32.521083" level="INFO">${script_path} = /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/run_simulation.resc</msg>
+<var>${script_path}</var>
+<arg>${SIM_ROOT}/scripts/${script_name}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.520895" elapsed="0.000204"/>
+</kw>
+<kw name="Run Process" owner="Process">
+<msg time="2026-03-03T23:47:32.521551" level="INFO">Starting process:
+/Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Renode.app/Contents/MacOS/renode --disable-xwt --console /Users/giuliomastromartino/Documents/Polispace/DEV/MICRO_ROS_ETH-main/Test_Board_Sensore/simulation/tests/robot/../../scripts/run_simulation.resc</msg>
+<msg time="2026-03-03T23:47:32.523771" level="INFO">Waiting for process to complete.</msg>
+<msg time="2026-03-03T23:47:46.161208" level="INFO">Process completed.</msg>
+<msg time="2026-03-03T23:47:46.161791" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>${renode}</arg>
+<arg>--disable-xwt</arg>
+<arg>--console</arg>
+<arg>${script_path}</arg>
+<arg>cwd=${SIM_ROOT}</arg>
+<arg>shell=False</arg>
+<arg>timeout=${timeout}</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.521207" elapsed="13.640636"/>
+</kw>
+<return>
+<value>${result}</value>
+<status status="PASS" start="2026-03-03T23:47:46.162090" elapsed="0.000125"/>
+</return>
+<msg time="2026-03-03T23:47:46.162534" level="INFO">${result} = &lt;result object with rc 0&gt;</msg>
+<var>${result}</var>
+<arg>run_simulation.resc</arg>
+<arg>timeout=40s</arg>
+<doc>Run a script from simulation/scripts and return process result.</doc>
+<status status="PASS" start="2026-03-03T23:47:32.519388" elapsed="13.643187"/>
+</kw>
+<kw name="Should Be Equal As Integers" owner="BuiltIn">
+<msg time="2026-03-03T23:47:46.164430" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<status status="PASS" start="2026-03-03T23:47:46.162949" elapsed="0.001602"/>
+</kw>
+<kw name="Should Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>RESULT sim_distance=</arg>
+<doc>Fails if ``container`` does not contain ``item`` one or more times.</doc>
+<status status="PASS" start="2026-03-03T23:47:46.164707" elapsed="0.001161"/>
+</kw>
+<kw name="Should Not Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>exception</arg>
+<doc>Fails if ``container`` contains ``item`` one or more times.</doc>
+<status status="PASS" start="2026-03-03T23:47:46.166023" elapsed="0.000871"/>
+</kw>
+<kw name="Should Not Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>Exception</arg>
+<doc>Fails if ``container`` contains ``item`` one or more times.</doc>
+<status status="PASS" start="2026-03-03T23:47:46.167026" elapsed="0.000862"/>
+</kw>
+<kw name="Should Not Contain" owner="BuiltIn">
+<arg>${result.stdout}</arg>
+<arg>Error</arg>
+<doc>Fails if ``container`` contains ``item`` one or more times.</doc>
+<status status="PASS" start="2026-03-03T23:47:46.168066" elapsed="0.000897"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:32.519066" elapsed="13.650061"/>
+</test>
+<kw name="Teardown Test Suite" type="TEARDOWN">
+<kw name="No Operation" owner="BuiltIn">
+<doc>Does absolutely nothing.</doc>
+<status status="PASS" start="2026-03-03T23:47:46.174393" elapsed="0.000325"/>
+</kw>
+<status status="PASS" start="2026-03-03T23:47:46.171620" elapsed="0.003227"/>
+</kw>
+<doc>JSN-SR04T ultrasonic simulation test suite</doc>
+<status status="PASS" start="2026-03-03T23:47:25.467915" elapsed="20.706976"/>
+</suite>
+<statistics>
+<total>
+<stat pass="14" fail="0" skip="0">All Tests</stat>
+</total>
+<tag>
+</tag>
+<suite>
+<stat name="Test Sensor Ultrasonic" id="s1" pass="14" fail="0" skip="0">Test Sensor Ultrasonic</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>
