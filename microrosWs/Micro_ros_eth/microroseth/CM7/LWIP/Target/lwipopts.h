@@ -64,7 +64,7 @@ uint32_t microros_lwip_rand(void);
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for H7 devices: 0x30004000 -----*/
-#define LWIP_RAM_HEAP_POINTER 0x30004000
+#define LWIP_RAM_HEAP_POINTER 0x30005000
 /*----- Value supported for H7 devices: 1 -----*/
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
@@ -162,5 +162,3 @@ uint32_t microros_lwip_rand(void);
 }
 #endif
 #endif /*__LWIPOPTS__H__ */
-#define LWIP_SKIP_PROTOCOL_INIT  1
-#define LWIP_SKIP_TCP_UDP_INIT   1

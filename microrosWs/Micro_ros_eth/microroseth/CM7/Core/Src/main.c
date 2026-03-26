@@ -33,10 +33,6 @@
 
 extern struct netif gnetif;
 
-extern sys_mbox_t tcpip_mbox;
-extern sys_mutex_t lock_tcpip_core;
-extern void tcpip_thread(void *arg);
-
 typedef enum
 {
   STATUS_STARTUP_BLINK_GREEN = 0,
@@ -261,36 +257,11 @@ static bool SetupNetworkingAndMicroRos(void)
 
   printf("CM7: setup-start\r\n");
 
-  stats_init();
-  sys_init();
-  mem_init();
-  memp_init();
-  pbuf_init();
-  netif_init();
-  sys_timeouts_init();
+  tcpip_init(NULL, NULL);
   printf("CM7: lwip-core-init-ok\r\n");
 
   MX_ETH_Init();
   printf("CM7: eth-init-ok\r\n");
-
-  if(sys_mbox_new(&tcpip_mbox, 6) != ERR_OK)
-  {
-    SetStartupFatalError("tcpip-mbox");
-    return false;
-  }
-  if(sys_mutex_new(&lock_tcpip_core) != ERR_OK)
-  {
-    SetStartupFatalError("tcpip-mutex");
-    return false;
-  }
-  printf("CM7: tcpip-primitives-created\r\n");
-
-  if(sys_thread_new("tcpip", tcpip_thread, NULL, 2048, 3) == NULL)
-  {
-    SetStartupFatalError("tcpip-thread");
-    return false;
-  }
-  printf("CM7: tcpip-thread-created\r\n");
 
   IP4_ADDR(&ipaddr,
            MICROROS_DEVICE_IP_A,

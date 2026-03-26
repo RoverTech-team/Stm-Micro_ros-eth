@@ -19,19 +19,19 @@ import traceback
 from models.node import Node
 from config import get_config
 
-# Setup logging first to capture startup errors
-logs_dir = Path('logs')
-logs_dir.mkdir(exist_ok=True)
-
 # Initialize Flask app
 app = Flask(__name__, template_folder='templates')
 app.config.from_object(get_config())
+
+# Setup logging first to capture startup errors
+log_file_path = Path(app.config['LOG_FILE'])
+log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     level=getattr(logging, app.config['LOG_LEVEL']),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(app.config['LOG_FILE']),
+        logging.FileHandler(log_file_path),
         logging.StreamHandler()
     ]
 )
@@ -72,6 +72,9 @@ limiter = Limiter(
 
 # ROS 2 Manager Instance
 ros_manager = None
+ROS_WATCH_LIMIT = 10
+ROS_SAMPLE_HISTORY_LIMIT = 20
+ros_state_lock = threading.RLock()
 
 @auth.verify_password
 def verify_password(username: str, password: str) -> Optional[str]:
@@ -95,6 +98,17 @@ def get_default_data() -> Dict[str, Any]:
     """Return startup data without simulated nodes."""
     logger.info("Initializing dashboard with empty live state")
     return get_empty_data()
+
+
+def get_empty_ros_state() -> Dict[str, Any]:
+    """Return empty ROS inspector state."""
+    return {
+        "graph_nodes": [],
+        "graph_topics": [],
+        "watched_topics": {},
+        "last_graph_refresh": None,
+        "graph_error": None,
+    }
 
 
 def refresh_system_status(data: Dict[str, Any]) -> None:
@@ -196,6 +210,7 @@ def get_node_log_lines(node_id: int, limit: int = 100) -> List[str]:
 
 # Global variable to hold system data
 system_data = None  # Will be initialized in main block
+ros_inspector_state = get_empty_ros_state()
 
 
 def require_json(f):
@@ -216,6 +231,58 @@ def get_node_by_id(node_id: int) -> Optional[Node]:
         if node.id == node_id:
             return node
     return None
+
+
+def serialize_system_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert runtime system data into template/API-safe dictionaries."""
+    template_data = data.copy()
+    template_data["nodes"] = [node.to_dict() for node in data.get("nodes", [])]
+    return template_data
+
+
+def get_ros_graph_payload() -> Dict[str, Any]:
+    """Return a JSON-safe snapshot of the ROS inspector state."""
+    with ros_state_lock:
+        topics = [dict(topic) for topic in ros_inspector_state["graph_topics"]]
+        watched_topics = {
+            name: {
+                "topic_name": topic_data["topic_name"],
+                "topic_type": topic_data.get("topic_type"),
+                "latest": topic_data.get("latest"),
+                "history": list(topic_data.get("history", [])),
+                "last_update": topic_data.get("last_update"),
+                "status": topic_data.get("status", "idle"),
+                "error": topic_data.get("error"),
+            }
+            for name, topic_data in ros_inspector_state["watched_topics"].items()
+        }
+
+        return {
+            "ros_connected": bool(ROS_AVAILABLE and ros_manager and ros_manager.running),
+            "nodes": list(ros_inspector_state["graph_nodes"]),
+            "topics": topics,
+            "watched_topics": watched_topics,
+            "last_graph_refresh": ros_inspector_state.get("last_graph_refresh"),
+            "graph_error": ros_inspector_state.get("graph_error"),
+        }
+
+
+def _upsert_watched_topic(topic_name: str, topic_type: Optional[str] = None) -> Dict[str, Any]:
+    watched = ros_inspector_state["watched_topics"].setdefault(
+        topic_name,
+        {
+            "topic_name": topic_name,
+            "topic_type": topic_type,
+            "latest": None,
+            "history": [],
+            "last_update": None,
+            "status": "idle",
+            "error": None,
+        },
+    )
+    if topic_type:
+        watched["topic_type"] = topic_type
+    return watched
 
 
 def append_failure(node_id: Optional[int], description: str, status: str = "warning") -> None:
@@ -313,8 +380,73 @@ def ros_update_callback(action, data):
                         json.dumps(heartbeat_payload, sort_keys=True),
                     )
 
+            elif action == 'graph_snapshot':
+                with ros_state_lock:
+                    ros_inspector_state["graph_nodes"] = data.get("nodes", [])
+                    ros_inspector_state["graph_topics"] = data.get("topics", [])
+                    ros_inspector_state["last_graph_refresh"] = data.get("timestamp")
+                    ros_inspector_state["graph_error"] = None
+
+                    watched_names = set(ros_inspector_state["watched_topics"].keys())
+                    available_topics = {
+                        topic["name"]: topic for topic in ros_inspector_state["graph_topics"]
+                    }
+                    for topic_name in watched_names:
+                        watched = ros_inspector_state["watched_topics"][topic_name]
+                        if topic_name not in available_topics and watched["status"] != "error":
+                            watched["status"] = "stale"
+                        elif topic_name in available_topics and watched["status"] == "stale":
+                            watched["status"] = "active"
+
+            elif action == 'graph_snapshot_error':
+                with ros_state_lock:
+                    ros_inspector_state["graph_error"] = data.get("error")
+                    ros_inspector_state["last_graph_refresh"] = data.get("timestamp")
+
+            elif action == 'watch_started':
+                with ros_state_lock:
+                    watched = _upsert_watched_topic(
+                        data["topic_name"],
+                        data.get("topic_type"),
+                    )
+                    watched["status"] = "waiting"
+                    watched["error"] = None
+
+            elif action == 'watch_stopped':
+                with ros_state_lock:
+                    ros_inspector_state["watched_topics"].pop(data["topic_name"], None)
+
+            elif action == 'watch_error':
+                with ros_state_lock:
+                    watched = _upsert_watched_topic(
+                        data["topic_name"],
+                        data.get("topic_type"),
+                    )
+                    watched["status"] = "error"
+                    watched["error"] = data.get("error")
+
+            elif action == 'topic_sample':
+                with ros_state_lock:
+                    watched = _upsert_watched_topic(
+                        data["topic_name"],
+                        data.get("topic_type"),
+                    )
+                    sample = {
+                        "timestamp": data.get("timestamp"),
+                        "value": data.get("sample"),
+                    }
+                    watched["latest"] = sample
+                    watched["history"].insert(0, sample)
+                    watched["history"] = watched["history"][:ROS_SAMPLE_HISTORY_LIMIT]
+                    watched["last_update"] = data.get("timestamp")
+                    watched["status"] = "active"
+                    watched["error"] = None
+
         except Exception as e:
             logger.error(f"Error in ROS callback: {e}")
+
+
+system_data = load_system_data()
 
 # ============================================================================
 # WEB ROUTES
@@ -326,8 +458,7 @@ def index():
     if not system_data:
         return "System initializing...", 503
 
-    template_data = system_data.copy()
-    template_data['nodes'] = [node.to_dict() for node in system_data['nodes']]
+    template_data = serialize_system_data(system_data)
     
     ros_connected = False
     if ROS_AVAILABLE and ros_manager:
@@ -342,9 +473,17 @@ def nodes():
     if not system_data:
         return "System initializing...", 503
         
-    template_data = system_data.copy()
-    template_data['nodes'] = [node.to_dict() for node in system_data['nodes']]
+    template_data = serialize_system_data(system_data)
     return render_template('node.html', system_data=template_data)
+
+
+@app.route('/ros')
+def ros_page():
+    """ROS 2 graph and live topic viewer page."""
+    if not system_data:
+        return "System initializing...", 503
+
+    return render_template('ros.html', ros_state=get_ros_graph_payload())
 
 
 @app.route('/failures')
@@ -523,6 +662,97 @@ def api_tasks():
         return jsonify({"error": "Internal server error"}), 500
 
 
+@app.route('/api/ros/graph')
+@limiter.limit("120 per minute")
+def api_ros_graph():
+    """Get ROS graph state, topics, nodes, and watched topics."""
+    try:
+        return jsonify(get_ros_graph_payload()), 200
+    except Exception as e:
+        logger.error(f"Error getting ROS graph: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/topics/<path:topic_name>/samples')
+@limiter.limit("240 per minute")
+def api_ros_topic_samples(topic_name: str):
+    """Get latest sample and history for one watched topic."""
+    try:
+        normalized_name = "/" + topic_name.lstrip("/")
+        with ros_state_lock:
+            watched = ros_inspector_state["watched_topics"].get(normalized_name)
+            if watched is None:
+                return jsonify({"error": f"Topic {normalized_name} is not being watched"}), 404
+
+            payload = {
+                "topic_name": watched["topic_name"],
+                "topic_type": watched.get("topic_type"),
+                "latest": watched.get("latest"),
+                "history": list(watched.get("history", [])),
+                "last_update": watched.get("last_update"),
+                "status": watched.get("status", "idle"),
+                "error": watched.get("error"),
+            }
+        return jsonify(payload), 200
+    except Exception as e:
+        logger.error(f"Error getting ROS topic samples for {topic_name}: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/watch', methods=['POST'])
+@require_json
+@limiter.limit("60 per minute")
+def api_ros_watch_topic():
+    """Start watching a ROS topic by name."""
+    try:
+        data = request.get_json() or {}
+        topic_name = str(data.get("topic_name", "")).strip()
+        if not topic_name:
+            return jsonify({"error": "Missing required field: topic_name"}), 400
+
+        normalized_name = "/" + topic_name.lstrip("/")
+        with ros_state_lock:
+            if normalized_name not in ros_inspector_state["watched_topics"] and len(ros_inspector_state["watched_topics"]) >= ROS_WATCH_LIMIT:
+                return jsonify({"error": f"Watch limit reached ({ROS_WATCH_LIMIT})"}), 400
+
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+
+        result = ros_manager.watch_topic(normalized_name)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        logger.error(f"Error watching ROS topic: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/unwatch', methods=['POST'])
+@require_json
+@limiter.limit("60 per minute")
+def api_ros_unwatch_topic():
+    """Stop watching a ROS topic by name."""
+    try:
+        data = request.get_json() or {}
+        topic_name = str(data.get("topic_name", "")).strip()
+        if not topic_name:
+            return jsonify({"error": "Missing required field: topic_name"}), 400
+
+        normalized_name = "/" + topic_name.lstrip("/")
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            with ros_state_lock:
+                if normalized_name in ros_inspector_state["watched_topics"]:
+                    ros_inspector_state["watched_topics"].pop(normalized_name, None)
+                    return jsonify({"success": True, "topic_name": normalized_name}), 200
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+
+        result = ros_manager.unwatch_topic(normalized_name)
+        status = 200 if result.get("success") else 404
+        return jsonify(result), status
+    except Exception as e:
+        logger.error(f"Error unwatching ROS topic: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
 # ============================================================================
 # API ROUTES (Write operations, require authentication)
 # ============================================================================
@@ -693,9 +923,6 @@ if __name__ == '__main__':
     else:
         print("⚠️  ROS 2 Manager NOT started (Dependencies missing)")
     
-    # Initialize system data AFTER starting ROS manager
-    system_data = load_system_data()
-
     # Get configuration from environment
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     host = os.environ.get('FLASK_HOST', '127.0.0.1')

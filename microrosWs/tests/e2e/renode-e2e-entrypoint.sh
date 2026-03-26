@@ -7,8 +7,11 @@ TAP_INTERFACE="${TAP_INTERFACE:-tap0}"
 TAP_GATEWAY_CIDR="${TAP_GATEWAY_CIDR:-192.168.50.1/24}"
 AGENT_PORT="${AGENT_PORT:-8888}"
 RENODE_SCRIPT="${RENODE_SCRIPT:-${WORKSPACE}/microrosWs/tests/e2e/renode/microroseth_docker_tap.resc}"
-CM7_ELF="${CM7_ELF:-${WORKSPACE}/microrosWs/Micro_ros_eth/microroseth/Makefile/CM7/build/MicroRosEth_CM7.elf}"
-CM4_ELF="${CM4_ELF:-${WORKSPACE}/microrosWs/Micro_ros_eth/microroseth/Makefile/CM4/build/MicroRosEth_CM4.elf}"
+FIRMWARE_PROJECT_DIR="${FIRMWARE_PROJECT_DIR:-${WORKSPACE}/microrosWs/Micro_ros_eth/microroseth}"
+CM7_MAKE_DIR="${CM7_MAKE_DIR:-${FIRMWARE_PROJECT_DIR}/Makefile/CM7}"
+CM4_MAKE_DIR="${CM4_MAKE_DIR:-${FIRMWARE_PROJECT_DIR}/Makefile/CM4}"
+CM7_ELF="${CM7_ELF:-${CM7_MAKE_DIR}/build/MicroRosEth_CM7.elf}"
+CM4_ELF="${CM4_ELF:-${CM4_MAKE_DIR}/build/MicroRosEth_CM4.elf}"
 AGENT_START_DELAY_SEC="${AGENT_START_DELAY_SEC:-0}"
 AGENT_RESTART_AFTER_SEC="${AGENT_RESTART_AFTER_SEC:-0}"
 AGENT_RESTART_DOWNTIME_SEC="${AGENT_RESTART_DOWNTIME_SEC:-0}"
@@ -36,6 +39,13 @@ prepare_tap() {
 
 wait_for_firmware() {
   local elf
+
+  for elf in "${CM4_MAKE_DIR}/Makefile" "${CM7_MAKE_DIR}/Makefile"; do
+    if [[ ! -f "${elf}" ]]; then
+      echo "Missing firmware makefile: ${elf}" >&2
+      exit 1
+    fi
+  done
 
   for elf in "${CM4_ELF}" "${CM7_ELF}"; do
     if [[ ! -f "${elf}" ]]; then
@@ -135,7 +145,13 @@ run_renode() {
   rm -f "${restart_marker}"
 
   while true; do
-    "${RENODE_PATH}" --disable-gui --plain "${RENODE_SCRIPT}" &
+    "${RENODE_PATH}" \
+      --disable-gui \
+      --plain \
+      -e "\$cm7=@${CM7_ELF}" \
+      -e "\$cm4=@${CM4_ELF}" \
+      -e "\$tapInterface=\"${TAP_INTERFACE}\"" \
+      -e "include @${RENODE_SCRIPT}" &
     RENODE_PID=$!
 
     if [[ "${restart_delay}" != "0" ]]; then

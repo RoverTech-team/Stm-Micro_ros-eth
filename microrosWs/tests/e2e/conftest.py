@@ -20,8 +20,13 @@ import logging
 from datetime import datetime
 
 # Create logs directory
-LOGS_DIR = Path(__file__).parent / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+if os.environ.get("RUNNING_IN_DOCKER", "").lower() in ("1", "true", "yes"):
+    # Use the writable volume mounted for results/reports in Docker
+    LOGS_DIR = Path("/app/test_results/logs")
+else:
+    LOGS_DIR = Path(__file__).parent / "logs"
+
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Generate log filename with timestamp
 LOG_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -5,11 +5,37 @@ services:
       dockerfile: Dockerfile.firmware-build
     working_dir: /workspace
     command:
-      - >
-        make -C /workspace/microrosWs/Micro_ros_eth/microroseth/Makefile/CM4 -j$(nproc)
-        && make -C /workspace/microrosWs/Micro_ros_eth/microroseth/Makefile/CM7 -j$(nproc)
+      - /usr/local/bin/firmware-build.sh
+    environment:
+      - FIRMWARE_PROJECT_DIR=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}
+      - BUILD_MICROROS_LIB=${BUILD_MICROROS_LIB:-auto}
+      - BUILD_FIRMWARE=${BUILD_FIRMWARE:-1}
+      - MICROROS_BUILDER_TAG=${MICROROS_BUILDER_TAG:-humble}
+      - HOST_WORKSPACE_DIR=${HOST_WORKSPACE_DIR:-${PWD}/../../..}
     volumes:
       - ../../../:/workspace:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - renode_e2e_net
+
+  firmware-build-lib:
+    profiles:
+      - lib-build
+    build:
+      context: .
+      dockerfile: Dockerfile.firmware-build
+    working_dir: /workspace
+    command:
+      - /usr/local/bin/firmware-build.sh
+    environment:
+      - FIRMWARE_PROJECT_DIR=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}
+      - BUILD_MICROROS_LIB=${BUILD_MICROROS_LIB:-force}
+      - BUILD_FIRMWARE=0
+      - MICROROS_BUILDER_TAG=${MICROROS_BUILDER_TAG:-humble}
+      - HOST_WORKSPACE_DIR=${HOST_WORKSPACE_DIR:-${PWD}/../../..}
+    volumes:
+      - ../../../:/workspace:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - renode_e2e_net
 
@@ -90,9 +116,12 @@ services:
       - RENODE_RESTART_AFTER_SEC=${RENODE_RESTART_AFTER_SEC:-0}
       - RENODE_RESTART_DOWNTIME_SEC=${RENODE_RESTART_DOWNTIME_SEC:-0}
       - RENODE_SCRIPT=${RENODE_SCRIPT:-/workspace/microrosWs/tests/e2e/renode/microroseth_docker_tap.resc}
+      - FIRMWARE_PROJECT_DIR=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}
+      - CM4_MAKE_DIR=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}/Makefile/CM4
+      - CM7_MAKE_DIR=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}/Makefile/CM7
       - WORKSPACE=/workspace
-      - CM4_ELF=/workspace/microrosWs/Micro_ros_eth/microroseth/Makefile/CM4/build/MicroRosEth_CM4.elf
-      - CM7_ELF=/workspace/microrosWs/Micro_ros_eth/microroseth/Makefile/CM7/build/MicroRosEth_CM7.elf
+      - CM4_ELF=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}/Makefile/CM4/build/MicroRosEth_CM4.elf
+      - CM7_ELF=${FIRMWARE_PROJECT_DIR:-/workspace/microrosWs/Micro_ros_eth/microroseth}/Makefile/CM7/build/MicroRosEth_CM7.elf
     volumes:
       - ../../../:/workspace:rw
     networks:

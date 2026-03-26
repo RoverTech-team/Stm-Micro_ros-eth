@@ -7,6 +7,8 @@
 
 Flask + rclpy dashboard for monitoring micro-ROS nodes and exposing a REST API. Full documentation is hosted on GitHub Pages.
 
+The dashboard includes a dedicated `ROS 2` page for browsing discovered nodes/topics and watching live topic values with short rolling history.
+
 ## Documentation
 
 - https://rovertech-team.github.io/Stm-Micro_ros-eth/microk3/overview.html

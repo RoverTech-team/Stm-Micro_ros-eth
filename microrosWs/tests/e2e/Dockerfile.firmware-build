@@ -10,6 +10,7 @@ RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
     && apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true \
     && apt-get install -y --allow-unauthenticated --no-install-recommends \
     ca-certificates \
+    docker.io \
     make \
     tar \
     wget \
@@ -23,5 +24,8 @@ RUN wget -qO "/tmp/${ARM_GNU_TOOLCHAIN_ARCHIVE}" "${ARM_GNU_TOOLCHAIN_URL}" \
 ENV PATH="${ARM_GNU_TOOLCHAIN_DIR}/bin:${PATH}"
 
 WORKDIR /workspace
+
+COPY firmware-build.sh /usr/local/bin/firmware-build.sh
+RUN chmod +x /usr/local/bin/firmware-build.sh
 
 ENTRYPOINT ["/bin/bash", "-lc"]

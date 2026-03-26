@@ -1,4 +1,7 @@
 // Refresh button functionality
-document.getElementById('refreshBtn').addEventListener('click', function() {
-    location.reload();
-});
+const refreshBtn = document.getElementById('refreshBtn');
+if (refreshBtn) {
+    refreshBtn.addEventListener('click', function() {
+        location.reload();
+    });
+}
