@@ -11,6 +11,7 @@ services:
       - BUILD_MICROROS_LIB=${BUILD_MICROROS_LIB:-auto}
       - BUILD_FIRMWARE=${BUILD_FIRMWARE:-1}
       - MICROROS_BUILDER_TAG=${MICROROS_BUILDER_TAG:-humble}
+      - MICROROS_AGENT_IP=${MICROROS_AGENT_IP:-192.168.2.17}
       - HOST_WORKSPACE_DIR=${HOST_WORKSPACE_DIR:-${PWD}}
     volumes:
       - ../../:/workspace:rw
@@ -30,6 +31,7 @@ services:
       - BUILD_MICROROS_LIB=${BUILD_MICROROS_LIB:-force}
       - BUILD_FIRMWARE=0
       - MICROROS_BUILDER_TAG=${MICROROS_BUILDER_TAG:-humble}
+      - MICROROS_AGENT_IP=${MICROROS_AGENT_IP:-192.168.2.17}
       - HOST_WORKSPACE_DIR=${HOST_WORKSPACE_DIR:-${PWD}}
     volumes:
       - ../../:/workspace:rw
