@@ -15,6 +15,12 @@ typedef struct
 {
   volatile uint32_t distance_cm;   /* distanza misurata dal sensore [cm] */
   volatile uint32_t data_ready;    /* 1 = dato nuovo disponibile         */
+  volatile uint32_t cm4_write_seq;
+  volatile uint32_t cm4_last_echo_ok;
+  volatile uint32_t cm4_last_echo_ticks;
+  volatile uint32_t cm4_last_wait_timeout;
+  volatile uint32_t cm4_last_pulse_timeout;
+  volatile uint32_t cm4_last_measurement_valid;
 } SharedData_t;
 
 /* Puntatore alla struttura in SRAM4 */

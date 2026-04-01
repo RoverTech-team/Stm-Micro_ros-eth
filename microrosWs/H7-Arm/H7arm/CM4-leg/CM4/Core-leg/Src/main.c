@@ -13,6 +13,7 @@
 
 #include "main.h"
 #include "shared_data.h"
+#include <string.h>
 #include <stdio.h> // Indispensabile per la funzione printf
 
 TIM_HandleTypeDef htim2;
@@ -21,7 +22,7 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart4;
 
 #define CM4_UART_SILENT 1
-
+#define SENSOR_DEBUG_PHASES 0
 #define TIMER_TARGET_HZ 1000000U
 #define TRIG_RESET_TIME_US 2U
 #define TRIG_PULSE_TIME_US 10U
@@ -48,6 +49,13 @@ static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
+static void PublishSharedSensorDebug(uint32_t distance_cm,
+                                     uint32_t echo_ok,
+                                     uint32_t echo_ticks,
+                                     uint32_t wait_timeout,
+                                     uint32_t pulse_timeout,
+                                     uint32_t measurement_valid);
+static void ResetSharedSensorDebug(void);
 
 int main(void) {
   /* ------------------------------------------------------------------ */
@@ -79,6 +87,7 @@ int main(void) {
 #endif
   /* Abilitazione del clock per gli Hardware Semaphores */
   __HAL_RCC_HSEM_CLK_ENABLE();
+  ResetSharedSensorDebug();
 
   /* Compute prescaler */
   uint32_t pclk1 = HAL_RCC_GetPCLK1Freq();
@@ -103,13 +112,13 @@ int main(void) {
   }
   HAL_Delay(500U);
 
+#if SENSOR_DEBUG_PHASES
   /* ================================================================== */
   /* PHASE 1: TRIG toggle — probe PD1 with multimeter                   */
   /* Expected: ~3.3V / 0V alternating every 500ms                       */
   /* Failure:  stuck at 0V → GPIOD clock or MX_GPIO_Init broken         */
   /* ================================================================== */
 
-  /* 1× slow red = entering phase 1 */
   LED_RED_ON();
   HAL_Delay(1000U);
   LED_RED_OFF();
@@ -132,7 +141,6 @@ int main(void) {
   /* RED   = PD0 reads LOW  (expected with PULLDOWN and no signal)      */
   /* ================================================================== */
 
-  /* 2× slow red = entering phase 2 */
   for (int j = 0; j < 2; j++) {
     LED_RED_ON();
     HAL_Delay(500U);
@@ -161,7 +169,6 @@ int main(void) {
   /* RED blink   = timeout                                              */
   /* ================================================================== */
 
-  /* 3× slow red = entering phase 3 */
   for (int j = 0; j < 3; j++) {
     LED_RED_ON();
     HAL_Delay(500U);
@@ -169,6 +176,7 @@ int main(void) {
     HAL_Delay(500U);
   }
   HAL_Delay(500U);
+#endif
 
   uint8_t any_echo = 0U;
   uint32_t echo_time = 0U;
@@ -188,10 +196,13 @@ int main(void) {
 
     /* Wait for echo HIGH */
     uint8_t got_echo = 0U;
+    uint8_t wait_timeout = 0U;
+    uint8_t pulse_timeout = 0U;
     uint32_t wait_start = __HAL_TIM_GET_COUNTER(&htim2);
     while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_RESET) {
       if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - wait_start) >
           ECHO_WAIT_TIMEOUT_US) {
+        wait_timeout = 1U;
         break;
       }
     }
@@ -201,6 +212,7 @@ int main(void) {
       while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_SET) {
         if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - echo_start) >
             ECHO_PULSE_TIMEOUT_US) {
+          pulse_timeout = 1U;
           break;
         }
       }
@@ -208,6 +220,14 @@ int main(void) {
       got_echo = 1U;
       any_echo = 1U;
     }
+
+    PublishSharedSensorDebug(
+      got_echo ? (echo_time / 58U) : 0U,
+      got_echo,
+      got_echo ? echo_time : 0U,
+      wait_timeout,
+      pulse_timeout,
+      got_echo);
 
     if (got_echo) {
       /* GREEN blink = echo received this attempt */
@@ -226,25 +246,14 @@ int main(void) {
 
   /* ================================================================== */
   /* PHASE 4: Result                                                     */
-  /* If any echo was received: distance blinks on green                 */
-  /* If no echo at all:        solid red forever → debug wiring         */
+  /* Keep retrying even if startup probing saw no echo, otherwise CM7   */
+  /* stays on its fallback value forever after a bad first probe window. */
   /* ================================================================== */
-  if (!any_echo) {
-    /* Solid red = complete failure, check wiring */
-    LED_RED_ON();
-    while (1)
-      ;
+  uint32_t dist_cm = any_echo ? (echo_time / 58U) : 0U;
+
+  if (any_echo) {
+    PublishSharedSensorDebug(dist_cm, 1U, echo_time, 0U, 0U, 1U);
   }
-
-  /* Distance in cm via green blinks (up to 9, then pause) */
-  uint32_t dist_cm = echo_time / 58U;
-
-  /* ── Scrivi prima misura nella shared memory ── */
-  SHARED_DATA->distance_cm = dist_cm;
-  SHARED_DATA->data_ready = 1U;
-  __DSB(); /* Forza la scrittura a raggiungere SRAM4 */
-  HAL_HSEM_FastTake(HSEM_ID_SENSOR);
-  HAL_HSEM_Release(HSEM_ID_SENSOR, 0);
 
   while (1) {
     printf("Misura rilevata: %lu cm\r\n", dist_cm);
@@ -262,9 +271,13 @@ int main(void) {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET);
 
     uint32_t ws = __HAL_TIM_GET_COUNTER(&htim2);
+    uint8_t wait_timeout = 0U;
+    uint8_t pulse_timeout = 0U;
+    uint8_t got_echo = 0U;
     while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_RESET) {
       if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - ws) >
           ECHO_WAIT_TIMEOUT_US) {
+        wait_timeout = 1U;
         break;
       }
     }
@@ -273,19 +286,57 @@ int main(void) {
       while (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_0) == GPIO_PIN_SET) {
         if ((uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - es) >
             ECHO_PULSE_TIMEOUT_US) {
+          pulse_timeout = 1U;
           break;
         }
       }
       echo_time = (uint32_t)(__HAL_TIM_GET_COUNTER(&htim2) - es);
+      got_echo = 1U;
       dist_cm = echo_time / 58U;
+      LED_GREEN_ON();
+      HAL_Delay(50U);
+      LED_GREEN_OFF();
+    } else {
+      LED_RED_ON();
+      HAL_Delay(50U);
+      LED_RED_OFF();
     }
 
-    /* ── Aggiorna shared memory SEMPRE (anche se dist_cm invariato) ── */
-    SHARED_DATA->distance_cm = dist_cm;
-    SHARED_DATA->data_ready = 1U;
-    __DSB(); /* Forza la scrittura a raggiungere SRAM4 */
+    PublishSharedSensorDebug(
+      got_echo ? dist_cm : 0U,
+      got_echo,
+      got_echo ? echo_time : 0U,
+      wait_timeout,
+      pulse_timeout,
+      got_echo);
   }
 }
+static void PublishSharedSensorDebug(uint32_t distance_cm,
+                                     uint32_t echo_ok,
+                                     uint32_t echo_ticks,
+                                     uint32_t wait_timeout,
+                                     uint32_t pulse_timeout,
+                                     uint32_t measurement_valid) {
+  SHARED_DATA->distance_cm = distance_cm;
+  SHARED_DATA->cm4_write_seq++;
+  SHARED_DATA->cm4_last_echo_ok = echo_ok;
+  SHARED_DATA->cm4_last_echo_ticks = echo_ticks;
+  SHARED_DATA->cm4_last_wait_timeout = wait_timeout;
+  SHARED_DATA->cm4_last_pulse_timeout = pulse_timeout;
+  SHARED_DATA->cm4_last_measurement_valid = measurement_valid;
+  SHARED_DATA->data_ready = measurement_valid ? 1U : 0U;
+  __DSB(); /* Forza la scrittura a raggiungere SRAM4 */
+  HAL_HSEM_FastTake(HSEM_ID_SENSOR);
+  HAL_HSEM_Release(HSEM_ID_SENSOR, 0);
+}
+
+static void ResetSharedSensorDebug(void) {
+  memset((void *)SHARED_DATA, 0, sizeof(*SHARED_DATA));
+  __DSB();
+  HAL_HSEM_FastTake(HSEM_ID_SENSOR);
+  HAL_HSEM_Release(HSEM_ID_SENSOR, 0);
+}
+
 static void MX_UART4_Init(void) {
 
   /* USER CODE BEGIN UART4_Init 0 */
@@ -362,7 +413,7 @@ static void SystemClock_Config(void) {
   RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
   RCC_ClkInitStruct.APB1CLKDivider =
-      RCC_APB1_DIV4; /* DEVE essere uguale al CM7! */
+      RCC_APB1_DIV2; /* Must match CM7 so TIM2 stays at the expected rate. */
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {

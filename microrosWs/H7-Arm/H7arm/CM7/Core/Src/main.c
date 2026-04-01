@@ -19,6 +19,7 @@
 #include "ethernetif.h"
 
 #include <stdbool.h>
+#include <string.h>
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
@@ -27,6 +28,7 @@
 #include <rmw_microxrcedds_c/config.h>
 #include <rmw_microros/rmw_microros.h>
 #include <std_msgs/msg/int32.h>
+#include <std_msgs/msg/string.h>
 
 #include "microros_transports.h"
 #include "microros_sim_network.h"
@@ -35,6 +37,8 @@
 extern struct netif gnetif;
 
 #define DEFAULT_DISTANCE_CM 100u
+#define SENSOR_DEBUG_PERIOD_MS 100U
+#define SENSOR_DEBUG_BUFFER_SIZE 256U
 
 static volatile shared_data_t * const sensor_shared_data = SHARED_DATA;
 
@@ -53,20 +57,29 @@ static volatile bool healthy_publish_seen = false;
 static volatile bool publisher_ready = false;
 static volatile uint32_t latest_sensor_distance_cm = DEFAULT_DISTANCE_CM;
 static volatile bool sensor_measurement_available = false;
+static volatile uint32_t last_seen_cm4_write_seq = 0U;
+static volatile uint32_t debug_publish_seq = 0U;
 
 static osThreadId_t statusLedTaskHandle;
 static osThreadId_t setupTaskHandle;
 static osThreadId_t heartbeatPublisherTaskHandle;
 static osThreadId_t sensorDataTaskHandle;
+static osThreadId_t sensorDebugTaskHandle;
 
 static rclc_support_t heartbeat_support;
 static rcl_node_t heartbeat_node;
 static rcl_publisher_t heartbeat_publisher;
 static rcl_publisher_t position_publisher;
+static rcl_publisher_t sensor_debug_publisher;
 static std_msgs__msg__Int32 heartbeat_msg;
 static std_msgs__msg__Int32 position_msg;
+static std_msgs__msg__String sensor_debug_msg;
+static char sensor_debug_buffer[SENSOR_DEBUG_BUFFER_SIZE];
 
 static bool SetupNetworkingAndMicroRos(void);
+static void StartSensorDebugTask(void *argument);
+static void SetRuntimeFault(const char *reason);
+static void ResetSharedSensorSnapshot(void);
 
 static void StartSensorDataTask(void *argument)
 {
@@ -74,16 +87,84 @@ static void StartSensorDataTask(void *argument)
 
   for(;;)
   {
+    /* Shared SRAM4 is written by CM4, so invalidate any cached copy before reading. */
+    SCB_InvalidateDCache_by_Addr((void *)sensor_shared_data, (int32_t)sizeof(*sensor_shared_data));
     __DSB();
     if(sensor_shared_data->data_ready)
     {
       latest_sensor_distance_cm = sensor_shared_data->distance_cm;
       sensor_measurement_available = true;
+      last_seen_cm4_write_seq = sensor_shared_data->cm4_write_seq;
       sensor_shared_data->data_ready = 0U;
+      SCB_CleanDCache_by_Addr((uint32_t *)sensor_shared_data, (int32_t)sizeof(*sensor_shared_data));
       __DSB();
     }
 
     osDelay(100);
+  }
+}
+
+static void StartSensorDebugTask(void *argument)
+{
+  (void)argument;
+
+  for(;;)
+  {
+    shared_data_t shared_snapshot;
+    int written;
+
+    if(!publisher_ready)
+    {
+      osDelay(SENSOR_DEBUG_PERIOD_MS);
+      continue;
+    }
+
+    SCB_InvalidateDCache_by_Addr((void *)sensor_shared_data, (int32_t)sizeof(*sensor_shared_data));
+    __DSB();
+    shared_snapshot = *sensor_shared_data;
+
+    written = snprintf(
+      sensor_debug_buffer,
+      sizeof(sensor_debug_buffer),
+      "hb=%ld dbg=%lu fw=%d avail=%d latest=%lu shared_dist=%lu ready=%lu cm4_seq=%lu "
+      "last_seen_cm4_seq=%lu echo_ok=%lu echo_ticks=%lu wait_to=%lu pulse_to=%lu valid=%lu",
+      (long)heartbeat_msg.data,
+      (unsigned long)debug_publish_seq,
+      (int)firmware_status,
+      sensor_measurement_available ? 1 : 0,
+      (unsigned long)latest_sensor_distance_cm,
+      (unsigned long)shared_snapshot.distance_cm,
+      (unsigned long)shared_snapshot.data_ready,
+      (unsigned long)shared_snapshot.cm4_write_seq,
+      (unsigned long)last_seen_cm4_write_seq,
+      (unsigned long)shared_snapshot.cm4_last_echo_ok,
+      (unsigned long)shared_snapshot.cm4_last_echo_ticks,
+      (unsigned long)shared_snapshot.cm4_last_wait_timeout,
+      (unsigned long)shared_snapshot.cm4_last_pulse_timeout,
+      (unsigned long)shared_snapshot.cm4_last_measurement_valid);
+
+    if(written < 0)
+    {
+      sensor_debug_buffer[0] = '\0';
+      sensor_debug_msg.data.size = 0U;
+    }
+    else if((size_t)written >= sizeof(sensor_debug_buffer))
+    {
+      sensor_debug_msg.data.size = sizeof(sensor_debug_buffer) - 1U;
+    }
+    else
+    {
+      sensor_debug_msg.data.size = (size_t)written;
+    }
+
+    if(rcl_publish(&sensor_debug_publisher, &sensor_debug_msg, NULL) != RCL_RET_OK &&
+       healthy_publish_seen)
+    {
+      SetRuntimeFault("sensor-debug-publish");
+    }
+
+    debug_publish_seq++;
+    osDelay(SENSOR_DEBUG_PERIOD_MS);
   }
 }
 
@@ -300,6 +381,7 @@ static bool SetupNetworkingAndMicroRos(void)
   rcl_ret_t node_ret;
   rcl_ret_t pub_ret;
   rcl_ret_t position_pub_ret;
+  rcl_ret_t sensor_debug_pub_ret;
   osThreadAttr_t eth_link_attributes = {
     .name = "EthLink",
     .stack_size = 1024,
@@ -433,8 +515,25 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  sensor_debug_publisher = rcl_get_zero_initialized_publisher();
+  sensor_debug_pub_ret = rclc_publisher_init_default(
+    &sensor_debug_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "sensor_debug");
+  printf("CM7: sensor-debug-publisher-init=%ld\r\n", (long)sensor_debug_pub_ret);
+  if(sensor_debug_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("sensor-debug-publisher");
+    return false;
+  }
+
   heartbeat_msg.data = 0;
   position_msg.data = (int32_t)DEFAULT_DISTANCE_CM;
+  sensor_debug_msg.data.data = sensor_debug_buffer;
+  sensor_debug_msg.data.size = 0U;
+  sensor_debug_msg.data.capacity = sizeof(sensor_debug_buffer);
+  sensor_debug_buffer[0] = '\0';
   publisher_ready = true;
   printf("CM7: setup-complete\r\n");
   return true;
@@ -528,6 +627,20 @@ void MX_FREERTOS_Init(void)
       SetStartupFatalError("sensor-data-task");
     }
   }
+
+  {
+    const osThreadAttr_t sensor_debug_task_attributes = {
+      .name = "SensorDebug",
+      .stack_size = 4096,
+      .priority = osPriorityBelowNormal,
+    };
+
+    sensorDebugTaskHandle = osThreadNew(StartSensorDebugTask, NULL, &sensor_debug_task_attributes);
+    if(sensorDebugTaskHandle == NULL)
+    {
+      SetStartupFatalError("sensor-debug-task");
+    }
+  }
 }
 
 int main(void)
@@ -546,6 +659,7 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   SCB->VTOR = 0x08000000;
+  ResetSharedSensorSnapshot();
   Debug_USART3_Init();
   Debug_USART3_Print("CM7: boot\r\n");
   printf("CM7: hal-clock-init-ok\r\n");
@@ -592,3 +706,13 @@ void assert_failed(uint8_t *file, uint32_t line)
   Error_Handler();
 }
 #endif
+
+static void ResetSharedSensorSnapshot(void)
+{
+  memset((void *)sensor_shared_data, 0, sizeof(*sensor_shared_data));
+  latest_sensor_distance_cm = DEFAULT_DISTANCE_CM;
+  sensor_measurement_available = false;
+  last_seen_cm4_write_seq = 0U;
+  __DSB();
+  SCB_CleanDCache_by_Addr((uint32_t *)sensor_shared_data, (int32_t)sizeof(*sensor_shared_data));
+}

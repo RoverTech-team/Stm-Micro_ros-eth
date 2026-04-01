@@ -1,7 +1,14 @@
 #include "main.h"
 
+#ifndef CM7_SERIAL_SILENT
+#define CM7_SERIAL_SILENT 1
+#endif
+
 void Debug_USART3_Init(void)
 {
+#if CM7_SERIAL_SILENT
+  return;
+#else
   COM_InitTypeDef com = {0};
 
   com.BaudRate = 115200;
@@ -16,12 +23,17 @@ void Debug_USART3_Init(void)
   }
 
   (void)BSP_COM_SelectLogPort(COM1);
+#endif
 }
 
 void Debug_USART3_Print(const char *message)
 {
+#if CM7_SERIAL_SILENT
+  (void)message;
+#else
   if(message != NULL)
   {
     printf("%s", message);
   }
+#endif
 }
