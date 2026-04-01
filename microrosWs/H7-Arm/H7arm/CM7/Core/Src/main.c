@@ -19,10 +19,13 @@
 #include "ethernetif.h"
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
+#include <rclc/executor.h>
 #include <uxr/client/transport.h>
 #include <rcutils/allocator.h>
 #include <rmw_microxrcedds_c/config.h>
@@ -39,8 +42,12 @@ extern struct netif gnetif;
 #define DEFAULT_DISTANCE_CM 100u
 #define SENSOR_DEBUG_PERIOD_MS 100U
 #define SENSOR_DEBUG_BUFFER_SIZE 256U
+#define TELEMETRY_BUFFER_SIZE 160U
+#define TIME_SYNC_BUFFER_SIZE 192U
 
 static volatile shared_data_t * const sensor_shared_data = SHARED_DATA;
+static uint32_t telemetry_cycles_per_us = 0U;
+static uint32_t telemetry_cycles_per_ms = 0U;
 
 typedef enum
 {
@@ -65,21 +72,334 @@ static osThreadId_t setupTaskHandle;
 static osThreadId_t heartbeatPublisherTaskHandle;
 static osThreadId_t sensorDataTaskHandle;
 static osThreadId_t sensorDebugTaskHandle;
+static osThreadId_t timeSyncTaskHandle;
 
 static rclc_support_t heartbeat_support;
 static rcl_node_t heartbeat_node;
 static rcl_publisher_t heartbeat_publisher;
 static rcl_publisher_t position_publisher;
 static rcl_publisher_t sensor_debug_publisher;
+static rcl_publisher_t heartbeat_telemetry_publisher;
+static rcl_publisher_t position_telemetry_publisher;
+static rcl_publisher_t time_sync_echo_publisher;
+static rcl_subscription_t time_sync_request_subscription;
+static rclc_executor_t time_sync_executor;
 static std_msgs__msg__Int32 heartbeat_msg;
 static std_msgs__msg__Int32 position_msg;
 static std_msgs__msg__String sensor_debug_msg;
+static std_msgs__msg__String heartbeat_telemetry_msg;
+static std_msgs__msg__String position_telemetry_msg;
+static std_msgs__msg__String time_sync_request_msg;
+static std_msgs__msg__String time_sync_echo_msg;
 static char sensor_debug_buffer[SENSOR_DEBUG_BUFFER_SIZE];
+static char heartbeat_telemetry_buffer[TELEMETRY_BUFFER_SIZE];
+static char position_telemetry_buffer[TELEMETRY_BUFFER_SIZE];
+static char time_sync_request_buffer[TIME_SYNC_BUFFER_SIZE];
+static char time_sync_echo_buffer[TIME_SYNC_BUFFER_SIZE];
 
 static bool SetupNetworkingAndMicroRos(void);
 static void StartSensorDebugTask(void *argument);
+static void StartTimeSyncTask(void *argument);
 static void SetRuntimeFault(const char *reason);
 static void ResetSharedSensorSnapshot(void);
+static void TimeSyncRequestCallback(const void *msg_in);
+static void InitHighResolutionClock(void);
+static uint64_t GetMonotonicTimeUs(void);
+static size_t AppendLiteral(char *buffer, size_t capacity, size_t offset, const char *text);
+static size_t AppendUnsignedLong(char *buffer, size_t capacity, size_t offset, unsigned long value);
+static size_t AppendSignedLong(char *buffer, size_t capacity, size_t offset, long value);
+static size_t AppendUint64(char *buffer, size_t capacity, size_t offset, uint64_t value);
+static bool ParseJsonUnsignedLongField(const char *json, const char *field_name, unsigned long *value);
+static bool ParseJsonUint64Field(const char *json, const char *field_name, uint64_t *value);
+static bool PublishTelemetrySample(
+  rcl_publisher_t *publisher,
+  std_msgs__msg__String *message,
+  char *buffer,
+  size_t buffer_size,
+  const char *topic_name,
+  uint32_t sequence,
+  int32_t value);
+
+static void InitHighResolutionClock(void)
+{
+  telemetry_cycles_per_us = SystemCoreClock / 1000000U;
+  if(telemetry_cycles_per_us == 0U)
+  {
+    telemetry_cycles_per_us = 1U;
+  }
+  telemetry_cycles_per_ms = telemetry_cycles_per_us * 1000U;
+
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+#if defined(DWT_LAR)
+  DWT->LAR = 0xC5ACCE55U;
+#endif
+  DWT->CYCCNT = 0U;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+static uint64_t GetMonotonicTimeUs(void)
+{
+  uint32_t tick_ms_before;
+  uint32_t tick_ms_after;
+  uint32_t cycle_count;
+  uint32_t sub_ms_us;
+
+  do
+  {
+    tick_ms_before = HAL_GetTick();
+    cycle_count = DWT->CYCCNT;
+    tick_ms_after = HAL_GetTick();
+  } while(tick_ms_before != tick_ms_after);
+
+  if(telemetry_cycles_per_ms == 0U)
+  {
+    return ((uint64_t)tick_ms_before) * 1000ULL;
+  }
+
+  sub_ms_us = (cycle_count % telemetry_cycles_per_ms) / telemetry_cycles_per_us;
+  if(sub_ms_us > 999U)
+  {
+    sub_ms_us = 999U;
+  }
+
+  return (((uint64_t)tick_ms_before) * 1000ULL) + (uint64_t)sub_ms_us;
+}
+
+static size_t AppendLiteral(char *buffer, size_t capacity, size_t offset, const char *text)
+{
+  if(buffer == NULL || capacity == 0U || text == NULL)
+  {
+    return offset;
+  }
+
+  while(*text != '\0' && offset + 1U < capacity)
+  {
+    buffer[offset++] = *text++;
+  }
+  buffer[offset] = '\0';
+  return offset;
+}
+
+static size_t AppendUnsignedLong(char *buffer, size_t capacity, size_t offset, unsigned long value)
+{
+  char temp[16];
+  int written;
+
+  if(buffer == NULL || capacity == 0U)
+  {
+    return offset;
+  }
+
+  written = snprintf(temp, sizeof(temp), "%lu", value);
+  if(written < 0)
+  {
+    buffer[offset < capacity ? offset : capacity - 1U] = '\0';
+    return offset;
+  }
+
+  return AppendLiteral(buffer, capacity, offset, temp);
+}
+
+static size_t AppendSignedLong(char *buffer, size_t capacity, size_t offset, long value)
+{
+  char temp[16];
+  int written;
+
+  if(buffer == NULL || capacity == 0U)
+  {
+    return offset;
+  }
+
+  written = snprintf(temp, sizeof(temp), "%ld", value);
+  if(written < 0)
+  {
+    buffer[offset < capacity ? offset : capacity - 1U] = '\0';
+    return offset;
+  }
+
+  return AppendLiteral(buffer, capacity, offset, temp);
+}
+
+static size_t AppendUint64(char *buffer, size_t capacity, size_t offset, uint64_t value)
+{
+  char digits[21];
+  size_t count = 0U;
+
+  if(buffer == NULL || capacity == 0U)
+  {
+    return offset;
+  }
+
+  if(value == 0ULL)
+  {
+    return AppendLiteral(buffer, capacity, offset, "0");
+  }
+
+  while(value > 0ULL && count < sizeof(digits))
+  {
+    digits[count++] = (char)('0' + (value % 10ULL));
+    value /= 10ULL;
+  }
+
+  while(count > 0U && offset + 1U < capacity)
+  {
+    buffer[offset++] = digits[--count];
+  }
+  buffer[offset] = '\0';
+  return offset;
+}
+
+static bool ParseJsonUnsignedLongField(const char *json, const char *field_name, unsigned long *value)
+{
+  const char *field;
+  const char *cursor;
+  unsigned long parsed = 0UL;
+
+  if(json == NULL || field_name == NULL || value == NULL)
+  {
+    return false;
+  }
+
+  field = strstr(json, field_name);
+  if(field == NULL)
+  {
+    return false;
+  }
+
+  cursor = field + strlen(field_name);
+  if(*cursor != ':')
+  {
+    return false;
+  }
+  cursor++;
+
+  if(*cursor < '0' || *cursor > '9')
+  {
+    return false;
+  }
+
+  while(*cursor >= '0' && *cursor <= '9')
+  {
+    parsed = (parsed * 10UL) + (unsigned long)(*cursor - '0');
+    cursor++;
+  }
+
+  *value = parsed;
+  return true;
+}
+
+static bool ParseJsonUint64Field(const char *json, const char *field_name, uint64_t *value)
+{
+  const char *field;
+  const char *cursor;
+  uint64_t parsed = 0ULL;
+
+  if(json == NULL || field_name == NULL || value == NULL)
+  {
+    return false;
+  }
+
+  field = strstr(json, field_name);
+  if(field == NULL)
+  {
+    return false;
+  }
+
+  cursor = field + strlen(field_name);
+  if(*cursor != ':')
+  {
+    return false;
+  }
+  cursor++;
+
+  if(*cursor < '0' || *cursor > '9')
+  {
+    return false;
+  }
+
+  while(*cursor >= '0' && *cursor <= '9')
+  {
+    parsed = (parsed * 10ULL) + (uint64_t)(*cursor - '0');
+    cursor++;
+  }
+
+  *value = parsed;
+  return true;
+}
+
+static bool PublishTelemetrySample(
+  rcl_publisher_t *publisher,
+  std_msgs__msg__String *message,
+  char *buffer,
+  size_t buffer_size,
+  const char *topic_name,
+  uint32_t sequence,
+  int32_t value)
+{
+  size_t length = 0U;
+  const uint64_t publish_us = GetMonotonicTimeUs();
+
+  if(publisher == NULL || message == NULL || buffer == NULL || buffer_size == 0U || topic_name == NULL)
+  {
+    message->data.size = 0U;
+    buffer[0] = '\0';
+    return false;
+  }
+
+  buffer[0] = '\0';
+  length = AppendLiteral(buffer, buffer_size, length, "{\"topic\":\"");
+  length = AppendLiteral(buffer, buffer_size, length, topic_name);
+  length = AppendLiteral(buffer, buffer_size, length, "\",\"seq\":");
+  length = AppendUnsignedLong(buffer, buffer_size, length, (unsigned long)sequence);
+  length = AppendLiteral(buffer, buffer_size, length, ",\"value\":");
+  length = AppendSignedLong(buffer, buffer_size, length, (long)value);
+  length = AppendLiteral(buffer, buffer_size, length, ",\"publish_us\":");
+  length = AppendUint64(buffer, buffer_size, length, publish_us);
+  length = AppendLiteral(buffer, buffer_size, length, "}");
+
+  message->data.size = length;
+
+  return rcl_publish(publisher, message, NULL) == RCL_RET_OK;
+}
+
+static void TimeSyncRequestCallback(const void *msg_in)
+{
+  const std_msgs__msg__String *incoming = (const std_msgs__msg__String *)msg_in;
+  unsigned long seq = 0UL;
+  uint64_t host_send_us = 0ULL;
+  const uint64_t cm7_recv_us = GetMonotonicTimeUs();
+  const uint64_t cm7_send_us = GetMonotonicTimeUs();
+  size_t length = 0U;
+
+  if(incoming == NULL || incoming->data.data == NULL)
+  {
+    return;
+  }
+
+  if(!ParseJsonUnsignedLongField(incoming->data.data, "\"seq\"", &seq) ||
+     !ParseJsonUint64Field(incoming->data.data, "\"host_send_us\"", &host_send_us))
+  {
+    return;
+  }
+
+  time_sync_echo_buffer[0] = '\0';
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "{\"seq\":");
+  length = AppendUnsignedLong(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, seq);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"host_send_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, host_send_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"cm7_recv_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, cm7_recv_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"cm7_send_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, cm7_send_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "}");
+  time_sync_echo_msg.data.size = length;
+
+  if(rcl_publish(&time_sync_echo_publisher, &time_sync_echo_msg, NULL) != RCL_RET_OK &&
+     healthy_publish_seen)
+  {
+    SetRuntimeFault("time-sync-echo-publish");
+  }
+}
 
 static void StartSensorDataTask(void *argument)
 {
@@ -165,6 +485,27 @@ static void StartSensorDebugTask(void *argument)
 
     debug_publish_seq++;
     osDelay(SENSOR_DEBUG_PERIOD_MS);
+  }
+}
+
+static void StartTimeSyncTask(void *argument)
+{
+  (void)argument;
+
+  for(;;)
+  {
+    if(!publisher_ready)
+    {
+      osDelay(100);
+      continue;
+    }
+
+    if(rclc_executor_spin_some(&time_sync_executor, RCL_MS_TO_NS(20)) != RCL_RET_OK &&
+       healthy_publish_seen)
+    {
+      SetRuntimeFault("time-sync-spin");
+    }
+    osDelay(20);
   }
 }
 
@@ -258,6 +599,7 @@ static void StartHeartbeatPublisherTask(void *argument)
 {
   int heartbeat_failure_count = 0;
   int position_failure_count = 0;
+  uint32_t position_publish_sequence = 0U;
   (void)argument;
 
   printf("CM7: publisher-task-start\r\n");
@@ -267,10 +609,23 @@ static void StartHeartbeatPublisherTask(void *argument)
     const int32_t measured_distance_cm = sensor_measurement_available
       ? (int32_t)latest_sensor_distance_cm
       : (int32_t)DEFAULT_DISTANCE_CM;
+    const uint32_t heartbeat_publish_sequence = (uint32_t)heartbeat_msg.data;
     rcl_ret_t ret = rcl_publish(&heartbeat_publisher, &heartbeat_msg, NULL);
 
     if(ret == RCL_RET_OK)
     {
+      if(!PublishTelemetrySample(
+           &heartbeat_telemetry_publisher,
+           &heartbeat_telemetry_msg,
+           heartbeat_telemetry_buffer,
+           sizeof(heartbeat_telemetry_buffer),
+           "heartbeat",
+           heartbeat_publish_sequence,
+           heartbeat_msg.data) &&
+         healthy_publish_seen)
+      {
+        SetRuntimeFault("heartbeat-telemetry-publish");
+      }
       printf("CM7: publish-ok seq=%ld\r\n", (long)heartbeat_msg.data);
       heartbeat_msg.data++;
       heartbeat_failure_count = 0;
@@ -308,6 +663,19 @@ static void StartHeartbeatPublisherTask(void *argument)
     ret = rcl_publish(&position_publisher, &position_msg, NULL);
     if(ret == RCL_RET_OK)
     {
+      if(!PublishTelemetrySample(
+           &position_telemetry_publisher,
+           &position_telemetry_msg,
+           position_telemetry_buffer,
+           sizeof(position_telemetry_buffer),
+           "measured_position",
+           position_publish_sequence,
+           position_msg.data) &&
+         healthy_publish_seen)
+      {
+        SetRuntimeFault("position-telemetry-publish");
+      }
+      position_publish_sequence++;
       position_failure_count = 0;
     }
     else
@@ -382,6 +750,11 @@ static bool SetupNetworkingAndMicroRos(void)
   rcl_ret_t pub_ret;
   rcl_ret_t position_pub_ret;
   rcl_ret_t sensor_debug_pub_ret;
+  rcl_ret_t heartbeat_telemetry_pub_ret;
+  rcl_ret_t position_telemetry_pub_ret;
+  rcl_ret_t time_sync_echo_pub_ret;
+  rcl_ret_t time_sync_request_sub_ret;
+  rcl_ret_t time_sync_executor_ret;
   osThreadAttr_t eth_link_attributes = {
     .name = "EthLink",
     .stack_size = 1024,
@@ -528,12 +901,102 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  heartbeat_telemetry_publisher = rcl_get_zero_initialized_publisher();
+  heartbeat_telemetry_pub_ret = rclc_publisher_init_default(
+    &heartbeat_telemetry_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "heartbeat_telemetry");
+  printf("CM7: heartbeat-telemetry-publisher-init=%ld\r\n", (long)heartbeat_telemetry_pub_ret);
+  if(heartbeat_telemetry_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("heartbeat-telemetry-publisher");
+    return false;
+  }
+
+  position_telemetry_publisher = rcl_get_zero_initialized_publisher();
+  position_telemetry_pub_ret = rclc_publisher_init_default(
+    &position_telemetry_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "measured_position_telemetry");
+  printf("CM7: position-telemetry-publisher-init=%ld\r\n", (long)position_telemetry_pub_ret);
+  if(position_telemetry_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("position-telemetry-publisher");
+    return false;
+  }
+
+  time_sync_echo_publisher = rcl_get_zero_initialized_publisher();
+  time_sync_echo_pub_ret = rclc_publisher_init_default(
+    &time_sync_echo_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "time_sync_echo");
+  printf("CM7: time-sync-echo-publisher-init=%ld\r\n", (long)time_sync_echo_pub_ret);
+  if(time_sync_echo_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-echo-publisher");
+    return false;
+  }
+
+  time_sync_request_subscription = rcl_get_zero_initialized_subscription();
+  time_sync_request_sub_ret = rclc_subscription_init_default(
+    &time_sync_request_subscription,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "time_sync_request");
+  printf("CM7: time-sync-request-subscription-init=%ld\r\n", (long)time_sync_request_sub_ret);
+  if(time_sync_request_sub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-request-subscription");
+    return false;
+  }
+
+  time_sync_executor = rclc_executor_get_zero_initialized_executor();
+  time_sync_executor_ret = rclc_executor_init(&time_sync_executor, &heartbeat_support.context, 1, &allocator);
+  printf("CM7: time-sync-executor-init=%ld\r\n", (long)time_sync_executor_ret);
+  if(time_sync_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-executor");
+    return false;
+  }
+
+  time_sync_request_msg.data.data = time_sync_request_buffer;
+  time_sync_request_msg.data.size = 0U;
+  time_sync_request_msg.data.capacity = sizeof(time_sync_request_buffer);
+  time_sync_request_buffer[0] = '\0';
+  time_sync_executor_ret = rclc_executor_add_subscription(
+    &time_sync_executor,
+    &time_sync_request_subscription,
+    &time_sync_request_msg,
+    &TimeSyncRequestCallback,
+    ON_NEW_DATA);
+  printf("CM7: time-sync-executor-add-subscription=%ld\r\n", (long)time_sync_executor_ret);
+  if(time_sync_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-executor-subscription");
+    return false;
+  }
+
   heartbeat_msg.data = 0;
   position_msg.data = (int32_t)DEFAULT_DISTANCE_CM;
   sensor_debug_msg.data.data = sensor_debug_buffer;
   sensor_debug_msg.data.size = 0U;
   sensor_debug_msg.data.capacity = sizeof(sensor_debug_buffer);
   sensor_debug_buffer[0] = '\0';
+  heartbeat_telemetry_msg.data.data = heartbeat_telemetry_buffer;
+  heartbeat_telemetry_msg.data.size = 0U;
+  heartbeat_telemetry_msg.data.capacity = sizeof(heartbeat_telemetry_buffer);
+  heartbeat_telemetry_buffer[0] = '\0';
+  position_telemetry_msg.data.data = position_telemetry_buffer;
+  position_telemetry_msg.data.size = 0U;
+  position_telemetry_msg.data.capacity = sizeof(position_telemetry_buffer);
+  position_telemetry_buffer[0] = '\0';
+  time_sync_echo_msg.data.data = time_sync_echo_buffer;
+  time_sync_echo_msg.data.size = 0U;
+  time_sync_echo_msg.data.capacity = sizeof(time_sync_echo_buffer);
+  time_sync_echo_buffer[0] = '\0';
   publisher_ready = true;
   printf("CM7: setup-complete\r\n");
   return true;
@@ -585,6 +1048,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
+  InitHighResolutionClock();
 }
 
 void MX_FREERTOS_Init(void)
@@ -639,6 +1103,20 @@ void MX_FREERTOS_Init(void)
     if(sensorDebugTaskHandle == NULL)
     {
       SetStartupFatalError("sensor-debug-task");
+    }
+  }
+
+  {
+    const osThreadAttr_t time_sync_task_attributes = {
+      .name = "TimeSync",
+      .stack_size = 4096,
+      .priority = osPriorityNormal,
+    };
+
+    timeSyncTaskHandle = osThreadNew(StartTimeSyncTask, NULL, &time_sync_task_attributes);
+    if(timeSyncTaskHandle == NULL)
+    {
+      SetStartupFatalError("time-sync-task");
     }
   }
 }

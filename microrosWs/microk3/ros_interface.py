@@ -66,6 +66,7 @@ class MicroK3RosNode(RosNode):
         # Subscribers (Telemetry from nodes)
         self.create_subscription(String, "microk3/node_status", self.status_callback, 10)
         self.create_subscription(String, "microk3/system_alerts", self.alert_callback, 10)
+        self.create_subscription(String, "microk3/performance_metrics", self.metrics_callback, 10)
 
         self.create_timer(self.GRAPH_REFRESH_SEC, self.publish_graph_snapshot)
         self.get_logger().info("MicroK3 Dashboard Node Started")
@@ -85,6 +86,13 @@ class MicroK3RosNode(RosNode):
             self.app_state_callback("add_failure", data)
         except json.JSONDecodeError:
             self.get_logger().error(f"Invalid JSON in alert: {msg.data}")
+
+    def metrics_callback(self, msg):
+        try:
+            data = json.loads(msg.data)
+            self.app_state_callback("performance_metrics", data)
+        except json.JSONDecodeError:
+            self.get_logger().error(f"Invalid JSON in metrics: {msg.data}")
 
     def send_command(self, node_id, command):
         msg = String()

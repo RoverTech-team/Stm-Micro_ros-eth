@@ -17,6 +17,13 @@ import sys
 import traceback
 
 from models.node import Node
+from metrics import (
+    DockerStatsCollector,
+    build_metrics_summary,
+    merge_container_metrics,
+    merge_performance_metrics,
+    new_metrics_state,
+)
 from config import get_config
 
 # Initialize Flask app
@@ -72,6 +79,7 @@ limiter = Limiter(
 
 # ROS 2 Manager Instance
 ros_manager = None
+docker_stats_collector = None
 ROS_WATCH_LIMIT = 10
 ROS_SAMPLE_HISTORY_LIMIT = 20
 ros_state_lock = threading.RLock()
@@ -90,7 +98,8 @@ def get_empty_data() -> Dict[str, Any]:
         "nodes": [],
         "failures": [],
         "system_status": "waiting_for_nodes",
-        "tasks": {}
+        "tasks": {},
+        "metrics": new_metrics_state(),
     }
 
 
@@ -237,7 +246,33 @@ def serialize_system_data(data: Dict[str, Any]) -> Dict[str, Any]:
     """Convert runtime system data into template/API-safe dictionaries."""
     template_data = data.copy()
     template_data["nodes"] = [node.to_dict() for node in data.get("nodes", [])]
+    template_data["metrics"] = build_metrics_summary(data.get("metrics", new_metrics_state()))
     return template_data
+
+
+def get_metrics_summary() -> Dict[str, Any]:
+    return build_metrics_summary(system_data.setdefault("metrics", new_metrics_state()))
+
+
+def apply_runtime_metrics_to_nodes() -> None:
+    metrics = get_metrics_summary()
+    aggregate = metrics.get("aggregate", {})
+    node_metrics = metrics.get("nodes", {})
+    for node in system_data.get("nodes", []):
+        per_node = node_metrics.get(str(node.id), {})
+        node_aggregate = per_node.get("aggregate", aggregate)
+        node.cpu = f"{float(aggregate.get('cpu_percent', 0.0)):.1f}% stack"
+        node.ram = f"{int(aggregate.get('memory_usage_bytes', 0)) / (1024 * 1024):.1f} MiB stack"
+        lag_text = (
+            f"{float(node_aggregate.get('lag_ms', 0.0)):.3f} ms"
+            if node_aggregate.get("sync_ready", False)
+            else "syncing"
+        )
+        node.network = (
+            f"Lag {lag_text} | "
+            f"Jitter {float(node_aggregate.get('jitter_ms', 0.0)):.3f} ms | "
+            f"BW {float(node_aggregate.get('bandwidth_bps', 0.0)) / 1024.0:.1f} KiB/s"
+        )
 
 
 def get_ros_graph_payload() -> Dict[str, Any]:
@@ -380,6 +415,14 @@ def ros_update_callback(action, data):
                         json.dumps(heartbeat_payload, sort_keys=True),
                     )
 
+            elif action == 'performance_metrics':
+                merge_performance_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
+                apply_runtime_metrics_to_nodes()
+
+            elif action == 'container_metrics':
+                merge_container_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
+                apply_runtime_metrics_to_nodes()
+
             elif action == 'graph_snapshot':
                 with ros_state_lock:
                     ros_inspector_state["graph_nodes"] = data.get("nodes", [])
@@ -464,7 +507,12 @@ def index():
     if ROS_AVAILABLE and ros_manager:
         ros_connected = ros_manager.running
 
-    return render_template('index.html', system_data=template_data, ros_connected=ros_connected)
+    return render_template(
+        'index.html',
+        system_data=template_data,
+        ros_connected=ros_connected,
+        metrics_summary=get_metrics_summary(),
+    )
 
 
 @app.route('/nodes')
@@ -583,7 +631,19 @@ def api_system_status():
             "nodes_online": active_nodes,
             "total_nodes": len(system_data['nodes']),
             "tasks_running": len(system_data.get('tasks', {})),
-            "network_latency": 0,
+            "network_latency": (
+                get_metrics_summary()["aggregate"].get("lag_ms", 0.0)
+                if get_metrics_summary()["aggregate"].get("sync_ready", False)
+                else None
+            ),
+            "jitter_ms": get_metrics_summary()["aggregate"].get("jitter_ms", 0.0),
+            "bandwidth_bps": get_metrics_summary()["aggregate"].get("bandwidth_bps", 0.0),
+            "sync_ready": get_metrics_summary()["aggregate"].get("sync_ready", False),
+            "clock_offset_ms": get_metrics_summary()["aggregate"].get("clock_offset_ms"),
+            "time_sync_rtt_ms": get_metrics_summary()["aggregate"].get("time_sync_rtt_ms"),
+            "time_sync_samples": get_metrics_summary()["aggregate"].get("time_sync_samples", 0),
+            "cpu_percent": get_metrics_summary()["aggregate"].get("cpu_percent", 0.0),
+            "memory_percent": get_metrics_summary()["aggregate"].get("memory_percent", 0.0),
             "timestamp": datetime.now().isoformat(),
             "ros_connected": ros_connected
         }), 200
@@ -659,6 +719,53 @@ def api_tasks():
         return jsonify(system_data.get('tasks', {})), 200
     except Exception as e:
         logger.error(f"Error getting tasks: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/metrics/summary')
+@limiter.limit("120 per minute")
+def api_metrics_summary():
+    try:
+        return jsonify(get_metrics_summary()), 200
+    except Exception as e:
+        logger.error(f"Error getting metrics summary: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/metrics/topics')
+@limiter.limit("120 per minute")
+def api_metrics_topics():
+    try:
+        return jsonify(get_metrics_summary().get("topics", {})), 200
+    except Exception as e:
+        logger.error(f"Error getting topic metrics: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/metrics/containers')
+@limiter.limit("120 per minute")
+def api_metrics_containers():
+    try:
+        return jsonify({
+            "timestamp": get_metrics_summary().get("container_last_update"),
+            "aggregate": get_metrics_summary().get("aggregate", {}),
+            "containers": get_metrics_summary().get("containers", {}),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting container metrics: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/metrics/nodes/<int:node_id>')
+@limiter.limit("120 per minute")
+def api_metrics_node(node_id: int):
+    try:
+        node_metrics = get_metrics_summary().get("nodes", {}).get(str(node_id))
+        if node_metrics is None:
+            return jsonify({"error": f"Metrics for node {node_id} not found"}), 404
+        return jsonify(node_metrics), 200
+    except Exception as e:
+        logger.error(f"Error getting node metrics for {node_id}: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
 
@@ -922,6 +1029,12 @@ if __name__ == '__main__':
         print("✅ ROS 2 Manager started")
     else:
         print("⚠️  ROS 2 Manager NOT started (Dependencies missing)")
+
+    docker_stats_collector = DockerStatsCollector(
+        lambda payload: ros_update_callback('container_metrics', payload),
+        logger,
+    )
+    docker_stats_collector.start()
     
     # Get configuration from environment
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
@@ -941,3 +1054,5 @@ if __name__ == '__main__':
     finally:
         if ROS_AVAILABLE and ros_manager:
             ros_manager.stop()
+        if docker_stats_collector:
+            docker_stats_collector.stop()

@@ -77,6 +77,16 @@ def test_api_system_status(client):
     assert 'nodes_online' in data
 
 
+def test_api_metrics_summary_defaults(client):
+    response = client.get('/api/metrics/summary')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['aggregate']['lag_ms'] == 0.0
+    assert data['aggregate']['sync_ready'] is False
+    assert data['containers'] == {}
+    assert data['topics'] == {}
+
+
 def test_api_node_detail(client):
     """Test node detail endpoint"""
     response = client.get('/api/nodes/1')
@@ -297,3 +307,80 @@ def test_api_ros_watch_and_unwatch_with_fake_manager(client):
         content_type='application/json'
     )
     assert unwatch_response.status_code == 200
+
+
+def test_performance_metrics_update_exposed_by_api(client):
+    import app as microk3_app
+
+    microk3_app.system_data['nodes'].append(
+        microk3_app.Node(
+            id=755,
+            name="Node 755",
+            status="active",
+            type="STM32",
+            ram="Unknown",
+            flash="Unknown",
+            cpu="Unknown"
+        )
+    )
+
+    microk3_app.ros_update_callback('performance_metrics', {
+        'node_id': 755,
+        'timestamp': '2026-04-01T10:00:00Z',
+        'aggregate': {
+            'lag_ms': 4.5,
+            'jitter_ms': 0.7,
+            'raw_delta_ms': 5.1,
+            'bandwidth_bps': 2048.0,
+            'rate_hz': 4.0,
+            'sync_ready': True,
+            'clock_offset_ms': 12.345,
+            'time_sync_rtt_ms': 0.456,
+            'time_sync_samples': 5,
+        },
+        'topics': {
+            'heartbeat': {
+                'lag_ms': 4.5,
+                'raw_delta_ms': 5.1,
+                'jitter_ms': 0.7,
+                'bandwidth_bps': 1024.0,
+                'rate_hz': 2.0,
+            }
+        }
+    })
+    microk3_app.ros_update_callback('container_metrics', {
+        'timestamp': '2026-04-01T10:00:01Z',
+        'aggregate': {
+            'cpu_percent': 12.5,
+            'memory_usage_bytes': 31457280,
+            'memory_percent': 15.5,
+            'rx_bps': 1200.0,
+            'tx_bps': 900.0,
+        },
+        'containers': {
+            'microk3': {
+                'service': 'microk3',
+                'cpu_percent': 12.5,
+                'memory_usage_bytes': 31457280,
+                'memory_percent': 15.5,
+                'rx_bps': 1200.0,
+                'tx_bps': 900.0,
+            }
+        }
+    })
+
+    response = client.get('/api/metrics/summary')
+    assert response.status_code == 200
+    summary = json.loads(response.data)
+    assert summary['aggregate']['lag_ms'] == 4.5
+    assert summary['aggregate']['sync_ready'] is True
+    assert summary['aggregate']['clock_offset_ms'] == 12.345
+    assert summary['aggregate']['cpu_percent'] == 12.5
+    assert summary['containers']['microk3']['memory_percent'] == 15.5
+
+    node_response = client.get('/api/metrics/nodes/755')
+    assert node_response.status_code == 200
+    node_data = json.loads(node_response.data)
+    assert node_data['aggregate']['bandwidth_bps'] == 2048.0
+    assert "4.500 ms" in microk3_app.system_data['nodes'][0].network
+    assert "stack" in microk3_app.system_data['nodes'][0].cpu
