@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 
 // --- LWIP ---
 #include "lwip/opt.h"
@@ -106,10 +107,16 @@ size_t cubemx_transport_read(struct uxrCustomTransport* transport, uint8_t* buf,
         return 0;
     }
     
+    errno = 0;
     int ret = recv(sock_fd, buf, len, 0);
     
     if (ret < 0) {
-        printf("CM7: udp-recv-timeout-or-failed\r\n");
+        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            if (err) *err = 0;
+            return 0;
+        }
+
+        printf("CM7: udp-recv-failed errno=%d\r\n", errno);
         if (err) *err = 1;
         return 0;
     }

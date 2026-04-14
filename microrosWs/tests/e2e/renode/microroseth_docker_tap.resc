@@ -6,6 +6,10 @@ $tapInterface?="tap0"
 mach create $name
 machine LoadPlatformDescription @/workspace/Test_Board_Sensore/simulation/platform/nucleo_h755zi_q_dual.repl
 
+# Pace the emulated CM7 close to real time so the 2 Hz firmware heartbeat
+# is observed at the host with the intended cadence.
+cm7 PerformanceInMips 1024
+
 logLevel 1
 logLevel 3 rcc
 logLevel 3 exti_cm7

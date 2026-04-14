@@ -19,19 +19,29 @@
 #include "ethernetif.h"
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
+#include <rclc/executor.h>
+#include <rmw/types.h>
 #include <uxr/client/transport.h>
 #include <rcutils/allocator.h>
 #include <rmw_microxrcedds_c/config.h>
 #include <rmw_microros/rmw_microros.h>
 #include <std_msgs/msg/int32.h>
+#include <std_msgs/msg/string.h>
 
 #include "microros_transports.h"
 #include "microros_sim_network.h"
 
 extern struct netif gnetif;
+
+#define HEARTBEAT_PERIOD_MS 500U
+#define TELEMETRY_BUFFER_SIZE 160U
+#define TIME_SYNC_BUFFER_SIZE 192U
 
 typedef enum
 {
@@ -54,9 +64,248 @@ static osThreadId_t heartbeatPublisherTaskHandle;
 static rclc_support_t heartbeat_support;
 static rcl_node_t heartbeat_node;
 static rcl_publisher_t heartbeat_publisher;
+static rcl_publisher_t heartbeat_telemetry_publisher;
+static rcl_publisher_t time_sync_echo_publisher;
+static rcl_subscription_t time_sync_request_subscription;
 static std_msgs__msg__Int32 heartbeat_msg;
+static std_msgs__msg__String heartbeat_telemetry_msg;
+static std_msgs__msg__String time_sync_request_msg;
+static std_msgs__msg__String time_sync_echo_msg;
+static char heartbeat_telemetry_buffer[TELEMETRY_BUFFER_SIZE];
+static char time_sync_request_buffer[TIME_SYNC_BUFFER_SIZE];
+static char time_sync_echo_buffer[TIME_SYNC_BUFFER_SIZE];
 
 static bool SetupNetworkingAndMicroRos(void);
+static void TimeSyncRequestCallback(const void *msg_in);
+static void InitHighResolutionClock(void);
+static uint64_t GetMonotonicTimeUs(void);
+static size_t AppendLiteral(char *buffer, size_t capacity, size_t offset, const char *text);
+static size_t AppendUnsignedLong(char *buffer, size_t capacity, size_t offset, unsigned long value);
+static size_t AppendSignedLong(char *buffer, size_t capacity, size_t offset, long value);
+static size_t AppendUint64(char *buffer, size_t capacity, size_t offset, uint64_t value);
+static bool ParseJsonUnsignedLongField(const char *json, const char *field_name, unsigned long *value);
+static bool ParseJsonUint64Field(const char *json, const char *field_name, uint64_t *value);
+static bool PublishTelemetrySample(
+  rcl_publisher_t *publisher,
+  std_msgs__msg__String *message,
+  char *buffer,
+  size_t buffer_size,
+  const char *topic_name,
+  uint32_t sequence,
+  int32_t value);
+static void ProcessPendingTimeSyncRequests(void);
+
+static void InitHighResolutionClock(void)
+{
+  /* Renode does not emulate DWT cycle counting reliably for this target.
+   * Keep the timing source simple and valid under emulation. */
+}
+
+static uint64_t GetMonotonicTimeUs(void)
+{
+  if(osKernelGetState() == osKernelRunning)
+  {
+    return ((uint64_t)osKernelGetTickCount()) * 1000ULL;
+  }
+
+  return ((uint64_t)HAL_GetTick()) * 1000ULL;
+}
+
+static size_t AppendLiteral(char *buffer, size_t capacity, size_t offset, const char *text)
+{
+  if(buffer == NULL || capacity == 0U || text == NULL)
+  {
+    return offset;
+  }
+
+  while(*text != '\0' && offset + 1U < capacity)
+  {
+    buffer[offset++] = *text++;
+  }
+  buffer[offset] = '\0';
+  return offset;
+}
+
+static size_t AppendUnsignedLong(char *buffer, size_t capacity, size_t offset, unsigned long value)
+{
+  char temp[16];
+  int written;
+
+  if(buffer == NULL || capacity == 0U)
+  {
+    return offset;
+  }
+
+  written = snprintf(temp, sizeof(temp), "%lu", value);
+  if(written < 0)
+  {
+    buffer[offset < capacity ? offset : capacity - 1U] = '\0';
+    return offset;
+  }
+
+  return AppendLiteral(buffer, capacity, offset, temp);
+}
+
+static size_t AppendSignedLong(char *buffer, size_t capacity, size_t offset, long value)
+{
+  char temp[16];
+  int written;
+
+  if(buffer == NULL || capacity == 0U)
+  {
+    return offset;
+  }
+
+  written = snprintf(temp, sizeof(temp), "%ld", value);
+  if(written < 0)
+  {
+    buffer[offset < capacity ? offset : capacity - 1U] = '\0';
+    return offset;
+  }
+
+  return AppendLiteral(buffer, capacity, offset, temp);
+}
+
+static size_t AppendUint64(char *buffer, size_t capacity, size_t offset, uint64_t value)
+{
+  char digits[21];
+  size_t count = 0U;
+
+  if(buffer == NULL || capacity == 0U)
+  {
+    return offset;
+  }
+
+  if(value == 0ULL)
+  {
+    return AppendLiteral(buffer, capacity, offset, "0");
+  }
+
+  while(value > 0ULL && count < sizeof(digits))
+  {
+    digits[count++] = (char)('0' + (value % 10ULL));
+    value /= 10ULL;
+  }
+
+  while(count > 0U && offset + 1U < capacity)
+  {
+    buffer[offset++] = digits[--count];
+  }
+  buffer[offset] = '\0';
+  return offset;
+}
+
+static bool ParseJsonUnsignedLongField(const char *json, const char *field_name, unsigned long *value)
+{
+  const char *field;
+  const char *cursor;
+  unsigned long parsed = 0UL;
+
+  if(json == NULL || field_name == NULL || value == NULL)
+  {
+    return false;
+  }
+
+  field = strstr(json, field_name);
+  if(field == NULL)
+  {
+    return false;
+  }
+
+  cursor = field + strlen(field_name);
+  if(*cursor != ':')
+  {
+    return false;
+  }
+  cursor++;
+
+  if(*cursor < '0' || *cursor > '9')
+  {
+    return false;
+  }
+
+  while(*cursor >= '0' && *cursor <= '9')
+  {
+    parsed = (parsed * 10UL) + (unsigned long)(*cursor - '0');
+    cursor++;
+  }
+
+  *value = parsed;
+  return true;
+}
+
+static bool ParseJsonUint64Field(const char *json, const char *field_name, uint64_t *value)
+{
+  const char *field;
+  const char *cursor;
+  uint64_t parsed = 0ULL;
+
+  if(json == NULL || field_name == NULL || value == NULL)
+  {
+    return false;
+  }
+
+  field = strstr(json, field_name);
+  if(field == NULL)
+  {
+    return false;
+  }
+
+  cursor = field + strlen(field_name);
+  if(*cursor != ':')
+  {
+    return false;
+  }
+  cursor++;
+
+  if(*cursor < '0' || *cursor > '9')
+  {
+    return false;
+  }
+
+  while(*cursor >= '0' && *cursor <= '9')
+  {
+    parsed = (parsed * 10ULL) + (uint64_t)(*cursor - '0');
+    cursor++;
+  }
+
+  *value = parsed;
+  return true;
+}
+
+static bool PublishTelemetrySample(
+  rcl_publisher_t *publisher,
+  std_msgs__msg__String *message,
+  char *buffer,
+  size_t buffer_size,
+  const char *topic_name,
+  uint32_t sequence,
+  int32_t value)
+{
+  size_t length = 0U;
+  const uint64_t publish_us = GetMonotonicTimeUs();
+
+  if(publisher == NULL || message == NULL || buffer == NULL || buffer_size == 0U || topic_name == NULL)
+  {
+    message->data.size = 0U;
+    buffer[0] = '\0';
+    return false;
+  }
+
+  buffer[0] = '\0';
+  length = AppendLiteral(buffer, buffer_size, length, "{\"topic\":\"");
+  length = AppendLiteral(buffer, buffer_size, length, topic_name);
+  length = AppendLiteral(buffer, buffer_size, length, "\",\"seq\":");
+  length = AppendUnsignedLong(buffer, buffer_size, length, (unsigned long)sequence);
+  length = AppendLiteral(buffer, buffer_size, length, ",\"value\":");
+  length = AppendSignedLong(buffer, buffer_size, length, (long)value);
+  length = AppendLiteral(buffer, buffer_size, length, ",\"publish_us\":");
+  length = AppendUint64(buffer, buffer_size, length, publish_us);
+  length = AppendLiteral(buffer, buffer_size, length, "}");
+
+  message->data.size = length;
+  return rcl_publish(publisher, message, NULL) == RCL_RET_OK;
+}
 
 static void SetGreenLed(bool enabled)
 {
@@ -147,16 +396,53 @@ static void StartStatusLedTask(void *argument)
 static void StartHeartbeatPublisherTask(void *argument)
 {
   int failure_count = 0;
+  const uint64_t heartbeat_period_us = ((uint64_t)HEARTBEAT_PERIOD_MS) * 1000ULL;
+  uint64_t next_release_us = GetMonotonicTimeUs();
   (void)argument;
 
   printf("CM7: publisher-task-start\r\n");
 
   for(;;)
   {
+    uint64_t now_us;
+    uint64_t remaining_us;
+
+    ProcessPendingTimeSyncRequests();
+    now_us = GetMonotonicTimeUs();
+    if(now_us < next_release_us)
+    {
+      remaining_us = next_release_us - now_us;
+      if(remaining_us > 5000ULL)
+      {
+        osDelay(5);
+      }
+      else if(remaining_us > 1000ULL)
+      {
+        osDelay(1);
+      }
+      else
+      {
+        osThreadYield();
+      }
+      continue;
+    }
+
     rcl_ret_t ret = rcl_publish(&heartbeat_publisher, &heartbeat_msg, NULL);
 
     if(ret == RCL_RET_OK)
     {
+      if(!PublishTelemetrySample(
+           &heartbeat_telemetry_publisher,
+           &heartbeat_telemetry_msg,
+           heartbeat_telemetry_buffer,
+           sizeof(heartbeat_telemetry_buffer),
+           "heartbeat",
+           (uint32_t)heartbeat_msg.data,
+           heartbeat_msg.data) &&
+         healthy_publish_seen)
+      {
+        SetRuntimeFault("heartbeat-telemetry-publish");
+      }
       printf("CM7: publish-ok seq=%ld\r\n", (long)heartbeat_msg.data);
       heartbeat_msg.data++;
       failure_count = 0;
@@ -190,7 +476,98 @@ static void StartHeartbeatPublisherTask(void *argument)
       }
     }
 
-    osDelay(500);
+    next_release_us += heartbeat_period_us;
+    now_us = GetMonotonicTimeUs();
+    while(next_release_us <= now_us)
+    {
+      next_release_us += heartbeat_period_us;
+    }
+  }
+}
+
+static void TimeSyncRequestCallback(const void *msg_in)
+{
+  const std_msgs__msg__String *incoming = (const std_msgs__msg__String *)msg_in;
+  unsigned long seq = 0UL;
+  uint64_t host_send_us = 0ULL;
+  const uint64_t cm7_recv_us = GetMonotonicTimeUs();
+  const uint64_t cm7_send_us = GetMonotonicTimeUs();
+  size_t length = 0U;
+
+  if(incoming == NULL || incoming->data.data == NULL)
+  {
+    return;
+  }
+
+  if(!ParseJsonUnsignedLongField(incoming->data.data, "\"seq\"", &seq) ||
+     !ParseJsonUint64Field(incoming->data.data, "\"host_send_us\"", &host_send_us))
+  {
+    return;
+  }
+
+  time_sync_echo_buffer[0] = '\0';
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "{\"seq\":");
+  length = AppendUnsignedLong(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, seq);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"host_send_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, host_send_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"cm7_recv_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, cm7_recv_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"cm7_send_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, cm7_send_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "}");
+  time_sync_echo_msg.data.size = length;
+
+  if(rcl_publish(&time_sync_echo_publisher, &time_sync_echo_msg, NULL) != RCL_RET_OK &&
+     healthy_publish_seen)
+  {
+    SetRuntimeFault("time-sync-echo-publish");
+  }
+}
+
+static void ProcessPendingTimeSyncRequests(void)
+{
+  if(!publisher_ready)
+  {
+    time_sync_request_msg.data.size = 0U;
+    return;
+  }
+
+  while(true)
+  {
+    rmw_message_info_t message_info = rmw_get_zero_initialized_message_info();
+    rcl_ret_t take_ret;
+
+    time_sync_request_msg.data.size = 0U;
+    if(time_sync_request_msg.data.capacity > 0U)
+    {
+      time_sync_request_msg.data.data[0] = '\0';
+    }
+
+    take_ret = rcl_take(
+      &time_sync_request_subscription,
+      &time_sync_request_msg,
+      &message_info,
+      NULL);
+
+    if(take_ret == RCL_RET_OK)
+    {
+      size_t size = time_sync_request_msg.data.size;
+      size_t capacity = time_sync_request_msg.data.capacity;
+      if(time_sync_request_msg.data.data != NULL && capacity > 0U)
+      {
+        if(size >= capacity)
+        {
+          size = capacity - 1U;
+          time_sync_request_msg.data.size = size;
+        }
+        time_sync_request_msg.data.data[size] = '\0';
+      }
+
+      TimeSyncRequestCallback(&time_sync_request_msg);
+      continue;
+    }
+
+    break;
   }
 }
 
@@ -249,6 +626,9 @@ static bool SetupNetworkingAndMicroRos(void)
   rcl_ret_t support_ret;
   rcl_ret_t node_ret;
   rcl_ret_t pub_ret;
+  rcl_ret_t heartbeat_telemetry_pub_ret;
+  rcl_ret_t time_sync_echo_pub_ret;
+  rcl_ret_t time_sync_request_sub_ret;
   osThreadAttr_t eth_link_attributes = {
     .name = "EthLink",
     .stack_size = 1024,
@@ -369,7 +749,59 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  heartbeat_telemetry_publisher = rcl_get_zero_initialized_publisher();
+  heartbeat_telemetry_pub_ret = rclc_publisher_init_default(
+    &heartbeat_telemetry_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "heartbeat_telemetry");
+  printf("CM7: heartbeat-telemetry-publisher-init=%ld\r\n", (long)heartbeat_telemetry_pub_ret);
+  if(heartbeat_telemetry_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("heartbeat-telemetry-publisher");
+    return false;
+  }
+
+  time_sync_echo_publisher = rcl_get_zero_initialized_publisher();
+  time_sync_echo_pub_ret = rclc_publisher_init_default(
+    &time_sync_echo_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "time_sync_echo");
+  printf("CM7: time-sync-echo-publisher-init=%ld\r\n", (long)time_sync_echo_pub_ret);
+  if(time_sync_echo_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-echo-publisher");
+    return false;
+  }
+
+  time_sync_request_subscription = rcl_get_zero_initialized_subscription();
+  time_sync_request_sub_ret = rclc_subscription_init_default(
+    &time_sync_request_subscription,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "time_sync_request");
+  printf("CM7: time-sync-request-subscription-init=%ld\r\n", (long)time_sync_request_sub_ret);
+  if(time_sync_request_sub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-request-subscription");
+    return false;
+  }
+
+  time_sync_request_msg.data.data = time_sync_request_buffer;
+  time_sync_request_msg.data.size = 0U;
+  time_sync_request_msg.data.capacity = sizeof(time_sync_request_buffer);
+  time_sync_request_buffer[0] = '\0';
+
   heartbeat_msg.data = 0;
+  heartbeat_telemetry_msg.data.data = heartbeat_telemetry_buffer;
+  heartbeat_telemetry_msg.data.size = 0U;
+  heartbeat_telemetry_msg.data.capacity = sizeof(heartbeat_telemetry_buffer);
+  heartbeat_telemetry_buffer[0] = '\0';
+  time_sync_echo_msg.data.data = time_sync_echo_buffer;
+  time_sync_echo_msg.data.size = 0U;
+  time_sync_echo_msg.data.capacity = sizeof(time_sync_echo_buffer);
+  time_sync_echo_buffer[0] = '\0';
   publisher_ready = true;
   printf("CM7: setup-complete\r\n");
   return true;
@@ -421,6 +853,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
+  InitHighResolutionClock();
 }
 
 void MX_FREERTOS_Init(void)
@@ -483,7 +916,10 @@ int main(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  (void)htim;
+  if(htim != NULL && htim->Instance == TIM1)
+  {
+    HAL_IncTick();
+  }
 }
 
 void Error_Handler(void)

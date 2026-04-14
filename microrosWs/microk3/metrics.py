@@ -18,19 +18,33 @@ def utc_timestamp() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
 
+def _optional_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    return float(value)
+
+
 def new_metrics_state() -> Dict[str, Any]:
     return {
         "last_update": None,
         "container_last_update": None,
         "aggregate": {
-            "lag_ms": 0.0,
+            "client_to_agent_ms": None,
+            "client_to_agent_jitter_ms": 0.0,
+            "agent_to_ros_ms": None,
+            "agent_to_ros_jitter_ms": 0.0,
+            "end_to_end_ms": None,
+            "end_to_end_jitter_ms": 0.0,
+            "lag_ms": None,
             "jitter_ms": 0.0,
-            "raw_delta_ms": 0.0,
+            "raw_delta_ms": None,
             "bandwidth_bps": 0.0,
             "rate_hz": 0.0,
             "sync_ready": False,
             "clock_offset_ms": None,
+            "clock_scale": None,
             "time_sync_rtt_ms": None,
+            "time_sync_rtt_jitter_ms": 0.0,
             "time_sync_samples": 0,
             "cpu_percent": 0.0,
             "memory_percent": 0.0,
@@ -43,6 +57,12 @@ def new_metrics_state() -> Dict[str, Any]:
         "container_resources": {},
         "history": {
             "timestamps": [],
+            "client_to_agent_ms": [],
+            "client_to_agent_jitter_ms": [],
+            "agent_to_ros_ms": [],
+            "agent_to_ros_jitter_ms": [],
+            "end_to_end_ms": [],
+            "end_to_end_jitter_ms": [],
             "lag_ms": [],
             "jitter_ms": [],
             "bandwidth_bps": [],
@@ -74,19 +94,33 @@ def merge_performance_metrics(metrics_state: Dict[str, Any], payload: Dict[str, 
     metrics_state["node_metrics"][node_id] = payload
     metrics_state["topic_metrics"] = topics
     metrics_state["aggregate"].update({
-        "lag_ms": float(aggregate.get("lag_ms", 0.0)),
+        "client_to_agent_ms": _optional_float(aggregate.get("client_to_agent_ms")),
+        "client_to_agent_jitter_ms": float(aggregate.get("client_to_agent_jitter_ms", 0.0)),
+        "agent_to_ros_ms": _optional_float(aggregate.get("agent_to_ros_ms")),
+        "agent_to_ros_jitter_ms": float(aggregate.get("agent_to_ros_jitter_ms", 0.0)),
+        "end_to_end_ms": _optional_float(aggregate.get("end_to_end_ms")),
+        "end_to_end_jitter_ms": float(aggregate.get("end_to_end_jitter_ms", 0.0)),
+        "lag_ms": _optional_float(aggregate.get("lag_ms")),
         "jitter_ms": float(aggregate.get("jitter_ms", 0.0)),
-        "raw_delta_ms": float(aggregate.get("raw_delta_ms", 0.0)),
+        "raw_delta_ms": _optional_float(aggregate.get("raw_delta_ms")),
         "bandwidth_bps": float(aggregate.get("bandwidth_bps", 0.0)),
         "rate_hz": float(aggregate.get("rate_hz", 0.0)),
         "sync_ready": bool(aggregate.get("sync_ready", False)),
         "clock_offset_ms": aggregate.get("clock_offset_ms"),
+        "clock_scale": _optional_float(aggregate.get("clock_scale")),
         "time_sync_rtt_ms": aggregate.get("time_sync_rtt_ms"),
+        "time_sync_rtt_jitter_ms": float(aggregate.get("time_sync_rtt_jitter_ms", 0.0)),
         "time_sync_samples": int(aggregate.get("time_sync_samples", 0)),
     })
     _append_history(
         metrics_state["history"],
         timestamp=timestamp,
+        client_to_agent_ms=metrics_state["aggregate"]["client_to_agent_ms"],
+        client_to_agent_jitter_ms=metrics_state["aggregate"]["client_to_agent_jitter_ms"],
+        agent_to_ros_ms=metrics_state["aggregate"]["agent_to_ros_ms"],
+        agent_to_ros_jitter_ms=metrics_state["aggregate"]["agent_to_ros_jitter_ms"],
+        end_to_end_ms=metrics_state["aggregate"]["end_to_end_ms"],
+        end_to_end_jitter_ms=metrics_state["aggregate"]["end_to_end_jitter_ms"],
         lag_ms=metrics_state["aggregate"]["lag_ms"],
         jitter_ms=metrics_state["aggregate"]["jitter_ms"],
         bandwidth_bps=metrics_state["aggregate"]["bandwidth_bps"],
@@ -114,6 +148,12 @@ def merge_container_metrics(metrics_state: Dict[str, Any], payload: Dict[str, An
     _append_history(
         metrics_state["history"],
         timestamp=timestamp,
+        client_to_agent_ms=metrics_state["aggregate"]["client_to_agent_ms"],
+        client_to_agent_jitter_ms=metrics_state["aggregate"]["client_to_agent_jitter_ms"],
+        agent_to_ros_ms=metrics_state["aggregate"]["agent_to_ros_ms"],
+        agent_to_ros_jitter_ms=metrics_state["aggregate"]["agent_to_ros_jitter_ms"],
+        end_to_end_ms=metrics_state["aggregate"]["end_to_end_ms"],
+        end_to_end_jitter_ms=metrics_state["aggregate"]["end_to_end_jitter_ms"],
         lag_ms=metrics_state["aggregate"]["lag_ms"],
         jitter_ms=metrics_state["aggregate"]["jitter_ms"],
         bandwidth_bps=metrics_state["aggregate"]["bandwidth_bps"],

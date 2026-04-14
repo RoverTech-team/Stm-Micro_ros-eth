@@ -40,10 +40,26 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <h6>Network Lag: <span id="latency-val">{% if metrics_summary.aggregate.sync_ready %}{{ "%.3f"|format(metrics_summary.aggregate.lag_ms or 0) }}{% else %}syncing{% endif %}</span><span id="latency-unit">{% if metrics_summary.aggregate.sync_ready %}ms{% endif %}</span></h6>
+                        <h6>Client -> Agent: <span id="client-agent-val">{% if metrics_summary.aggregate.sync_ready and metrics_summary.aggregate.client_to_agent_ms is not none %}{{ "%.3f"|format(metrics_summary.aggregate.client_to_agent_ms) }} ms{% elif metrics_summary.aggregate.sync_ready %}unknown{% else %}syncing{% endif %}</span></h6>
                         <div class="d-flex align-items-center">
                             <span class="status-indicator status-active me-2"></span>
-                            <span>Jitter <span id="jitter-val">{{ "%.3f"|format(metrics_summary.aggregate.jitter_ms or 0) }}</span>ms</span>
+                            <span>Jitter <span id="client-agent-jitter-val">{{ "%.3f"|format(metrics_summary.aggregate.client_to_agent_jitter_ms or 0) }}</span> ms</span>
+                        </div>
+                        <div class="d-flex align-items-center mt-1">
+                            <span class="status-indicator status-active me-2"></span>
+                            <span>Agent -> ROS 2 <span id="agent-ros-val">{% if metrics_summary.aggregate.agent_to_ros_ms is not none %}{{ "%.3f"|format(metrics_summary.aggregate.agent_to_ros_ms) }} ms{% else %}unknown{% endif %}</span></span>
+                        </div>
+                        <div class="d-flex align-items-center mt-1">
+                            <span class="status-indicator status-active me-2"></span>
+                            <span>Jitter <span id="agent-ros-jitter-val">{{ "%.3f"|format(metrics_summary.aggregate.agent_to_ros_jitter_ms or 0) }}</span> ms</span>
+                        </div>
+                        <div class="d-flex align-items-center mt-1">
+                            <span class="status-indicator status-active me-2"></span>
+                            <span>End-to-End <span id="end-to-end-val">{% if metrics_summary.aggregate.sync_ready and metrics_summary.aggregate.end_to_end_ms is not none %}{{ "%.3f"|format(metrics_summary.aggregate.end_to_end_ms) }} ms{% elif metrics_summary.aggregate.sync_ready %}unknown{% else %}syncing{% endif %}</span></span>
+                        </div>
+                        <div class="d-flex align-items-center mt-1">
+                            <span class="status-indicator status-active me-2"></span>
+                            <span>Jitter <span id="end-to-end-jitter-val">{{ "%.3f"|format(metrics_summary.aggregate.end_to_end_jitter_ms or 0) }}</span> ms</span>
                         </div>
                         <div class="d-flex align-items-center mt-1">
                             <span class="status-indicator status-active me-2"></span>
@@ -51,7 +67,7 @@
                         </div>
                         <div class="d-flex align-items-center mt-1">
                             <span class="status-indicator status-active me-2"></span>
-                            <span id="sync-status">{% if metrics_summary.aggregate.sync_ready %}RTT {{ "%.3f"|format(metrics_summary.aggregate.time_sync_rtt_ms or 0) }} ms{% else %}Clock sync in progress{% endif %}</span>
+                            <span id="sync-status">{% if metrics_summary.aggregate.sync_ready %}RTT {{ "%.3f"|format(metrics_summary.aggregate.time_sync_rtt_ms or 0) }} ms | RTT jitter {{ "%.3f"|format(metrics_summary.aggregate.time_sync_rtt_jitter_ms or 0) }} ms{% else %}Clock sync in progress{% endif %}</span>
                         </div>
                     </div>
                 </div>
@@ -187,11 +203,11 @@
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <span>Heartbeat Interval</span>
-                                <span class="badge bg-primary">100ms</span>
+                                <span class="badge bg-primary">500ms</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <span>Timeout Threshold</span>
-                                <span class="badge bg-primary">500ms</span>
+                                <span class="badge bg-primary">5.0s</span>
                             </li>
                         </ul>
                     </div>
@@ -269,14 +285,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const history = summary.history || {};
         const syncReady = Boolean(aggregate.sync_ready);
 
-        document.getElementById('latency-val').textContent = syncReady
-            ? Number(aggregate.lag_ms || 0).toFixed(3)
+        document.getElementById('client-agent-val').textContent = syncReady
+            ? (aggregate.client_to_agent_ms == null ? 'unknown' : `${Number(aggregate.client_to_agent_ms).toFixed(3)} ms`)
             : 'syncing';
-        document.getElementById('latency-unit').textContent = syncReady ? 'ms' : '';
-        document.getElementById('jitter-val').textContent = Number(aggregate.jitter_ms || 0).toFixed(3);
+        document.getElementById('client-agent-jitter-val').textContent = Number(aggregate.client_to_agent_jitter_ms || 0).toFixed(3);
+        document.getElementById('agent-ros-val').textContent = aggregate.agent_to_ros_ms == null
+            ? 'unknown'
+            : `${Number(aggregate.agent_to_ros_ms).toFixed(3)} ms`;
+        document.getElementById('agent-ros-jitter-val').textContent = Number(aggregate.agent_to_ros_jitter_ms || 0).toFixed(3);
+        document.getElementById('end-to-end-val').textContent = syncReady
+            ? (aggregate.end_to_end_ms == null ? 'unknown' : `${Number(aggregate.end_to_end_ms).toFixed(3)} ms`)
+            : 'syncing';
+        document.getElementById('end-to-end-jitter-val').textContent = Number(aggregate.end_to_end_jitter_ms || 0).toFixed(3);
         document.getElementById('bandwidth-val').textContent = ((aggregate.bandwidth_bps || 0) / 1024).toFixed(1);
         document.getElementById('sync-status').textContent = syncReady
-            ? `RTT ${Number(aggregate.time_sync_rtt_ms || 0).toFixed(3)} ms`
+            ? `RTT ${Number(aggregate.time_sync_rtt_ms || 0).toFixed(3)} ms | RTT jitter ${Number(aggregate.time_sync_rtt_jitter_ms || 0).toFixed(3)} ms`
             : `Clock sync in progress (${Number(aggregate.time_sync_samples || 0)} samples)`;
 
         resourceChart.data.datasets[0].data = [

@@ -255,6 +255,13 @@ def get_metrics_summary() -> Dict[str, Any]:
 
 
 def apply_runtime_metrics_to_nodes() -> None:
+    def format_metric(metric_ms, sync_ready: bool, sync_scoped: bool = False) -> str:
+        if sync_scoped and not sync_ready:
+            return "syncing"
+        if metric_ms is None:
+            return "unknown"
+        return f"{float(metric_ms):.3f} ms"
+
     metrics = get_metrics_summary()
     aggregate = metrics.get("aggregate", {})
     node_metrics = metrics.get("nodes", {})
@@ -263,14 +270,11 @@ def apply_runtime_metrics_to_nodes() -> None:
         node_aggregate = per_node.get("aggregate", aggregate)
         node.cpu = f"{float(aggregate.get('cpu_percent', 0.0)):.1f}% stack"
         node.ram = f"{int(aggregate.get('memory_usage_bytes', 0)) / (1024 * 1024):.1f} MiB stack"
-        lag_text = (
-            f"{float(node_aggregate.get('lag_ms', 0.0)):.3f} ms"
-            if node_aggregate.get("sync_ready", False)
-            else "syncing"
-        )
+        sync_ready = node_aggregate.get("sync_ready", False)
         node.network = (
-            f"Lag {lag_text} | "
-            f"Jitter {float(node_aggregate.get('jitter_ms', 0.0)):.3f} ms | "
+            f"C->A {format_metric(node_aggregate.get('client_to_agent_ms'), sync_ready, sync_scoped=True)} | "
+            f"A->ROS {format_metric(node_aggregate.get('agent_to_ros_ms'), sync_ready)} | "
+            f"E2E {format_metric(node_aggregate.get('end_to_end_ms'), sync_ready, sync_scoped=True)} | "
             f"BW {float(node_aggregate.get('bandwidth_bps', 0.0)) / 1024.0:.1f} KiB/s"
         )
 
@@ -631,6 +635,20 @@ def api_system_status():
             "nodes_online": active_nodes,
             "total_nodes": len(system_data['nodes']),
             "tasks_running": len(system_data.get('tasks', {})),
+            "client_to_agent_ms": (
+                get_metrics_summary()["aggregate"].get("client_to_agent_ms")
+                if get_metrics_summary()["aggregate"].get("sync_ready", False)
+                else None
+            ),
+            "client_to_agent_jitter_ms": get_metrics_summary()["aggregate"].get("client_to_agent_jitter_ms", 0.0),
+            "agent_to_ros_ms": get_metrics_summary()["aggregate"].get("agent_to_ros_ms"),
+            "agent_to_ros_jitter_ms": get_metrics_summary()["aggregate"].get("agent_to_ros_jitter_ms", 0.0),
+            "end_to_end_ms": (
+                get_metrics_summary()["aggregate"].get("end_to_end_ms")
+                if get_metrics_summary()["aggregate"].get("sync_ready", False)
+                else None
+            ),
+            "end_to_end_jitter_ms": get_metrics_summary()["aggregate"].get("end_to_end_jitter_ms", 0.0),
             "network_latency": (
                 get_metrics_summary()["aggregate"].get("lag_ms", 0.0)
                 if get_metrics_summary()["aggregate"].get("sync_ready", False)
@@ -640,7 +658,9 @@ def api_system_status():
             "bandwidth_bps": get_metrics_summary()["aggregate"].get("bandwidth_bps", 0.0),
             "sync_ready": get_metrics_summary()["aggregate"].get("sync_ready", False),
             "clock_offset_ms": get_metrics_summary()["aggregate"].get("clock_offset_ms"),
+            "clock_scale": get_metrics_summary()["aggregate"].get("clock_scale"),
             "time_sync_rtt_ms": get_metrics_summary()["aggregate"].get("time_sync_rtt_ms"),
+            "time_sync_rtt_jitter_ms": get_metrics_summary()["aggregate"].get("time_sync_rtt_jitter_ms", 0.0),
             "time_sync_samples": get_metrics_summary()["aggregate"].get("time_sync_samples", 0),
             "cpu_percent": get_metrics_summary()["aggregate"].get("cpu_percent", 0.0),
             "memory_percent": get_metrics_summary()["aggregate"].get("memory_percent", 0.0),

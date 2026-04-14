@@ -81,8 +81,11 @@ def test_api_metrics_summary_defaults(client):
     response = client.get('/api/metrics/summary')
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data['aggregate']['lag_ms'] == 0.0
+    assert data['aggregate']['client_to_agent_ms'] is None
+    assert data['aggregate']['agent_to_ros_ms'] is None
+    assert data['aggregate']['end_to_end_ms'] is None
     assert data['aggregate']['sync_ready'] is False
+    assert data['aggregate']['time_sync_rtt_jitter_ms'] == 0.0
     assert data['containers'] == {}
     assert data['topics'] == {}
 
@@ -328,6 +331,12 @@ def test_performance_metrics_update_exposed_by_api(client):
         'node_id': 755,
         'timestamp': '2026-04-01T10:00:00Z',
         'aggregate': {
+            'client_to_agent_ms': 3.2,
+            'client_to_agent_jitter_ms': 0.4,
+            'agent_to_ros_ms': 1.3,
+            'agent_to_ros_jitter_ms': 0.2,
+            'end_to_end_ms': 4.5,
+            'end_to_end_jitter_ms': 0.7,
             'lag_ms': 4.5,
             'jitter_ms': 0.7,
             'raw_delta_ms': 5.1,
@@ -335,11 +344,19 @@ def test_performance_metrics_update_exposed_by_api(client):
             'rate_hz': 4.0,
             'sync_ready': True,
             'clock_offset_ms': 12.345,
+            'clock_scale': 1.001,
             'time_sync_rtt_ms': 0.456,
+            'time_sync_rtt_jitter_ms': 0.123,
             'time_sync_samples': 5,
         },
         'topics': {
             'heartbeat': {
+                'client_to_agent_ms': 3.2,
+                'client_to_agent_jitter_ms': 0.4,
+                'agent_to_ros_ms': 1.3,
+                'agent_to_ros_jitter_ms': 0.2,
+                'end_to_end_ms': 4.5,
+                'end_to_end_jitter_ms': 0.7,
                 'lag_ms': 4.5,
                 'raw_delta_ms': 5.1,
                 'jitter_ms': 0.7,
@@ -372,9 +389,14 @@ def test_performance_metrics_update_exposed_by_api(client):
     response = client.get('/api/metrics/summary')
     assert response.status_code == 200
     summary = json.loads(response.data)
+    assert summary['aggregate']['client_to_agent_ms'] == 3.2
+    assert summary['aggregate']['agent_to_ros_ms'] == 1.3
+    assert summary['aggregate']['end_to_end_ms'] == 4.5
     assert summary['aggregate']['lag_ms'] == 4.5
     assert summary['aggregate']['sync_ready'] is True
     assert summary['aggregate']['clock_offset_ms'] == 12.345
+    assert summary['aggregate']['clock_scale'] == 1.001
+    assert summary['aggregate']['time_sync_rtt_jitter_ms'] == 0.123
     assert summary['aggregate']['cpu_percent'] == 12.5
     assert summary['containers']['microk3']['memory_percent'] == 15.5
 
@@ -382,5 +404,67 @@ def test_performance_metrics_update_exposed_by_api(client):
     assert node_response.status_code == 200
     node_data = json.loads(node_response.data)
     assert node_data['aggregate']['bandwidth_bps'] == 2048.0
-    assert "4.500 ms" in microk3_app.system_data['nodes'][0].network
+    assert "C->A 3.200 ms" in microk3_app.system_data['nodes'][0].network
+    assert "A->ROS 1.300 ms" in microk3_app.system_data['nodes'][0].network
+    assert "E2E 4.500 ms" in microk3_app.system_data['nodes'][0].network
     assert "stack" in microk3_app.system_data['nodes'][0].cpu
+
+
+def test_performance_metrics_with_unknown_lag_keeps_node_renderable(client):
+    import app as microk3_app
+
+    microk3_app.system_data['nodes'].append(
+        microk3_app.Node(
+            id=755,
+            name="Node 755",
+            status="active",
+            type="STM32",
+            ram="Unknown",
+            flash="Unknown",
+            cpu="Unknown"
+        )
+    )
+
+    microk3_app.ros_update_callback('performance_metrics', {
+        'node_id': 755,
+        'timestamp': '2026-04-01T10:00:00Z',
+        'aggregate': {
+            'client_to_agent_ms': None,
+            'client_to_agent_jitter_ms': 0.4,
+            'agent_to_ros_ms': 1.3,
+            'agent_to_ros_jitter_ms': 0.2,
+            'end_to_end_ms': None,
+            'end_to_end_jitter_ms': 0.7,
+            'lag_ms': None,
+            'jitter_ms': 0.7,
+            'raw_delta_ms': 5.1,
+            'bandwidth_bps': 2048.0,
+            'rate_hz': 4.0,
+            'sync_ready': True,
+            'clock_offset_ms': 12.345,
+            'time_sync_rtt_ms': 0.456,
+            'time_sync_rtt_jitter_ms': 0.123,
+            'time_sync_samples': 5,
+        },
+        'topics': {
+            'heartbeat': {
+                'client_to_agent_ms': None,
+                'client_to_agent_jitter_ms': 0.4,
+                'agent_to_ros_ms': 1.3,
+                'agent_to_ros_jitter_ms': 0.2,
+                'end_to_end_ms': None,
+                'end_to_end_jitter_ms': 0.7,
+                'lag_ms': None,
+                'raw_delta_ms': 5.1,
+                'jitter_ms': 0.7,
+                'bandwidth_bps': 1024.0,
+                'rate_hz': 2.0,
+            }
+        }
+    })
+
+    response = client.get('/api/metrics/nodes/755')
+    assert response.status_code == 200
+    assert "C->A unknown" in microk3_app.system_data['nodes'][0].network
+    assert "A->ROS 1.300 ms" in microk3_app.system_data['nodes'][0].network
+    assert "E2E unknown" in microk3_app.system_data['nodes'][0].network
