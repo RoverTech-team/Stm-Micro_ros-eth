@@ -235,14 +235,14 @@ class DockerStatsCollector(threading.Thread):
         self._client = None
 
     def available(self) -> bool:
-        return docker is not None and os.path.exists("/var/run/docker.sock")
+        return docker is not None and os.path.exists("/var/run/docker.sock") and bool(self.service_names)
 
     def stop(self) -> None:
         self._stop_event.set()
 
     def run(self) -> None:  # pragma: no cover - runtime integration path
         if not self.available():
-            self.logger.info("Docker stats collector disabled: docker SDK or socket unavailable")
+            self.logger.info("Docker stats collector disabled: docker SDK/socket unavailable or no services configured")
             return
 
         try:

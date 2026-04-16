@@ -6,22 +6,44 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 load_env_defaults "$ROOT_DIR/.env"
 STACK="${STACK:-renode}"
-COMPOSE_FILE="$("$SCRIPT_DIR/resolve-compose.sh")"
 . "$SCRIPT_DIR/stm32_programmer_env.sh"
 . "$SCRIPT_DIR/ip_env.sh"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "docker is not installed or not in PATH."
-  exit 1
-fi
-
-if ! docker compose version >/dev/null 2>&1; then
-  echo "docker compose plugin is not available."
-  exit 1
-fi
-
 case "$STACK" in
+  hil-host)
+    if [ "$(uname -s)" != "Linux" ]; then
+      echo "STACK=hil-host is supported only on Linux/Jetson hosts."
+      exit 1
+    fi
+
+    if [ "$(uname -m)" != "aarch64" ]; then
+      echo "STACK=hil-host expects a Jetson-class aarch64 host."
+      exit 1
+    fi
+
+    COMPOSE_FILE="$("$SCRIPT_DIR/resolve-compose.sh")"
+
+    if ! command -v docker >/dev/null 2>&1; then
+      echo "docker is not installed or not in PATH."
+      exit 1
+    fi
+
+    if ! docker compose version >/dev/null 2>&1; then
+      echo "docker compose plugin is not available."
+      exit 1
+    fi
+
+    if [ "${ROS_LOCALHOST_ONLY:-0}" = "1" ]; then
+      echo "ROS_LOCALHOST_ONLY=1 prevents containerized hil-host services from joining the Jetson host ROS graph. Set ROS_LOCALHOST_ONLY=0."
+      exit 1
+    fi
+
+    : "${ROS_DOMAIN_ID:=0}"
+    : "${RMW_IMPLEMENTATION:=rmw_cyclonedds_cpp}"
+    : "${MICROROS_DISABLE_SHM:=1}"
+    ;;
   hil-macos)
+    COMPOSE_FILE="$("$SCRIPT_DIR/resolve-compose.sh")"
     WORKSPACE_DIR="$(cd "$ROOT_DIR/../.." && pwd)"
     MAC_HOST_IP="${MAC_HOST_IP:-192.168.2.1}"
     STM_BOARD_IP="${STM_BOARD_IP:-192.168.2.2}"
@@ -71,6 +93,17 @@ case "$STACK" in
     fi
     ;;
   hil|renode|*)
+    COMPOSE_FILE="$("$SCRIPT_DIR/resolve-compose.sh")"
+    if ! command -v docker >/dev/null 2>&1; then
+      echo "docker is not installed or not in PATH."
+      exit 1
+    fi
+
+    if ! docker compose version >/dev/null 2>&1; then
+      echo "docker compose plugin is not available."
+      exit 1
+    fi
+
     if [ ! -c /dev/net/tun ]; then
       echo "/dev/net/tun is missing. Ensure TUN/TAP is enabled in the kernel."
       exit 1
@@ -82,7 +115,7 @@ case "$STACK" in
     ;;
 esac
 
-if [ ! -f "$COMPOSE_FILE" ]; then
+if [ "${COMPOSE_FILE:-}" ] && [ ! -f "$COMPOSE_FILE" ]; then
   echo "Compose file not found at $COMPOSE_FILE."
   exit 1
 fi

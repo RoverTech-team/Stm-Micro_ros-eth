@@ -11,6 +11,9 @@ case "$STACK" in
   hil)
     printf '%s\n' "$ROOT_DIR/docker-compose.hil.yml"
     ;;
+  hil-host)
+    printf '%s\n' "$ROOT_DIR/docker-compose.hil-host.yml"
+    ;;
   hil-macos)
     printf '%s\n' "$ROOT_DIR/docker-compose.hil.macos.yml"
     ;;

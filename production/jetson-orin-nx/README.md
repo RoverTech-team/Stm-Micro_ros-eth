@@ -16,7 +16,33 @@ Deployment bundle for Renode + micro-ROS agent + microk3 dashboard on Jetson Ori
 
 - `STACK=renode`: Jetson-hosted Renode production stack
 - `STACK=hil`: Jetson-hosted hardware-in-the-loop stack
+- `STACK=hil-host`: Jetson-hosted Docker HIL stack that joins the existing host ROS 2 graph
 - `STACK=hil-macos`: macOS-hosted hardware-in-the-loop stack
+
+## Jetson host-ROS HIL
+
+The `hil-host` stack keeps `micro-ros-agent`, `microk3`, and `renode-bridge` inside Docker, but runs them on `network_mode: host` so they attach to the Jetson's existing ROS 2 graph.
+It is intended for the production case where the Jetson already runs ROS 2 for other roles and the HIL services need to interoperate with that host instance directly.
+
+When using `STACK=hil-host`:
+
+- `./scripts/setup.sh` validates Docker and blocks `ROS_LOCALHOST_ONLY=1`, because that would isolate the containers from the host ROS graph
+- `./scripts/start.sh` starts [docker-compose.hil-host.yml](/Users/giuliomastromartino/Documents/Polispace/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.hil-host.yml)
+- `./scripts/stop.sh`, `./scripts/status.sh`, and `./scripts/logs.sh` use normal `docker compose` control flow
+- `micro-ros-agent` still runs in a minimal ROS 2 container, not on the host
+- `microk3` and `renode-bridge` also stay in containers, but inherit the host ROS settings through `.env`
+- `hil-host` is the production integration mode when the Jetson already has an active ROS 2 environment
+- `hil` remains the legacy standalone containerized HIL stack
+
+For `hil-host`, make the container ROS settings match the host ROS 2 instance:
+
+- `ROS_DOMAIN_ID`
+- `ROS_LOCALHOST_ONLY=0`
+- `RMW_IMPLEMENTATION`
+- `CYCLONEDDS_URI` or `FASTRTPS_DEFAULT_PROFILES_FILE` if your host ROS 2 stack depends on them
+- any discovery-specific variables such as `ROS_DISCOVERY_SERVER`, `ROS_AUTOMATIC_DISCOVERY_RANGE`, or `ROS_STATIC_PEERS`
+
+The containers do not need the host workspace sourced. They only need compatible DDS/runtime environment so they can join the same ROS 2 graph over host networking.
 
 ## macOS HIL
 

@@ -4,6 +4,9 @@ set -eu
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$ROOT_DIR/.env"
+. "$ROOT_DIR/scripts/load_env.sh"
+load_env_defaults "$ENV_FILE"
+STACK="${STACK:-renode}"
 
 read_env_value() {
   key="$1"
