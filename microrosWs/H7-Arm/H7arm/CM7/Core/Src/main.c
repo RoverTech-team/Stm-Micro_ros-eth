@@ -34,6 +34,7 @@
 #include <rmw_microros/rmw_microros.h>
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/string.h>
+#include <std_msgs/msg/float32_multi_array.h>
 
 #include "microros_transports.h"
 #include "microros_sim_network.h"
@@ -47,6 +48,8 @@ extern struct netif gnetif;
 #define SENSOR_DEBUG_BUFFER_SIZE 256U
 #define TELEMETRY_BUFFER_SIZE 160U
 #define TIME_SYNC_BUFFER_SIZE 192U
+#define JOINT_COUNT 6u
+#define JOINT_PUBLISH_PERIOD_MS 20U
 
 static volatile shared_data_t * const sensor_shared_data = SHARED_DATA;
 static uint32_t telemetry_cycles_per_us = 0U;
@@ -100,6 +103,23 @@ static char position_telemetry_buffer[TELEMETRY_BUFFER_SIZE];
 static char time_sync_request_buffer[TIME_SYNC_BUFFER_SIZE];
 static char time_sync_echo_buffer[TIME_SYNC_BUFFER_SIZE];
 
+/* Joint states and commands */
+static rcl_publisher_t joint_states_publisher;
+static std_msgs__msg__Float32MultiArray joint_states_msg;
+static float joint_states_data[64U];
+static char joint_states_buffer[256U];
+static rcl_subscription_t joint_commands_subscription;
+static rclc_executor_t joint_command_executor;
+static std_msgs__msg__Float32MultiArray joint_commands_msg;
+static char joint_commands_buffer[256U];
+static float joint_commanded_positions[JOINT_COUNT];
+static float joint_commanded_velocities[JOINT_COUNT];
+static float joint_commanded_efforts[JOINT_COUNT];
+static uint32_t joint_command_seq;
+static volatile bool joint_command_received;
+static osThreadId_t jointStatesTaskHandle;
+static osThreadId_t jointCommandExecutorTaskHandle;
+
 static bool SetupNetworkingAndMicroRos(void);
 static void StartSensorDebugTask(void *argument);
 static void StartTimeSyncTask(void *argument);
@@ -114,15 +134,11 @@ static size_t AppendSignedLong(char *buffer, size_t capacity, size_t offset, lon
 static size_t AppendUint64(char *buffer, size_t capacity, size_t offset, uint64_t value);
 static bool ParseJsonUnsignedLongField(const char *json, const char *field_name, unsigned long *value);
 static bool ParseJsonUint64Field(const char *json, const char *field_name, uint64_t *value);
-static bool PublishTelemetrySample(
-  rcl_publisher_t *publisher,
-  std_msgs__msg__String *message,
-  char *buffer,
-  size_t buffer_size,
-  const char *topic_name,
-  uint32_t sequence,
-  int32_t value);
-static void WaitUntilNextHeartbeatPeriod(uint64_t *next_release_us);
+static void ParseJointCommand(const void *msg_in);
+static void BuildJointStatesJson(void);
+static void JointCommandCallback(const void *msg_in);
+static void StartJointStatesTask(void *argument);
+static void StartJointCommandExecutorTask(void *argument);
 
 static void InitHighResolutionClock(void)
 {
@@ -329,6 +345,206 @@ static bool ParseJsonUint64Field(const char *json, const char *field_name, uint6
 
   *value = parsed;
   return true;
+}
+
+static void ParseJointCommand(const void *msg_in)
+{
+  const std_msgs__msg__Float32MultiArray *incoming = (const std_msgs__msg__Float32MultiArray *)msg_in;
+  size_t i;
+
+  if(incoming == NULL || incoming->data.data == NULL)
+  {
+    return;
+  }
+
+  if(incoming->data.size < JOINT_COUNT)
+  {
+    return;
+  }
+
+  for(i = 0U; i < JOINT_COUNT; i++)
+  {
+    joint_commanded_positions[i] = incoming->data.data[i];
+  }
+
+  if(incoming->data.size >= JOINT_COUNT * 2U)
+  {
+    for(i = 0U; i < JOINT_COUNT; i++)
+    {
+      joint_commanded_velocities[i] = incoming->data.data[JOINT_COUNT + i];
+    }
+  }
+  else
+  {
+    for(i = 0U; i < JOINT_COUNT; i++)
+    {
+      joint_commanded_velocities[i] = 0.0f;
+    }
+  }
+
+  if(incoming->data.size >= JOINT_COUNT * 3U)
+  {
+    for(i = 0U; i < JOINT_COUNT; i++)
+    {
+      joint_commanded_efforts[i] = incoming->data.data[JOINT_COUNT * 2U + i];
+    }
+  }
+  else
+  {
+    for(i = 0U; i < JOINT_COUNT; i++)
+    {
+      joint_commanded_efforts[i] = 0.0f;
+    }
+  }
+
+  joint_command_seq++;
+  joint_command_received = true;
+}
+
+static void BuildJointStatesJson(void)
+{
+  size_t length = 0U;
+  size_t i;
+
+  joint_states_buffer[0] = '\0';
+  length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "{\"positions\":[");
+  for(i = 0U; i < JOINT_COUNT; i++)
+  {
+    if(i > 0U)
+    {
+      length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, ",");
+    }
+    length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "\"");
+    {
+      char temp[32];
+      int written = snprintf(temp, sizeof(temp), "%.6f", joint_commanded_positions[i]);
+      if(written > 0 && (size_t)written < sizeof(temp))
+      {
+        length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, temp);
+      }
+    }
+  }
+  length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "],\"velocities\":[");
+  for(i = 0U; i < JOINT_COUNT; i++)
+  {
+    if(i > 0U)
+    {
+      length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, ",");
+    }
+    length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "\"");
+    {
+      char temp[32];
+      int written = snprintf(temp, sizeof(temp), "%.6f", joint_commanded_velocities[i]);
+      if(written > 0 && (size_t)written < sizeof(temp))
+      {
+        length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, temp);
+      }
+    }
+  }
+  length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "],\"efforts\":[");
+  for(i = 0U; i < JOINT_COUNT; i++)
+  {
+    if(i > 0U)
+    {
+      length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, ",");
+    }
+    length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "\"");
+    {
+      char temp[32];
+      int written = snprintf(temp, sizeof(temp), "%.6f", joint_commanded_efforts[i]);
+      if(written > 0 && (size_t)written < sizeof(temp))
+      {
+        length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, temp);
+      }
+    }
+  }
+  length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "],\"seq\":");
+  length = AppendUnsignedLong(joint_states_buffer, sizeof(joint_states_buffer), length, (unsigned long)joint_command_seq);
+  length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "}");
+  
+  /* Also fill the Float32MultiArray data */
+  joint_states_msg.data.size = JOINT_COUNT * 3u;
+  for(i = 0U; i < JOINT_COUNT; i++)
+  {
+    joint_states_data[i] = joint_commanded_positions[i];
+    joint_states_data[JOINT_COUNT + i] = joint_commanded_velocities[i];
+    joint_states_data[JOINT_COUNT * 2u + i] = joint_commanded_efforts[i];
+  }
+}
+
+static void JointCommandCallback(const void *msg_in)
+{
+  ParseJointCommand(msg_in);
+}
+
+static void StartJointStatesTask(void *argument)
+{
+  (void)argument;
+  uint64_t next_release_us = 0ULL;
+  const uint64_t publish_period_us = ((uint64_t)JOINT_PUBLISH_PERIOD_MS) * 1000ULL;
+
+  for(;;)
+  {
+    uint64_t now_us;
+    uint64_t remaining_us;
+
+    now_us = GetMonotonicTimeUs();
+    if(next_release_us == 0ULL)
+    {
+      next_release_us = now_us;
+    }
+
+    next_release_us += publish_period_us;
+
+    while(true)
+    {
+      now_us = GetMonotonicTimeUs();
+      if(now_us >= next_release_us)
+      {
+        break;
+      }
+      remaining_us = next_release_us - now_us;
+      if(remaining_us > 5000ULL)
+      {
+        osDelay(5);
+      }
+      else if(remaining_us > 1000ULL)
+      {
+        osDelay(1);
+      }
+      else
+      {
+        osThreadYield();
+      }
+    }
+
+    BuildJointStatesJson();
+    if(rcl_publish(&joint_states_publisher, &joint_states_msg, NULL) != RCL_RET_OK && healthy_publish_seen)
+    {
+      SetRuntimeFault("joint-states-publish");
+    }
+  }
+}
+
+static void StartJointCommandExecutorTask(void *argument)
+{
+  (void)argument;
+
+  for(;;)
+  {
+    if(!publisher_ready)
+    {
+      osDelay(100);
+      continue;
+    }
+
+    if(rclc_executor_spin_some(&joint_command_executor, RCL_MS_TO_NS(20)) != RCL_RET_OK &&
+       healthy_publish_seen)
+    {
+      SetRuntimeFault("joint-command-spin");
+    }
+    osDelay(20);
+  }
 }
 
 static bool PublishTelemetrySample(
@@ -804,6 +1020,9 @@ static bool SetupNetworkingAndMicroRos(void)
   rcl_ret_t time_sync_echo_pub_ret;
   rcl_ret_t time_sync_request_sub_ret;
   rcl_ret_t time_sync_executor_ret;
+  rcl_ret_t joint_states_pub_ret;
+  rcl_ret_t joint_commands_sub_ret;
+  rcl_ret_t joint_command_executor_ret;
   osThreadAttr_t eth_link_attributes = {
     .name = "EthLink",
     .stack_size = 1024,
@@ -1028,6 +1247,58 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  joint_states_publisher = rcl_get_zero_initialized_publisher();
+  joint_states_pub_ret = rclc_publisher_init_default(
+    &joint_states_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
+    "joint_states");
+  printf("CM7: joint-states-publisher-init=%ld\r\n", (long)joint_states_pub_ret);
+  if(joint_states_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("joint-states-publisher");
+    return false;
+  }
+
+  joint_commands_subscription = rcl_get_zero_initialized_subscription();
+  joint_commands_sub_ret = rclc_subscription_init_default(
+    &joint_commands_subscription,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
+    "joint_commands");
+  printf("CM7: joint-commands-subscription-init=%ld\r\n", (long)joint_commands_sub_ret);
+  if(joint_commands_sub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("joint-commands-subscription");
+    return false;
+  }
+
+  joint_command_executor = rclc_executor_get_zero_initialized_executor();
+  joint_command_executor_ret = rclc_executor_init(&joint_command_executor, &heartbeat_support.context, 1, &allocator);
+  printf("CM7: joint-command-executor-init=%ld\r\n", (long)joint_command_executor_ret);
+  if(joint_command_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("joint-command-executor");
+    return false;
+  }
+
+  joint_commands_msg.data.data = (float *)joint_commands_buffer;
+  joint_commands_msg.data.size = 0U;
+  joint_commands_msg.data.capacity = sizeof(joint_commands_buffer) / sizeof(float);
+  memset(joint_commands_buffer, 0, sizeof(joint_commands_buffer));
+  joint_command_executor_ret = rclc_executor_add_subscription(
+    &joint_command_executor,
+    &joint_commands_subscription,
+    &joint_commands_msg,
+    &JointCommandCallback,
+    ON_NEW_DATA);
+  printf("CM7: joint-command-executor-add-subscription=%ld\r\n", (long)joint_command_executor_ret);
+  if(joint_command_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("joint-command-executor-subscription");
+    return false;
+  }
+
   heartbeat_msg.data = 0;
   position_msg.data = (int32_t)DEFAULT_DISTANCE_CM;
   sensor_debug_msg.data.data = sensor_debug_buffer;
@@ -1046,6 +1317,15 @@ static bool SetupNetworkingAndMicroRos(void)
   time_sync_echo_msg.data.size = 0U;
   time_sync_echo_msg.data.capacity = sizeof(time_sync_echo_buffer);
   time_sync_echo_buffer[0] = '\0';
+  joint_states_msg.data.data = joint_states_data;
+  joint_states_msg.data.size = 0U;
+  joint_states_msg.data.capacity = sizeof(joint_states_data) / sizeof(float);
+  memset(joint_states_buffer, 0, sizeof(joint_states_buffer));
+  memset(joint_commanded_positions, 0, sizeof(joint_commanded_positions));
+  memset(joint_commanded_velocities, 0, sizeof(joint_commanded_velocities));
+  memset(joint_commanded_efforts, 0, sizeof(joint_commanded_efforts));
+  joint_command_seq = 0U;
+  joint_command_received = false;
   publisher_ready = true;
   printf("CM7: setup-complete\r\n");
   return true;
@@ -1155,19 +1435,47 @@ void MX_FREERTOS_Init(void)
     }
   }
 
-  {
-    const osThreadAttr_t time_sync_task_attributes = {
-      .name = "TimeSync",
-      .stack_size = 4096,
-      .priority = osPriorityNormal,
-    };
+   {
+     const osThreadAttr_t time_sync_task_attributes = {
+       .name = "TimeSync",
+       .stack_size = 4096,
+       .priority = osPriorityNormal,
+     };
 
-    timeSyncTaskHandle = osThreadNew(StartTimeSyncTask, NULL, &time_sync_task_attributes);
-    if(timeSyncTaskHandle == NULL)
-    {
-      SetStartupFatalError("time-sync-task");
-    }
-  }
+     timeSyncTaskHandle = osThreadNew(StartTimeSyncTask, NULL, &time_sync_task_attributes);
+     if(timeSyncTaskHandle == NULL)
+     {
+       SetStartupFatalError("time-sync-task");
+     }
+   }
+
+   {
+     const osThreadAttr_t joint_states_task_attributes = {
+       .name = "JointStates",
+       .stack_size = 4096,
+       .priority = osPriorityNormal,
+     };
+
+     jointStatesTaskHandle = osThreadNew(StartJointStatesTask, NULL, &joint_states_task_attributes);
+     if(jointStatesTaskHandle == NULL)
+     {
+       SetStartupFatalError("joint-states-task");
+     }
+   }
+
+   {
+     const osThreadAttr_t joint_command_executor_task_attributes = {
+       .name = "JointCmdExec",
+       .stack_size = 4096,
+       .priority = osPriorityNormal,
+     };
+
+     jointCommandExecutorTaskHandle = osThreadNew(StartJointCommandExecutorTask, NULL, &joint_command_executor_task_attributes);
+     if(jointCommandExecutorTaskHandle == NULL)
+     {
+       SetStartupFatalError("joint-command-executor-task");
+     }
+   }
 }
 
 int main(void)
