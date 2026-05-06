@@ -461,7 +461,7 @@ static void BuildJointStatesJson(void)
   length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "],\"seq\":");
   length = AppendUnsignedLong(joint_states_buffer, sizeof(joint_states_buffer), length, (unsigned long)joint_command_seq);
   length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "}");
-  
+
   /* Also fill the Float32MultiArray data */
   joint_states_msg.data.size = JOINT_COUNT * 3u;
   for(i = 0U; i < JOINT_COUNT; i++)
