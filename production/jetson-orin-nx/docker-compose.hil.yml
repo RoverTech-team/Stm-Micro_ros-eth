@@ -1,11 +1,14 @@
 services:
   micro-ros-agent:
     platform: linux/arm64
-    image: microros/micro-ros-agent:humble
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
     network_mode: host
     environment:
       - AGENT_PORT=${AGENT_PORT:-8888}
       - AGENT_BIND_ADDR=${AGENT_BIND_ADDR:-0.0.0.0}
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     command:
       [
         "udp4",

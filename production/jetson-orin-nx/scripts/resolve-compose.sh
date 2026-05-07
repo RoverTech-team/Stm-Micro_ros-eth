@@ -12,7 +12,7 @@ case "$STACK" in
     printf '%s\n' "$ROOT_DIR/docker-compose.hil.yml"
     ;;
   hil-host)
-    printf '%s\n' "$ROOT_DIR/docker-compose.hil-host.yml"
+    printf '%s\n' "$ROOT_DIR/docker-compose.hil.yml"
     ;;
   hil-macos)
     printf '%s\n' "$ROOT_DIR/docker-compose.hil.macos.yml"
