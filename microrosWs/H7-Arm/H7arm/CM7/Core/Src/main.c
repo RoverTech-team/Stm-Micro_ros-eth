@@ -485,6 +485,12 @@ static void StartJointStatesTask(void *argument)
 
   for(;;)
   {
+      if(!publisher_ready)
+          {
+            osDelay(100);
+            continue;
+          }
+
     uint64_t now_us;
     uint64_t remaining_us;
 
