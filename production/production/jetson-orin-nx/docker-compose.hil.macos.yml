@@ -2,55 +2,27 @@ services:
   micro-ros-agent:
     platform: linux/arm64
     image: microros/micro-ros-agent:humble
-    network_mode: host
+    ports:
+      - "${AGENT_PORT:-8888}:${AGENT_PORT:-8888}/udp"
     environment:
       - AGENT_PORT=${AGENT_PORT:-8888}
       - AGENT_BIND_ADDR=${AGENT_BIND_ADDR:-0.0.0.0}
-    command:
-      [
-        "udp4",
-        "-p",
-        "${AGENT_PORT:-8888}",
-        "-v",
-        "4",
-        "-d",
-        "${ROS_DOMAIN_ID:-0}",
-      ]
-
-  arm-bridge:
-    platform: linux/arm64
-    build:
-      context: ../../microrosWs/microk3
-      dockerfile: Dockerfile
-    network_mode: host
-    command: ["python3", "/bridge/arm_bridge.py"]
-    environment:
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
-      - ROS_LOCALHOST_ONLY=0
-      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp}
-      - RMW_FASTRTPS_USE_SHM=0
-      - MICROROS_DISABLE_SHM=1
-      - ARM_STATES_INPUT_TOPIC=${ARM_STATES_INPUT_TOPIC:-/joint_states}
-      - ARM_COMMANDS_OUTPUT_TOPIC=${ARM_COMMANDS_OUTPUT_TOPIC:-/joint_commands}
-      - ARM_STATES_OUTPUT_TOPIC=${ARM_STATES_OUTPUT_TOPIC:-/hardware_level/states}
-      - ARM_COMMANDS_INPUT_TOPIC=${ARM_COMMANDS_INPUT_TOPIC:-/hardware_level/commands}
-    volumes:
-      - ./scripts/arm_bridge.py:/bridge/arm_bridge.py:ro
-    depends_on:
-      micro-ros-agent:
-        condition: service_started
+    command: ["udp4", "-p", "${AGENT_PORT:-8888}", "-v", "4", "-d", "${ROS_DOMAIN_ID:-0}"]
+    networks:
+      - hil_macos_net
 
   microk3:
     platform: linux/arm64
     build:
       context: ../../microrosWs/microk3
       dockerfile: Dockerfile
-    network_mode: host
+    ports:
+      - "${DASHBOARD_PORT:-5050}:5050"
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=false
       - FLASK_HOST=0.0.0.0
-      - FLASK_PORT=${DASHBOARD_PORT:-5050}
+      - FLASK_PORT=5050
       - SECRET_KEY=${SECRET_KEY:-e2e-test-secret-key}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-testpass123}
@@ -62,16 +34,20 @@ services:
       - DATA_FILE=/app/data/system_data.json
       - LOG_FILE=/app/logs/microk3.log
       - MICROROS_DISABLE_SHM=1
+      - MICROK3_METRICS_DOCKER_SERVICES=${MICROK3_METRICS_DOCKER_SERVICES:-micro-ros-agent,microk3,renode-bridge}
+      - MICROK3_METRICS_INTERVAL_SEC=${MICROK3_METRICS_INTERVAL_SEC:-2.0}
     volumes:
-      - microk3_hil_data:/app/data
-      - microk3_hil_logs:/app/logs
+      - microk3_hil_macos_data:/app/data
+      - microk3_hil_macos_logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      test:
-        ["CMD", "curl", "-f", "http://localhost:${DASHBOARD_PORT:-5050}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5050/health"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
+    networks:
+      - hil_macos_net
 
   renode-bridge:
     platform: linux/arm64
@@ -79,7 +55,6 @@ services:
       context: ../../microrosWs/microk3
       dockerfile: Dockerfile
     command: ["python3", "tools/renode_heartbeat_bridge.py"]
-    network_mode: host
     environment:
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
       - ROS_LOCALHOST_ONLY=0
@@ -107,7 +82,13 @@ services:
         condition: service_healthy
       micro-ros-agent:
         condition: service_started
+    networks:
+      - hil_macos_net
+
+networks:
+  hil_macos_net:
+    driver: bridge
 
 volumes:
-  microk3_hil_data:
-  microk3_hil_logs:
+  microk3_hil_macos_data:
+  microk3_hil_macos_logs:
