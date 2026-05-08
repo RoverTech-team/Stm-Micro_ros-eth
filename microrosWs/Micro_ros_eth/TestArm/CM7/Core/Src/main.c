@@ -93,6 +93,7 @@ static uint32_t joint_command_seq = 0U;
 
 static bool SetupNetworkingAndMicroRos(void);
 static void TimeSyncRequestCallback(const void *msg_in);
+static void SetRuntimeFault(const char *reason);
 static void InitHighResolutionClock(void);
 static uint64_t GetMonotonicTimeUs(void);
 static size_t AppendLiteral(char *buffer, size_t capacity, size_t offset, const char *text);
@@ -326,6 +327,92 @@ static bool PublishTelemetrySample(
   return rcl_publish(publisher, message, NULL) == RCL_RET_OK;
 }
 
+static void ProcessPendingTimeSyncRequests(void)
+{
+  if(!publisher_ready)
+  {
+    time_sync_request_msg.data.size = 0U;
+    return;
+  }
+
+  while(true)
+  {
+    rmw_message_info_t message_info = rmw_get_zero_initialized_message_info();
+    rcl_ret_t take_ret;
+
+    time_sync_request_msg.data.size = 0U;
+    if(time_sync_request_msg.data.capacity > 0U)
+    {
+      time_sync_request_msg.data.data[0] = '\0';
+    }
+
+    take_ret = rcl_take(
+      &time_sync_request_subscription,
+      &time_sync_request_msg,
+      &message_info,
+      NULL);
+
+    if(take_ret == RCL_RET_OK)
+    {
+      size_t size = time_sync_request_msg.data.size;
+      size_t capacity = time_sync_request_msg.data.capacity;
+      if(time_sync_request_msg.data.data != NULL && capacity > 0U)
+      {
+        if(size >= capacity)
+        {
+          size = capacity - 1U;
+          time_sync_request_msg.data.size = size;
+        }
+        time_sync_request_msg.data.data[size] = '\0';
+      }
+
+      TimeSyncRequestCallback(&time_sync_request_msg);
+      continue;
+    }
+
+    break;
+  }
+}
+
+static void TimeSyncRequestCallback(const void *msg_in)
+{
+  const std_msgs__msg__String *incoming = (const std_msgs__msg__String *)msg_in;
+  unsigned long seq = 0UL;
+  uint64_t host_send_us = 0ULL;
+  const uint64_t cm7_recv_us = GetMonotonicTimeUs();
+  const uint64_t cm7_send_us = GetMonotonicTimeUs();
+  size_t length = 0U;
+
+  if(incoming == NULL || incoming->data.data == NULL)
+  {
+    return;
+  }
+
+  if(!ParseJsonUnsignedLongField(incoming->data.data, "\"seq\"", &seq) ||
+     !ParseJsonUint64Field(incoming->data.data, "\"host_send_us\"", &host_send_us))
+  {
+    return;
+  }
+
+  time_sync_echo_buffer[0] = '\0';
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "{\"seq\":");
+  length = AppendUnsignedLong(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, seq);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"host_send_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, host_send_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"cm7_recv_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, cm7_recv_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, ",\"cm7_send_us\":");
+  length = AppendUint64(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, cm7_send_us);
+  length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "}");
+  time_sync_echo_msg.data.size = length;
+
+  if(rcl_publish(&time_sync_echo_publisher, &time_sync_echo_msg, NULL) != RCL_RET_OK &&
+     healthy_publish_seen)
+  {
+    SetRuntimeFault("time-sync-echo-publish");
+  }
+}
+
 static void SetGreenLed(bool enabled)
 {
   if(enabled)
@@ -521,35 +608,34 @@ static void StartJointStatesTask(void *argument)
     uint64_t now_us;
     uint64_t remaining_us;
 
-    now_us = GetMonotonicTimeUs();
-    if(next_release_us == 0ULL)
-    {
-      next_release_us = now_us;
-    }
+     now_us = GetMonotonicTimeUs();
+     if(next_release_us == 0ULL)
+     {
+       next_release_us = now_us + publish_period_us;
+     }
 
-    next_release_us += publish_period_us;
-
-    while(true)
-    {
-      now_us = GetMonotonicTimeUs();
-      if(now_us >= next_release_us)
-      {
-        break;
-      }
-      remaining_us = next_release_us - now_us;
-      if(remaining_us > 5000ULL)
-      {
-        osDelay(5);
-      }
-      else if(remaining_us > 1000ULL)
-      {
-        osDelay(1);
-      }
-      else
-      {
-        osThreadYield();
-      }
-    }
+     while(true)
+     {
+       now_us = GetMonotonicTimeUs();
+       if(now_us >= next_release_us)
+       {
+         next_release_us += publish_period_us;
+         break;
+       }
+       remaining_us = next_release_us - now_us;
+       if(remaining_us > 5000ULL)
+       {
+         osDelay(5);
+       }
+       else if(remaining_us > 1000ULL)
+       {
+         osDelay(1);
+       }
+       else
+       {
+         osThreadYield();
+       }
+     }
 
     /* Build joint states from commanded values */
     size_t i;
@@ -559,8 +645,7 @@ static void StartJointStatesTask(void *argument)
       joint_states_data[6U + i] = joint_commanded_velocities[i];
       joint_states_data[12U + i] = joint_commanded_efforts[i];
     }
-    joint_states_msg.data.size = 18U; /* 6 * 3 */
-    joint_states_msg.data.capacity = 18U;
+     joint_states_msg.data.size = 18U; /* 6 * 3 */
 
     if(rcl_publish(&joint_states_publisher, &joint_states_msg, NULL) != RCL_RET_OK &&
        healthy_publish_seen)
@@ -943,16 +1028,6 @@ static bool SetupNetworkingAndMicroRos(void)
   joint_states_msg.data.data = joint_states_data;
   joint_states_msg.data.size = 0U;
   joint_states_msg.data.capacity = sizeof(joint_states_data) / sizeof(float);
-
-  heartbeat_msg.data = 0;
-  heartbeat_telemetry_msg.data.data = heartbeat_telemetry_buffer;
-  heartbeat_telemetry_msg.data.size = 0U;
-  heartbeat_telemetry_msg.data.capacity = sizeof(heartbeat_telemetry_buffer);
-  heartbeat_telemetry_buffer[0] = '\0';
-  time_sync_echo_msg.data.data = time_sync_echo_buffer;
-  time_sync_echo_msg.data.size = 0U;
-  time_sync_echo_msg.data.capacity = sizeof(time_sync_echo_buffer);
-  time_sync_echo_buffer[0] = '\0';
   publisher_ready = true;
   printf("CM7: setup-complete\r\n");
   return true;
