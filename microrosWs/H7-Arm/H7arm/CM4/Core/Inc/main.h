@@ -63,6 +63,14 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
+/*
+ * PowerSTEP01 chip-select pin.
+ * TODO: Change to match actual hardware wiring!
+ * Ask electronics team which GPIO pin is connected to nCS.
+ */
+#define DRV_CS_Pin        GPIO_PIN_4
+#define DRV_CS_GPIO_Port  GPIOA
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

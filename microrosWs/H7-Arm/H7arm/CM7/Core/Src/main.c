@@ -399,6 +399,17 @@ static void ParseJointCommand(const void *msg_in)
 
   joint_command_seq++;
   joint_command_received = true;
+
+  /* Relay commanded positions to shared SRAM4 for CM4 motor driver */
+  for(i = 0U; i < JOINT_COUNT && i < SHARED_JOINT_COUNT; i++)
+  {
+    sensor_shared_data->joint_cmd_positions[i] = joint_commanded_positions[i];
+  }
+  sensor_shared_data->joint_cmd_seq = joint_command_seq;
+  SCB_CleanDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_cmd_positions[0],
+                           sizeof(sensor_shared_data->joint_cmd_positions) +
+                           sizeof(sensor_shared_data->joint_cmd_seq));
+  __DSB();
 }
 
 static void BuildJointStatesJson(void)
@@ -462,11 +473,22 @@ static void BuildJointStatesJson(void)
   length = AppendUnsignedLong(joint_states_buffer, sizeof(joint_states_buffer), length, (unsigned long)joint_command_seq);
   length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "}");
 
-  /* Also fill the Float32MultiArray data */
+  /* Also fill the Float32MultiArray data with actual positions from CM4 */
+  SCB_InvalidateDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_act_positions[0],
+                                sizeof(sensor_shared_data->joint_act_positions));
   joint_states_msg.data.size = JOINT_COUNT * 3u;
   for(i = 0U; i < JOINT_COUNT; i++)
   {
-    joint_states_data[i] = joint_commanded_positions[i];
+    /* Use actual positions from CM4 if motor driver is ready, else echo commanded */
+    if(sensor_shared_data->motor_ready)
+    {
+      joint_states_data[i] = (i < SHARED_JOINT_COUNT) ?
+          sensor_shared_data->joint_act_positions[i] : 0.0f;
+    }
+    else
+    {
+      joint_states_data[i] = joint_commanded_positions[i];
+    }
     joint_states_data[JOINT_COUNT + i] = joint_commanded_velocities[i];
     joint_states_data[JOINT_COUNT * 2u + i] = joint_commanded_efforts[i];
   }
