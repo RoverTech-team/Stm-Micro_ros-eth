@@ -31,10 +31,7 @@ void _writebyte_chain(uint8_t byte)
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
 
-    HAL_SPI_Transmit_DMA(&hspi1, tx, MOT_NUMBER);
-    ps01_os->semaphore_acquire(ps01_os->semaphore); // wait until DMA is done sending
-
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY)) { ps01_os->delay_ms(1); } // wait until SPI is done, for safety
+    HAL_SPI_Transmit(&hspi1, tx, MOT_NUMBER, HAL_MAX_DELAY);
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 
@@ -54,10 +51,7 @@ uint8_t _readbyte_chain(void)
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
 
-    HAL_SPI_TransmitReceive_DMA(&PS01_SPI_HANDLE, tx, rx, MOT_NUMBER);
-    ps01_os->semaphore_acquire(ps01_os->semaphore); // wait until DMA is done sending
-
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY)) { ps01_os->delay_ms(1); } // wait until SPI is done, for safety
+    HAL_SPI_TransmitReceive(&PS01_SPI_HANDLE, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 

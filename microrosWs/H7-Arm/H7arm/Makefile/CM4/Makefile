@@ -64,7 +64,12 @@ C_SOURCES =  \
 ../../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.c \
 ../../Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c \
 ../../CM4/Core/Src/sysmem.c \
-../../CM4/Core/Src/syscalls.c  
+../../CM4/Core/Src/syscalls.c \
+../../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi.c \
+../../CM4/Core/Src/ps01_baremetal_os.c \
+../../CM4/Core/Src/drivers/powerSTEP01/ps01.c \
+../../CM4/Core/Src/drivers/powerSTEP01/ps01calc.c \
+../../CM4/Core/Src/drivers/RArm/rarm.c  
 
 # ASM sources
 ASM_SOURCES =  \

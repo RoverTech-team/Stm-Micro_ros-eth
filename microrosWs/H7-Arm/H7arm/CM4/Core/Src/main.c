@@ -47,8 +47,6 @@
 
 /* ---- SPI handle (used by powerSTEP01 driver) ---- */
 SPI_HandleTypeDef hspi1;
-static DMA_HandleTypeDef hdma_spi1_tx;
-static DMA_HandleTypeDef hdma_spi1_rx;
 
 /* ---- Bare-metal OS interface (from ps01_baremetal_os.c) ---- */
 extern const PS01_OS_t *ps01_baremetal_get_os(void);
@@ -65,7 +63,6 @@ static uint32_t Timer2_NowUs(void);
 static void DelayMs(uint32_t delay_ms);
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
 static void Timer2_Init(void);
 static void Ultrasonic_GPIO_Init(void);
@@ -254,49 +251,6 @@ static void MX_GPIO_Init(void)
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 }
 
-/**
- * Initialize DMA for SPI transfers.
- * MUST be called BEFORE MX_SPI1_Init().
- */
-static void MX_DMA_Init(void)
-{
-    /* Enable DMA1 clock */
-    __HAL_RCC_DMA1_CLK_ENABLE();
-
-    /* DMA1 Stream 0 — SPI1 TX */
-    hdma_spi1_tx.Instance = DMA1_Stream0;
-    hdma_spi1_tx.Init.Request = DMA_REQUEST_SPI1_TX;
-    hdma_spi1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-    hdma_spi1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_spi1_tx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_spi1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_spi1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_spi1_tx.Init.Mode = DMA_NORMAL;
-    hdma_spi1_tx.Init.Priority = DMA_PRIORITY_HIGH;
-    hdma_spi1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    HAL_DMA_Init(&hdma_spi1_tx);
-    __HAL_LINKDMA(&hspi1, hdmatx, hdma_spi1_tx);
-
-    /* DMA1 Stream 1 — SPI1 RX */
-    hdma_spi1_rx.Instance = DMA1_Stream1;
-    hdma_spi1_rx.Init.Request = DMA_REQUEST_SPI1_RX;
-    hdma_spi1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_spi1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_spi1_rx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_spi1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_spi1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_spi1_rx.Init.Mode = DMA_NORMAL;
-    hdma_spi1_rx.Init.Priority = DMA_PRIORITY_HIGH;
-    hdma_spi1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    HAL_DMA_Init(&hdma_spi1_rx);
-    __HAL_LINKDMA(&hspi1, hdmarx, hdma_spi1_rx);
-
-    /* Enable DMA interrupts */
-    HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
-    HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-}
 
 /**
  * Initialize SPI1 for powerSTEP01 communication.
@@ -368,10 +322,9 @@ int main(void)
     /* ---- Vector table for CM4 ---- */
     SCB->VTOR = 0x08100000;
 
-    /* ---- Peripheral init (ORDER MATTERS: DMA before SPI) ---- */
+    /* ---- Peripheral init ---- */
     MX_GPIO_Init();
     Timer2_Init();
-    MX_DMA_Init();       /* MUST be before SPI init */
     MX_SPI1_Init();
 
     /* ---- Clear shared memory ---- */
@@ -452,19 +405,6 @@ int main(void)
     }
 }
 
-/* ==================================================================== */
-/*  DMA interrupt handlers                                              */
-/* ==================================================================== */
-
-void DMA1_Stream0_IRQHandler(void)
-{
-    HAL_DMA_IRQHandler(&hdma_spi1_tx);
-}
-
-void DMA1_Stream1_IRQHandler(void)
-{
-    HAL_DMA_IRQHandler(&hdma_spi1_rx);
-}
 
 /* ==================================================================== */
 /*  Error handler                                                       */

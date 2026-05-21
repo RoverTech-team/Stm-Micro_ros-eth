@@ -50,11 +50,3 @@ CM7/Core/Inc/shared_data.h                        — expanded (same as CM4)
 CM7/Core/Src/main.c                               — relay joint_commands + actual positions
 ```
 
-## How to test (without the arm)
-
-1. Build CM7 and CM4 in STM32CubeIDE
-2. Flash both cores
-3. Start Docker (agent + dashboard)
-4. Check that heartbeat works
-5. Send a command: `ros2 topic pub --once /joint_commands std_msgs/msg/Float32MultiArray "{data: [10.0, 20.0, 0.0, 0.0, 0.0, 0.0]}"`
-6. Check it doesn't crash — positions will be garbage since there's no SPI chip connected

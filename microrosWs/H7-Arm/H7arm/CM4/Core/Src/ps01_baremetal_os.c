@@ -8,9 +8,6 @@
 #include "drivers/powerSTEP01/ps01.h"
 #include "stm32h7xx_hal.h"
 
-/* ---- Global flags (set by ISR, read by OS functions) ---- */
-static volatile uint8_t spi_dma_done = 0;
-
 /* ---- OS function implementations ---- */
 
 static void bm_mutex_acquire(void *arg)
@@ -28,10 +25,7 @@ static void bm_mutex_release(void *arg)
 static void bm_semaphore_acquire(void *arg)
 {
     (void)arg;
-    while (!spi_dma_done) {
-        /* Spin until DMA ISR fires */
-    }
-    spi_dma_done = 0;
+    /* Not used with SPI polling */
 }
 
 static void bm_delay_ms(uint32_t ms)
@@ -49,20 +43,7 @@ static const PS01_OS_t ps01_os = {
     .delay_ms          = bm_delay_ms,
 };
 
-/* ---- DMA complete callbacks ---- */
-/* Called by HAL from DMA interrupt when SPI transfer finishes */
 
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-    if (hspi->Instance == SPI1)
-        spi_dma_done = 1;
-}
-
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-    if (hspi->Instance == SPI1)
-        spi_dma_done = 1;
-}
 
 /* ---- Public init function ---- */
 
