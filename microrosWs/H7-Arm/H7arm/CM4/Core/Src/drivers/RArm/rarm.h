@@ -3,11 +3,11 @@
 #define N_JOINTS 6
 
 #define J1_INDEX 0
-#define J2_INDEX 1
-#define J3_INDEX 2
-#define J4_INDEX 3
-#define J5_INDEX 4
-#define J6_INDEX 5
+#define J4_INDEX 1
+#define J6_INDEX 2
+#define J5_INDEX 3
+#define J3_INDEX 4
+#define J2_INDEX 5
 
 #define CLOCKWISE 1
 #define COUNTER_CLOCKWISE 0
@@ -37,6 +37,10 @@ typedef struct
     float stall_threshold;
     int32_t min_degs;
     int32_t max_degs;
+
+    uint8_t st_slp;
+    uint8_t fn_slp_acc;
+    uint8_t fn_slp_dec;
 } RARM_SimpleConfig_t;
 
 typedef struct
@@ -58,5 +62,8 @@ void RARM_HardBrake             (uint8_t joint_index);
 void RARM_SoftBrake             (uint8_t joint_index);
 void RARM_HardHiZ               (uint8_t joint_index);
 void RARM_SoftHiZ               (uint8_t joint_index);
+
+void RARM_ReleaseBrake          (uint8_t joint_index);
+void RARM_EngageBrake           (uint8_t joint_index);
 
 #endif

@@ -61,9 +61,9 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     ps01SetFullStepSpeed_chain(config->fullstep_speed);
 
     // BACK EMF COMPENSATION actual values are found by trial and error... these are kinda fine anyway
-    ps01SetParam_chain(ST_SLP,      0x21);  // starting slope
-    ps01SetParam_chain(FN_SLP_ACC,  0x89);  // acceleration slope
-    ps01SetParam_chain(FN_SLP_DEC,  0x89);  // deceleration slope
+    ps01SetParam_chain(ST_SLP,      config->st_slp);  // starting slope
+    ps01SetParam_chain(FN_SLP_ACC,  config->fn_slp_acc);  // acceleration slope
+    ps01SetParam_chain(FN_SLP_DEC,  config->fn_slp_dec);  // deceleration slope
 
     ps01SetOcThreshold_chain(config->oc_threshold);
     ps01SetStallThreshold_chain(config->stall_threshold);
@@ -156,4 +156,28 @@ void RARM_SoftHiZ(uint8_t joint_index)
 {
     mot_bank->active = joint_index;
     ps01SoftHiZ_chain();
+}
+
+void RARM_ReleaseBrake(uint8_t joint_index)
+{
+    if (joint_index == J2_INDEX)
+    {
+        HAL_GPIO_WritePin(J2_BRAKE_GPIO_Port, J2_BRAKE_Pin, GPIO_PIN_SET);
+    }
+    else if (joint_index == J3_INDEX)
+    {
+        HAL_GPIO_WritePin(J3_BRAKE_GPIO_Port, J3_BRAKE_Pin, GPIO_PIN_SET);
+    }
+}
+
+void RARM_EngageBrake(uint8_t joint_index)
+{
+    if (joint_index == J2_INDEX)
+    {
+        HAL_GPIO_WritePin(J2_BRAKE_GPIO_Port, J2_BRAKE_Pin, GPIO_PIN_RESET);
+    }
+    else if (joint_index == J3_INDEX)
+    {
+        HAL_GPIO_WritePin(J3_BRAKE_GPIO_Port, J3_BRAKE_Pin, GPIO_PIN_RESET);
+    }
 }

@@ -63,13 +63,18 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-/*
- * PowerSTEP01 chip-select pin.
- * TODO: Change to match actual hardware wiring!
- * Ask electronics team which GPIO pin is connected to nCS.
- */
-#define DRV_CS_Pin        GPIO_PIN_4
-#define DRV_CS_GPIO_Port  GPIOA
+/* PowerSTEP01 hardware pin configurations */
+#define DRV_CS_Pin        GPIO_PIN_14
+#define DRV_CS_GPIO_Port  GPIOD
+
+#define DRV_RESET_Pin       GPIO_PIN_9
+#define DRV_RESET_GPIO_Port GPIOG
+
+#define J2_BRAKE_Pin        GPIO_PIN_15
+#define J2_BRAKE_GPIO_Port  GPIOD
+
+#define J3_BRAKE_Pin        GPIO_PIN_8
+#define J3_BRAKE_GPIO_Port  GPIOA
 
 /* USER CODE END Private defines */
 
