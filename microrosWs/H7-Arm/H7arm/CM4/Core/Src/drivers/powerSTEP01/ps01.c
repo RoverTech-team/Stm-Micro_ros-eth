@@ -31,8 +31,8 @@ void _writebyte_chain(uint8_t byte)
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
 
-    HAL_SPI_Transmit(&hspi1, tx, MOT_NUMBER, HAL_MAX_DELAY);
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY));
+     HAL_SPI_Transmit(&hspi1, tx, MOT_NUMBER, HAL_MAX_DELAY);
+     while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_EOT));
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 
@@ -52,8 +52,8 @@ uint8_t _readbyte_chain(void)
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
 
-    HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY));
+     HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
+     while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_EOT));
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 
