@@ -353,31 +353,29 @@ int main(void) {
 
   /* ---- Vector table for CM4 ---- */
   SCB->VTOR = 0x08100000;
-
   /* ---- Peripheral init ---- */
   MX_GPIO_Init();
   Timer2_Init();
   MX_SPI1_Init();
-
   /* ---- Clear shared memory ---- */
   memset((void *)SHARED_DATA, 0, sizeof(*SHARED_DATA));
   SHARED_DATA->cm4_write_seq = 1U;
   __DSB();
-
-  /* ---- Ultrasonic settle ---- */
-  TRIG_LOW();
-  DelayMs(SENSOR_STARTUP_SETTLE_MS);
 
   /* ---- Reset powerSTEP01 drivers (Active Low Reset) ---- */
   HAL_GPIO_WritePin(DRV_RESET_GPIO_Port, DRV_RESET_Pin, GPIO_PIN_RESET);
   DelayMs(10);
   HAL_GPIO_WritePin(DRV_RESET_GPIO_Port, DRV_RESET_Pin, GPIO_PIN_SET);
   DelayMs(10);
-
+  DelayMs(1000);
+  LED_RED_ON();
+  DelayMs(1000);
   /* ---- Initialize powerSTEP01 motor driver ---- */
   RARM_SetBank(&bank);
   ps01Init(ps01_baremetal_get_os());
 
+  LED_GREEN_ON();
+  DelayMs(1000);
   /* ---- Configure each motor with actual parameters from electronics team ----
    */
   RARM_SimpleConfig_t joint1_config = {.OVERCURRENT_SD = OC_NOSHUTDOWN,
@@ -401,6 +399,7 @@ int main(void) {
                                        .fn_slp_acc = 0x89,
                                        .fn_slp_dec = 0x89};
   RARM_SetConfig(J1_INDEX, &joint1_config);
+
   RARM_SimpleConfig_t joint4_config = {.OVERCURRENT_SD = OC_NOSHUTDOWN,
                                        .VSCOMP = VSCOMP_DISABLE,
                                        .STEP_MODE = SM_128_MICROSTEP,
@@ -509,9 +508,6 @@ int main(void) {
   /* Signal CM7 that motor driver is ready */
   SHARED_DATA->motor_ready = 1U;
   __DSB();
-
-  LED_GREEN_ON();
-  LED_RED_OFF();
 
   /* ---- Main loop ---- */
   uint32_t dist_cm = 100U;
