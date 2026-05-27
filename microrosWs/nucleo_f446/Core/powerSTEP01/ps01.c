@@ -1,12 +1,14 @@
 #include "ps01.h"
 #include "cfg_structs.h"
+#include "cmsis_os2.h"
 #include "ps01calc.h"
-#include "stm32h7xx_hal.h"
+#include "spi.h"
+#include "stm32f4xx_hal_def.h"
+#include "stm32f4xx_hal_spi.h"
 #include <string.h>
 
-/* ---- OS interface (registered by the application via ps01Init) ---- */
-static const PS01_OS_t *ps01_os;
-
+extern osMutexId_t ps01SPIMutex;
+extern osSemaphoreId_t ps01SPISemaphore;
 StepperBank_t *mot_bank;
 uint8_t MOT_NUMBER;
 
@@ -16,29 +18,26 @@ void ps01SetBank(StepperBank_t *bank, uint8_t n_motors)
     MOT_NUMBER = n_motors;
 }
 
-void ps01Init(const PS01_OS_t *os)
-{
-    ps01_os = os;
-}
-
 void _writebyte_chain(uint8_t byte)
 {
     uint8_t tx[MOT_NUMBER];
     memset(tx, 0, MOT_NUMBER);
     tx[MOT_NUMBER - 1 - mot_bank->active] = byte;
 
-    ps01_os->mutex_acquire(ps01_os->mutex);
-
+    osMutexAcquire(ps01SPIMutex, osWaitForever);
+    
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
+    
+    HAL_SPI_Transmit_DMA(&hspi1, tx, MOT_NUMBER);
+    osSemaphoreAcquire(ps01SPISemaphore, osWaitForever); // wait until DMA is done sending
 
-    HAL_SPI_Transmit(&hspi1, tx, MOT_NUMBER, HAL_MAX_DELAY);
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY));
-
+    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY)) { osDelay(1); } // wait until SPI is done, for safety
+    
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
-
-    ps01_os->mutex_release(ps01_os->mutex);
-
-    ps01_os->delay_ms(1);
+    
+    osMutexRelease(ps01SPIMutex);
+    
+    osDelay(1);
 }
 
 uint8_t _readbyte_chain(void)
@@ -48,19 +47,21 @@ uint8_t _readbyte_chain(void)
     memset(tx, 0, MOT_NUMBER);
     memset(rx, 0, MOT_NUMBER);
 
-    ps01_os->mutex_acquire(ps01_os->mutex);
-
+    osMutexAcquire(ps01SPIMutex, osWaitForever);
+    
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
+    
+    HAL_SPI_TransmitReceive_DMA(&PS01_SPI_HANDLE, tx, rx, MOT_NUMBER);
+    osSemaphoreAcquire(ps01SPISemaphore, osWaitForever); // wait until DMA is done sending
 
-    HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY));
+    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY)) { osDelay(1); } // wait until SPI is done, for safety
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
-
-    ps01_os->mutex_release(ps01_os->mutex);
-
-    ps01_os->delay_ms(1);
-
+    
+    osMutexRelease(ps01SPIMutex);
+    
+    osDelay(1);
+    
     return rx[MOT_NUMBER - 1 - mot_bank->active];
 }
 
@@ -284,7 +285,7 @@ void ps01SetFullStepSpeed_chain(uint16_t steps_s)
 // Rds(ON) of the internal MOSFET at 125° (23mΩ)
 // Vth = trip_amps * 0.023f
 // reg_val = Vth / 0.03125f (0.03125 is the register "step")
-//
+// 
 // so if trip_amps is 2A, reg_val will be 1 which is 62.5mA.
 // this means that it will trigger at I = V/R = 0.0625 / 0.023 =~ 2.7A
 // this is all based on Rds(ON) when the driver is HOT (125°C), so when at
@@ -304,7 +305,7 @@ void ps01SetOcThreshold_chain(float trip_amps)
 // Rds(ON) of the internal MOSFET
 // Vth = trip_amps * 0.0195f
 // reg_val = Vth / 0.03125f (0.03125 is the register "step")
-//
+// 
 // so if trip_amps is 2A, reg_val will be 1 which is 62.5mA.
 // this means that it will trigger at I = V/R = 0.0625 / 0.023 =~ 3.2A
 // this is all based on a mean value of Rds(ON), between 125°C and 25°C (75°C)
@@ -328,7 +329,7 @@ void ps01WaitBusy_chain()
 {
     uint16_t status;
     do {
-        ps01_os->delay_ms(10);
+        osDelay(10);
         status = ps01GetParam_chain(STATUS);
     } while (!(status & 0x0002));  // BUSY bit (bit 1) goes high when done
 }

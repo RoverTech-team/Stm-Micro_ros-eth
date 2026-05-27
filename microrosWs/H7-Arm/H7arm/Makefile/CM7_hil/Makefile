@@ -34,7 +34,7 @@ BUILD_DIR = build
 C_SOURCES =  \
 ../../CM7/LWIP/App/lwip.c \
 ../../CM7/LWIP/Target/ethernetif.c \
-../../CM7/Core/Src/main.c \
+../../CM7/Core/Src/main.hil.c \
 ../../CM7/Core/Src/gpio.c \
 ../../CM7/Core/Src/usart3_debug.c \
 ../../CM7/Core/Src/freertos.c \
@@ -250,7 +250,9 @@ C_DEFS =  \
 -DMICROROS_NETMASK_B=$(MICROROS_NETMASK_B) \
 -DMICROROS_NETMASK_C=$(MICROROS_NETMASK_C) \
 -DMICROROS_NETMASK_D=$(MICROROS_NETMASK_D) \
--DJOINT_PUBLISH_RATE_HZ=$(JOINT_PUBLISH_RATE_HZ)
+-DJOINT_PUBLISH_RATE_HZ=$(JOINT_PUBLISH_RATE_HZ) \
+-DDEMO_MODE=0 \
+-DCM7_HIL_CUTOFF_MS=2000
 
 
 # AS includes

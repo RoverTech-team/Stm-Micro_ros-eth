@@ -53,17 +53,12 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     mot_bank->motors[joint_index].kvals.hold = calculateKVAL(config->supply_voltage, config->hold_voltage);
     ps01SetKVALs_chain();
 
-    // all speed/acceleration values in steps/s or steps/s²
+    // all speed/acceleration values in FULL steps/s or steps/s²
     ps01SetMaxSpeed_chain(config->max_speed);
     ps01SetMinSpeed_chain(config->min_speed);
     ps01SetAcceleration_chain(config->acceleration);
     ps01SetDeceleration_chain(config->deceleration);
     ps01SetFullStepSpeed_chain(config->fullstep_speed);
-
-    // BACK EMF COMPENSATION actual values are found by trial and error... these are kinda fine anyway
-    ps01SetParam_chain(ST_SLP,      config->st_slp);  // starting slope
-    ps01SetParam_chain(FN_SLP_ACC,  config->fn_slp_acc);  // acceleration slope
-    ps01SetParam_chain(FN_SLP_DEC,  config->fn_slp_dec);  // deceleration slope
 
     ps01SetOcThreshold_chain(config->oc_threshold);
     ps01SetStallThreshold_chain(config->stall_threshold);
@@ -73,8 +68,7 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
 
 int32_t RARM_GetPositionDegrees(uint8_t joint_index)
 {
-    mot_bank->active = joint_index;
-    int32_t steps = ps01GetPosition_chain();
+    int32_t steps = ps01GetPosition_chain(joint_index);
     int64_t steps_per_rev = mot_bank->motors[joint_index].steps_rev;
     int64_t ratio = mot_bank->motors[joint_index].reduction_ratio;
     int64_t microsteps = mot_bank->motors[joint_index].stepmode.bits.STEP_SEL;
@@ -97,6 +91,7 @@ void RARM_GearboxRotateDegrees(RARM_Gearbox_t *gearbox, int16_t degs)
     // when the gearbox rotates (end effector rotates on its axis) the gears have the opposite direction
     // the motors are mounted in anti-parallel position, so the two motors
     // will rotate in the same direction
+    degs *= gearbox->rotation_reduction_ratio;
     RARM_MoveDegrees(gearbox->mot1_index, degs);
     RARM_MoveDegrees(gearbox->mot2_index, degs);
 }
@@ -157,28 +152,4 @@ void RARM_SoftHiZ(uint8_t joint_index)
 {
     mot_bank->active = joint_index;
     ps01SoftHiZ_chain();
-}
-
-void RARM_ReleaseBrake(uint8_t joint_index)
-{
-    if (joint_index == J2_INDEX)
-    {
-        HAL_GPIO_WritePin(J2_BRAKE_GPIO_Port, J2_BRAKE_Pin, GPIO_PIN_SET);
-    }
-    else if (joint_index == J3_INDEX)
-    {
-        HAL_GPIO_WritePin(J3_BRAKE_GPIO_Port, J3_BRAKE_Pin, GPIO_PIN_SET);
-    }
-}
-
-void RARM_EngageBrake(uint8_t joint_index)
-{
-    if (joint_index == J2_INDEX)
-    {
-        HAL_GPIO_WritePin(J2_BRAKE_GPIO_Port, J2_BRAKE_Pin, GPIO_PIN_RESET);
-    }
-    else if (joint_index == J3_INDEX)
-    {
-        HAL_GPIO_WritePin(J3_BRAKE_GPIO_Port, J3_BRAKE_Pin, GPIO_PIN_RESET);
-    }
 }
