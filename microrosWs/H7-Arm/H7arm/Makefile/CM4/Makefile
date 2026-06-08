@@ -37,6 +37,9 @@ BUILD_DIR = build
 # C sources
 C_SOURCES =  \
 ../../CM4/Core/Src/main.c \
+../../CM4/Core/Src/gpio.c \
+../../CM4/Core/Src/spi.c \
+../../CM4/Core/Src/tim.c \
 ../../CM4/Core/Src/stm32h7xx_it.c \
 ../../CM4/Core/Src/stm32h7xx_hal_msp.c \
 ../../Drivers/BSP/STM32H7xx_Nucleo/stm32h7xx_nucleo.c \
@@ -127,7 +130,8 @@ C_DEFS =  \
 -DUSE_HAL_DRIVER \
 -DSTM32H755xx \
 -DUSE_PWR_DIRECT_SMPS_SUPPLY \
--DUSE_NUCLEO_64
+-DUSE_NUCLEO_64 \
+-DUSE_FLASH_ECC=0
 
 
 # AS includes
@@ -152,7 +156,7 @@ C_INCLUDES =  \
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
-CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wextra -Wshadow -Wundef -Wcast-align -Wmissing-prototypes -Wstrict-prototypes -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2

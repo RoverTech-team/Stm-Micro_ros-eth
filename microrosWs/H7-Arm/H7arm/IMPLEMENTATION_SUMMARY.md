@@ -185,3 +185,40 @@ To verify the build:
    ```
 
 5. Check for runtime faults via LED status or debug output
+---
+
+## 2026-06-04 — CM4 firmware hardening + cross-core protocol v2
+
+**Scope:** `microrosWs/H7-Arm/H7arm/CM4/` and cross-core protocol shared with `CM7/`.
+
+### File layout (F446-style)
+
+| File | LoC | Purpose |
+|---|---|---|
+| `Core/Src/main.c` | ~290 | App loop, motor configs, brake logic |
+| `Core/Src/gpio.c` | ~70 | MX_GPIO_Init + visual pin-map comment |
+| `Core/Src/spi.c` | ~70 | MX_SPI1_Init + HAL_SPI_MspInit (PA5/PA6/PA7) |
+| `Core/Src/tim.c` | ~50 | MX_TIM2_Init + DelayUs/DelayMs |
+| `Core/Inc/main.h` | ~50 | `*_Pin`/`*_GPIO_Port` + LED macros |
+| `Core/Inc/gpio.h` | ~20 | MX_GPIO_Init prototype |
+| `Core/Inc/spi.h` | ~30 | `hspi1` + MX_SPI1_Init |
+| `Core/Inc/tim.h` | ~30 | Timer prototypes |
+
+### Cross-core protocol v2
+
+`SHARED_DATA` (anchored in `.shared` section at `0x38000000` in both linker scripts):
+- `magic = 0x53485244` ("SHRD")
+- `version = 2`
+- `joint_cmd_positions[6]`, `joint_act_positions[6]` — `int32_t` milli-degrees
+- `joint_cmd_seq`, `joint_cmd_ack`, `motor_ready`, `motor_ready_seq`, `motion_done_seq`
+- `last_fault_cfsr/hfsr/mmar/bfar/lr/pc/ipsr/cfb` — written by CM4 fault handlers
+
+### Build verification
+
+- `make -C Makefile/CM4` (Debug, `WIRE_TEST=0`): text 11 276, data 24, bss 2 044
+- `make -C Makefile/CM7` (Debug): text 159 380, data 1 044, bss 538 680
+- `.shared` verified at `0x38000000` in both ELF binaries; `shared_data_inst` symbol matches.
+
+### Backlog
+- CM7 `HAL_HSEM_ActivateNotification` (CM4 pings HSEM on every position update).
+- `ps01SetStallThreshold_chain` Rds(on) — blocked on electronics-team confirmation.

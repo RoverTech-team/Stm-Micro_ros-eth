@@ -68,6 +68,12 @@ typedef union
     } bits;
 } PS01Status_t;
 
+_Static_assert(sizeof(PS01Status_t) == 2, "PS01Status_t must be 16 bits");
+_Static_assert(sizeof(PS01ConfigVoltageMode_t) == 2, "PS01ConfigVoltageMode_t must be 16 bits");
+_Static_assert(sizeof(PS01StepMode_t) == 2, "PS01StepMode_t must be 16 bits");
+
+#define STATUS_BUSY_BIT (1U << 1)
+
 typedef struct
 {
     uint32_t steps_rev;

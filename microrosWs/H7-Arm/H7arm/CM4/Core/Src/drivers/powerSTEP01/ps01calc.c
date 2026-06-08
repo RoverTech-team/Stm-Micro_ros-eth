@@ -1,53 +1,62 @@
 #include "ps01calc.h"
+#include <math.h>
 
-// calculate KVAL based on supply (VS) voltage and target voltage to be applied to the motor
+#define STEPS_S_TO_MAXMIN  0.065536f
+#define STEPS_S2_TO_ACC    0.06871948f
+#define STEPS_S_TO_SPEED   67.108864f
+#define KVAL_FULL_SCALE    256.0f
+
 uint8_t calculateKVAL(float supply, float target)
 {
-    if (supply <= 0.0f) return 0;
-    float kval = (target / supply) * 256.0f;
-    if (kval >= 255.0f) return 255;
-    if (kval <= 0.0f)   return 0;
-    return (uint8_t)kval;
+    if (supply <= 0.0f) {
+        return 0U;
+    }
+    float kval = (target / supply) * KVAL_FULL_SCALE;
+    if (kval >= 255.0f) {
+        return 255U;
+    }
+    if (kval <= 0.0f) {
+        return 0U;
+    }
+    return (uint8_t)lroundf(kval);
 }
 
-// steps_s = SPEED * 2^-18 / tick
-// where tick is 250ns (2.5^-7s)
-// SPEED = steps_s * tick / 2^-18 = steps_s * 0.065536
 uint16_t calculateMaxMinSpeed(uint16_t steps_s)
 {
-    if (steps_s > 15610) return 1023;
-    return steps_s * 0.065536;
+    if (steps_s > 15610U) {
+        return 1023U;
+    }
+    return (uint16_t)lroundf((float)steps_s * STEPS_S_TO_MAXMIN);
 }
 
 uint16_t calculateAcceleration(uint16_t steps_s2)
 {
-    uint16_t acc_val = steps_s2 * 0.06871948;
-    if (acc_val >= 0xFFF) return 0xFFE;
-    return acc_val; 
+    uint16_t acc_val = (uint16_t)lroundf((float)steps_s2 * STEPS_S2_TO_ACC);
+    if (acc_val >= 0xFFFU) {
+        return 0xFFEU;
+    }
+    return acc_val;
 }
 
 uint32_t calculateSpeed(uint16_t steps_s)
 {
-    if (steps_s > 15625) return 1048576; 
-    return steps_s * 67.108864;
+    if (steps_s > 15625U) {
+        return 1048576U;
+    }
+    return (uint32_t)lroundf((float)steps_s * STEPS_S_TO_SPEED);
 }
 
 int32_t getStepsFromAngle(int32_t deg, Stepper_t *motor)
 {
-    int32_t excess = 0;
-    uint8_t isnegative = (deg < 0) ? 1 : 0;
-    if (isnegative)
-        deg *= -1;
+    int32_t abs_deg = (deg < 0) ? -deg : deg;
+    int32_t revs    = abs_deg / 360;
+    int32_t rem_deg = abs_deg - (revs * 360);
 
-    if (deg > 360)
-    {
-        excess = (motor->steps_rev * (deg / 360)) << motor->stepmode.bits.STEP_SEL;
-        deg -= (deg / 360) * 360;
-    }
+    int64_t full_rev_steps = (int64_t)motor->steps_rev * (int64_t)revs;
+    int64_t rem_steps      = ((int64_t)motor->steps_rev * (int64_t)rem_deg) / 360;
+    int64_t total_usteps   = (full_rev_steps + rem_steps)
+                           << motor->stepmode.bits.STEP_SEL;
+    int64_t total          = total_usteps * (int64_t)motor->reduction_ratio;
 
-    if (!isnegative)
-        return (((int32_t)((float)motor->steps_rev / (360.0 / (float)deg)) << motor->stepmode.bits.STEP_SEL) + excess) * motor->reduction_ratio;
-    else
-        return (((int32_t)((float)motor->steps_rev / (360.0 / (float)deg)) << motor->stepmode.bits.STEP_SEL) * -1 + excess) * motor->reduction_ratio;
-
+    return (deg < 0) ? -(int32_t)total : (int32_t)total;
 }

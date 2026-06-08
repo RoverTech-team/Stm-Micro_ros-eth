@@ -3,25 +3,21 @@
 
 #include <stdint.h>
 
-/**
- * Number of joints on the robotic arm.
- * Must match N_JOINTS in the motor driver (rarm.h).
- */
+#define SHARED_MAGIC        0x53485244U  /* "SHRD" in ASCII */
+#define SHARED_VERSION      2U
+
 #define SHARED_JOINT_COUNT  6U
 
-/**
- * Struttura dati condivisa tra CM4 e CM7 nella SRAM4 (D3 domain).
- * Indirizzo: 0x38000000, dimensione disponibile: 64 KB.
- *
- * Il CM4 scrive distance_cm e alza data_ready.
- * Il CM7 legge distance_cm e abbassa data_ready.
- * I campi sono volatile perché modificati da un core diverso.
- */
+_Static_assert(SHARED_JOINT_COUNT == 6, "SHARED_JOINT_COUNT must match motor driver N_JOINTS");
+
 typedef struct
 {
-  /* --- Ultrasonic sensor fields (existing) --- */
-  volatile uint32_t distance_cm;   /* distanza misurata dal sensore [cm] */
-  volatile uint32_t data_ready;    /* 1 = dato nuovo disponibile         */
+  uint32_t magic;
+  uint32_t version;
+
+  /* --- Ultrasonic sensor fields (legacy) --- */
+  volatile uint32_t distance_cm;
+  volatile uint32_t data_ready;
   volatile uint32_t cm4_write_seq;
   volatile uint32_t cm4_last_echo_ok;
   volatile uint32_t cm4_last_echo_ticks;
@@ -29,29 +25,33 @@ typedef struct
   volatile uint32_t cm4_last_pulse_timeout;
   volatile uint32_t cm4_last_measurement_valid;
 
-  /* --- Motor command/state fields (NEW) --- */
+  /* --- Motor command/state (protocol v2: int32_t milli-degrees) --- */
+  volatile int32_t  joint_cmd_positions[SHARED_JOINT_COUNT];
+  volatile int32_t  joint_act_positions[SHARED_JOINT_COUNT];
 
-  /** Joint positions commanded by CM7 (degrees, written by CM7) */
-  volatile float    joint_cmd_positions[SHARED_JOINT_COUNT];
-
-  /** Actual joint positions read from motors (degrees, written by CM4) */
-  volatile float    joint_act_positions[SHARED_JOINT_COUNT];
-
-  /** Command sequence number — CM7 increments on each new command */
   volatile uint32_t joint_cmd_seq;
-
-  /** CM4 echoes joint_cmd_seq after processing the command */
   volatile uint32_t joint_cmd_ack;
 
-  /** CM4 sets to 1 once the motor driver is initialized and ready */
   volatile uint32_t motor_ready;
+  volatile uint32_t motor_ready_seq;
+  volatile uint32_t motion_done_seq;
+
+  /* --- Fault telemetry (CM4 writes on exception) --- */
+  volatile uint32_t last_fault_cfsr;
+  volatile uint32_t last_fault_hfsr;
+  volatile uint32_t last_fault_mmar;
+  volatile uint32_t last_fault_bfar;
+  volatile uint32_t last_fault_lr;
+  volatile uint32_t last_fault_pc;
+  volatile uint32_t last_fault_ipsr;
+  volatile uint32_t last_fault_cfb;
 
 } shared_data_t;
 
-/* Puntatore alla struttura in SRAM4 */
-#define SHARED_DATA  ((shared_data_t *)0x38000000U)
+__attribute__((section(".shared"))) extern shared_data_t shared_data_inst;
 
-/* ID del semaforo hardware usato per segnalare CM7 */
+#define SHARED_DATA  (&shared_data_inst)
+
 #define HSEM_ID_SENSOR  1U
 
-#endif /* SHARED_DATA_H */
+#endif

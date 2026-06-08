@@ -228,5 +228,15 @@ SECTIONS
     libgcc.a ( * )
   }
 
+  /* Cross-core shared memory with CM4 — pinned to SRAM4 (0x38000000).
+   * Both cores access the same physical bytes; the CM7 must mark this
+   * region non-cacheable in its MPU configuration. */
+  .shared (NOLOAD) : ALIGN(4)
+  {
+    *(.shared)
+    *(.shared*)
+    . = ALIGN(4);
+  } >RAM_D3
+
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }

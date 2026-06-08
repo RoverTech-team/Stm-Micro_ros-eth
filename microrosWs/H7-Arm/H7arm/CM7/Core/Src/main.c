@@ -51,6 +51,7 @@ extern struct netif gnetif;
 #define JOINT_COUNT 6u
 #define JOINT_PUBLISH_PERIOD_MS 20U
 
+__attribute__((section(".shared"))) shared_data_t shared_data_inst;
 static volatile shared_data_t * const sensor_shared_data = SHARED_DATA;
 static uint32_t telemetry_cycles_per_us = 0U;
 static uint32_t telemetry_cycles_per_ms = 0U;
@@ -124,7 +125,7 @@ static bool SetupNetworkingAndMicroRos(void);
 static void StartSensorDebugTask(void *argument);
 static void StartTimeSyncTask(void *argument);
 static void SetRuntimeFault(const char *reason);
-static void ResetSharedSensorSnapshot(void);
+static void ResetLocalSensorSnapshot(void);
 static void TimeSyncRequestCallback(const void *msg_in);
 static void InitHighResolutionClock(void);
 static uint64_t GetMonotonicTimeUs(void);
@@ -352,6 +353,12 @@ static void ParseJointCommand(const void *msg_in)
   const std_msgs__msg__Float32MultiArray *incoming = (const std_msgs__msg__Float32MultiArray *)msg_in;
   size_t i;
 
+  if(sensor_shared_data->magic != SHARED_MAGIC ||
+     sensor_shared_data->version != SHARED_VERSION)
+  {
+    return;
+  }
+
   if(incoming == NULL || incoming->data.data == NULL)
   {
     return;
@@ -400,10 +407,12 @@ static void ParseJointCommand(const void *msg_in)
   joint_command_seq++;
   joint_command_received = true;
 
-  /* Relay commanded positions to shared SRAM4 for CM4 motor driver */
+  /* Relay commanded positions to shared SRAM4 for CM4 motor driver.
+   * Convert deg -> milli-degrees for sub-degree precision. */
   for(i = 0U; i < JOINT_COUNT && i < SHARED_JOINT_COUNT; i++)
   {
-    sensor_shared_data->joint_cmd_positions[i] = joint_commanded_positions[i];
+    sensor_shared_data->joint_cmd_positions[i] =
+      (int32_t)lroundf(joint_commanded_positions[i] * 1000.0f);
   }
   sensor_shared_data->joint_cmd_seq = joint_command_seq;
   SCB_CleanDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_cmd_positions[0],
@@ -473,17 +482,17 @@ static void BuildJointStatesJson(void)
   length = AppendUnsignedLong(joint_states_buffer, sizeof(joint_states_buffer), length, (unsigned long)joint_command_seq);
   length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "}");
 
-  /* Also fill the Float32MultiArray data with actual positions from CM4 */
+  /* Also fill the Float32MultiArray data with actual positions from CM4.
+   * Convert milli-degrees -> deg for the ROS message. */
   SCB_InvalidateDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_act_positions[0],
                                 sizeof(sensor_shared_data->joint_act_positions));
   joint_states_msg.data.size = JOINT_COUNT * 3u;
   for(i = 0U; i < JOINT_COUNT; i++)
   {
     /* Use actual positions from CM4 if motor driver is ready, else echo commanded */
-    if(sensor_shared_data->motor_ready)
+    if(sensor_shared_data->motor_ready && (i < SHARED_JOINT_COUNT))
     {
-      joint_states_data[i] = (i < SHARED_JOINT_COUNT) ?
-          sensor_shared_data->joint_act_positions[i] : 0.0f;
+      joint_states_data[i] = (float)sensor_shared_data->joint_act_positions[i] / 1000.0f;
     }
     else
     {
@@ -1522,10 +1531,26 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   SCB->VTOR = 0x08000000;
-  ResetSharedSensorSnapshot();
+  ResetLocalSensorSnapshot();
   Debug_USART3_Init();
   Debug_USART3_Print("CM7: boot\r\n");
   printf("CM7: hal-clock-init-ok\r\n");
+
+  if(sensor_shared_data->magic != SHARED_MAGIC ||
+     sensor_shared_data->version != SHARED_VERSION)
+  {
+    printf("CM7: protocol-mismatch got=0x%08lx/%lu expected=0x%08lx/%lu — refusing commands\r\n",
+           (unsigned long)sensor_shared_data->magic,
+           (unsigned long)sensor_shared_data->version,
+           (unsigned long)SHARED_MAGIC,
+           (unsigned long)SHARED_VERSION);
+  }
+  else
+  {
+    printf("CM7: protocol-ok magic=0x%08lx version=%lu\r\n",
+           (unsigned long)SHARED_MAGIC,
+           (unsigned long)SHARED_VERSION);
+  }
 
   osKernelInitialize();
   printf("CM7: kernel-initialize-ok\r\n");
@@ -1570,12 +1595,9 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif
 
-static void ResetSharedSensorSnapshot(void)
+static void ResetLocalSensorSnapshot(void)
 {
-  memset((void *)sensor_shared_data, 0, sizeof(*sensor_shared_data));
   latest_sensor_distance_cm = DEFAULT_DISTANCE_CM;
   sensor_measurement_available = false;
   last_seen_cm4_write_seq = 0U;
-  __DSB();
-  SCB_CleanDCache_by_Addr((uint32_t *)sensor_shared_data, (int32_t)sizeof(*sensor_shared_data));
 }
