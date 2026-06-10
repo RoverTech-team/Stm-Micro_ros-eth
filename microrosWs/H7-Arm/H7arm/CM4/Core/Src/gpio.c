@@ -9,8 +9,8 @@
  *     giving direct access to all STM32 signals that are not on Zio.
  *
  * On-board LEDs and push-button are not brought out to any header.
- * The DRV_CS / DRV_RESET / J2_BRAKE / J3_BRAKE signals are wired to the
- * arm-controller carrier PCB and exit the Nucleo on the Morpho headers.
+ * The DRV_CS signal remains on Morpho CN11. J2_BRAKE, J3_BRAKE and
+ * DRV_RESET now exit on the Arduino Zio headers as D5, D6 and D7.
  *
  * Reference: ST UM2408 (NUCLEO-H755ZI-Q user manual) and MB1363 schematic.
  *
@@ -23,11 +23,11 @@
  *   PA6  | CN8 pin 3  (D12) | AF5  high-speed  | SPI1_MISO | Arduino ICSP MISO
  *   PA7  | CN8 pin 2  (D11) | AF5  high-speed  | SPI1_MOSI | Arduino ICSP MOSI
  *  ------+----------------+--------------------+-----------+------------------------------------------
- *   PA8  | CN9 pin 8  (D7)  | out PP, low-speed | J3_BRAKE  | active HIGH: HIGH = released, LOW = engaged
- *   PD14 | Morpho CN11      | out PP, high-speed| DRV_CS    | SPI chip-select for the daisy-chain
- *   PD15 | Morpho CN11      | out PP, low-speed | J2_BRAKE  | active HIGH: HIGH = released, LOW = engaged
- *   PG9  | Morpho CN12      | out PP, high-speed| DRV_RESET | powerSTEP01 reset, active LOW; held LOW 2.3 s
+ *   PA4  | CN8 pin 1  (D5) | out PP, low-speed  | J2_BRAKE  | active HIGH: HIGH = released, LOW = engaged
+ *   PB1  | CN10 pin 3 (D6) | out PP, low-speed  | J3_BRAKE  | active HIGH: HIGH = released, LOW = engaged
+ *   PA8  | CN9 pin 8  (D7) | out PP, high-speed| DRV_RESET | powerSTEP01 reset, active LOW; held LOW 2.3 s
  *        |                  |                    |           | at boot to wait for the 24 V rail to settle
+ *   PD14 | Morpho CN11      | out PP, high-speed| DRV_CS    | SPI chip-select for the daisy-chain
  *
  * Notes on H755-specific concerns:
  *   - PB14 is also TIM1_CH2 / BDMA channel — not used here, just be aware.
@@ -49,7 +49,6 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
 
   GPIO_InitStruct.Pin   = LED_GREEN_Pin | LED_RED_Pin;
   GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;

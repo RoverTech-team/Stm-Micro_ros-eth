@@ -24,14 +24,14 @@ Morpho row/column numbers are tracked in the carrier wiring diagram
 |--------------|----------|--------------------|-------------------------|---------|---------|----------------------------------------------------|
 | LED_GREEN    | PB0      | on-board LED1      | Output PP               | Low     | None    | shared with ST-LINK VCP, no header access          |
 | LED_RED      | PB14     | on-board LED2      | Output PP               | Low     | None    | no header access                                   |
-| J2_BRAKE     | PD15     | Morpho CN11        | Output PP               | Low     | None    | active HIGH: HIGH = released, LOW = engaged        |
-| J3_BRAKE     | PA8      | CN9 pin 8 (D7)     | Output PP               | Low     | None    | active HIGH: HIGH = released, LOW = engaged        |
+| J2_BRAKE     | PA4      | CN8 pin 1 (D5)     | Output PP               | Low     | None    | active HIGH: HIGH = released, LOW = engaged        |
+| J3_BRAKE     | PB1      | CN10 pin 3 (D6)    | Output PP               | Low     | None    | active HIGH: HIGH = released, LOW = engaged        |
+| DRV_RESET    | PA8      | CN9 pin 8 (D7)     | Output PP               | High    | None    | powerSTEP01 reset, active LOW; held LOW 2.3 s at boot to wait for the 24 V rail |
 | DRV_CS       | PD14     | Morpho CN11        | Output PP               | High    | None    | SPI1 chip-select for the daisy-chain (NSS in SW)   |
-| DRV_RESET    | PG9      | Morpho CN12        | Output PP               | High    | None    | powerSTEP01 reset, active LOW; held LOW 2.3 s at boot to wait for the 24 V rail |
 | SPI1_SCK     | PA5      | CN8 pin 4 (D13)    | AF5 (SPI1)              | High    | None    | Arduino ICSP SCK                                   |
 | SPI1_MISO    | PA6      | CN8 pin 3 (D12)    | AF5 (SPI1)              | High    | None    | Arduino ICSP MISO                                  |
 | SPI1_MOSI    | PA7      | CN8 pin 2 (D11)    | AF5 (SPI1)              | High    | None    | Arduino ICSP MOSI                                  |
-| SPI1_NSS     | PA4      | CN8 pin 1 (D10)    | (not used)              | —       | —       | kept in software (`SPI_NSS_SOFT`); PA4 not configured |
+| SPI1_NSS     | PA4      | CN8 pin 1 (D10)    | (not used, now J2_BRAKE)| —       | —       | kept in software (`SPI_NSS_SOFT`); PA4 repurposed  |
 
 Pins not configured in `gpio.c` (deliberately):
 - `PC13` B1 user button: not used on the arm controller. Pull the design
@@ -165,20 +165,20 @@ single biggest source of "it works on the F4 but not the H7" porting bugs.
 
 ### 8.1 Application pins: where each role appears on the board
 
-| Role                    | F446 MCU pin | F446 header position              | H755 MCU pin | H755 header position                  | Same silk-screen? |
-|-------------------------|--------------|-----------------------------------|--------------|---------------------------------------|-------------------|
-| USART2 TX (console)     | PA2          | CN9 pin 1 / D1                   | PA2          | CN8 pin 1 / D1 (USART_TX)             | yes (D1)          |
-| USART2 RX (console)     | PA3          | CN9 pin 2 / D0                   | PA3          | CN8 pin 2 / D0 (USART_RX)             | yes (D0)          |
-| SPI1 SCK                | PA5          | CN7 pin 6 / D13 + ICSP pin 3     | PA5          | CN8 pin 4 / **ICSP pin 3** (NOT D13)  | **NO** (D13 on H755 = PB9) |
-| SPI1 MISO               | PA6          | CN7 pin 5 / D12 + ICSP pin 1     | PA6          | CN8 pin 3 / **ICSP pin 1** (NOT D12)  | **NO** (D12 on H755 = PB14) |
-| SPI1 MOSI               | PA7          | CN7 pin 4 / D11 + ICSP pin 4     | PA7          | CN8 pin 2 / **ICSP pin 4** (NOT D11)  | **NO** (D11 on H755 = PB15) |
-| BK1 / J2 brake          | PB10         | CN10 pin 3 / D6                  | PD15         | Morpho CN11 (no silk-screen)          | **NO** (D6 on H755 = PB1) |
-| BK2 / J3 brake          | PA8          | CN9 pin 8 / D7                   | PA8          | CN9 pin 8 / D7                        | yes (D7)          |
-| DRV_RST / DRV_RESET     | PA9          | CN9 pin 7 / D8                   | PG9          | Morpho CN12 (no silk-screen)          | **NO** (D8 on H755 = PA9) |
-| DRV_CS                  | PB6          | CN7 pin 7 / D10                  | PD14         | Morpho CN11 (no silk-screen)          | **NO** (D10 on H755 = PA11) |
-| User button (B1)        | PC13         | on-board B1 (no header)          | (unused)     | on-board B1 available but not wired   | n/a               |
-| Status LED              | LD2 / PA5    | on-board LD2 (shares with SPI1_SCK) | PB0 (green), PB14 (red) | on-board LED1, LED2 (no header) | n/a (different LEDs) |
-| Step pulse (TIM AF)     | PB5 / TIM3_CH2 | CN7 pin 9 / D4                  | (not on H7 CM4 yet) | —                              | **NO** (D4 on H755 = PA1) |
+| Role                    | H755 MCU pin | H755 header position                  | Prior Morpho path |
+|-------------------------|--------------|---------------------------------------|-------------------|
+| USART2 TX (console)     | PA2          | CN8 pin 1 / D1 (USART_TX)             | —                 |
+| USART2 RX (console)     | PA3          | CN8 pin 2 / D0 (USART_RX)             | —                 |
+| SPI1 SCK                | PA5          | CN8 pin 4 / **ICSP pin 3** (NOT D13)  | —                 |
+| SPI1 MISO               | PA6          | CN8 pin 3 / **ICSP pin 1** (NOT D12)  | —                 |
+| SPI1 MOSI               | PA7          | CN8 pin 2 / **ICSP pin 4** (NOT D11)  | —                 |
+| J2_BRAKE                | PA4          | CN8 pin 1 / D5                        | was Morpho CN11   |
+| J3_BRAKE                | PB1          | CN10 pin 3 / D6                       | was Morpho CN11   |
+| DRV_RESET               | PA8          | CN9 pin 8 / D7                        | was Morpho CN12   |
+| DRV_CS                  | PD14         | Morpho CN11                           | unchanged         |
+| User button (B1)        | (unused)     | on-board B1 available but not wired   | n/a               |
+| Status LED              | PB0 (green), PB14 (red) | on-board LED1, LED2 (no header) | n/a (different LEDs) |
+| Step pulse (TIM AF)     | (not on H7 CM4 yet) | —                              | —                 |
 
 Sources: F446 from `microrosWs/nucleo_f446/nucleo_f446.ioc` and ST UM1819
 (NUCLEO-F446ZE) / UM1724 (NUCLEO-F446RE); H755 from ST UM2408
