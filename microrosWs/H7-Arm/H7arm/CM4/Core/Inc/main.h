@@ -19,8 +19,8 @@ void Error_Handler(void);
 #define DRV_RESET_Pin        GPIO_PIN_8
 #define DRV_RESET_GPIO_Port  GPIOA
 
-#define DRV_CS_Pin           GPIO_PIN_14
-#define DRV_CS_GPIO_Port     GPIOD
+#define DRV_CS_Pin           GPIO_PIN_9
+#define DRV_CS_GPIO_Port     GPIOB
 
 #define J2_BRAKE_Pin         GPIO_PIN_4
 #define J2_BRAKE_GPIO_Port   GPIOA

@@ -10,12 +10,12 @@
  */
 
 #include "main.h"
-#include "gpio.h"
-#include "spi.h"
-#include "tim.h"
 #include "drivers/RArm/rarm.h"
 #include "drivers/powerSTEP01/ps01.h"
+#include "gpio.h"
 #include "shared_data.h"
+#include "spi.h"
+#include "tim.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -24,35 +24,34 @@
 #endif
 
 #define MOTOR_LOOP_PERIOD_MS 10U
-#define BRAKE_SETTLE_MS      100U
+#define BRAKE_SETTLE_MS 100U
 
 __attribute__((section(".shared"))) shared_data_t shared_data_inst;
 
 extern const PS01_OS_t *ps01_baremetal_get_os(void);
 
-static Stepper_t     motors[N_JOINTS];
-static StepperBank_t bank = { .motors = motors, .active = 0 };
+static Stepper_t motors[N_JOINTS];
+static StepperBank_t bank = {.motors = motors, .active = 0};
 
 #if !WIRE_TEST
 static uint32_t last_processed_cmd_seq = 0U;
-static bool     motion_pending[N_JOINTS] = { false };
-static uint32_t motion_pending_start_ms[N_JOINTS] = { 0U };
+static bool motion_pending[N_JOINTS] = {false};
+static uint32_t motion_pending_start_ms[N_JOINTS] = {0U};
 
 static void Motor_ProcessCommands(void);
 #endif
 static void Motor_UpdatePositions(void);
 
-int main(void)
-{
+int main(void) {
   extern uint32_t g_pfnVectors;
   SCB->VTOR = (uint32_t)&g_pfnVectors;
 
   HAL_Init();
 
   memset((void *)SHARED_DATA, 0, sizeof(*SHARED_DATA));
-  SHARED_DATA->magic          = SHARED_MAGIC;
-  SHARED_DATA->version        = SHARED_VERSION;
-  SHARED_DATA->cm4_write_seq  = 1U;
+  SHARED_DATA->magic = SHARED_MAGIC;
+  SHARED_DATA->version = SHARED_VERSION;
+  SHARED_DATA->cm4_write_seq = 1U;
   __DSB();
 
   MX_GPIO_Init();
@@ -68,7 +67,8 @@ int main(void)
   }
 
   MX_SPI1_Init();
-
+  LED_GREEN_ON();
+  DelayMs(500);
   /* 24 V rail rise time per powerSTEP01 datasheet (rail must be stable before
    * the drivers come out of reset, otherwise the charge pump misbehaves). */
   HAL_GPIO_WritePin(DRV_RESET_GPIO_Port, DRV_RESET_Pin, GPIO_PIN_RESET);
@@ -76,17 +76,25 @@ int main(void)
   HAL_GPIO_WritePin(DRV_RESET_GPIO_Port, DRV_RESET_Pin, GPIO_PIN_SET);
   DelayMs(100);
   DelayMs(1000);
+  LED_GREEN_OFF();
+  DelayMs(500);
 
   RARM_SetBank(&bank);
+  LED_RED_ON();
+
+  DelayMs(1000);
   ps01Init(ps01_baremetal_get_os());
 
-  for (uint8_t i = 0; i < N_JOINTS; i++) {
+  LED_RED_OFF();
+
+  for (uint8_t i = 1; i < N_JOINTS; i++) {
     mot_bank->active = i;
-    ps01GetStatus_chain();
+
+    // ps01GetStatus_chain();
   }
   mot_bank->active = J1_INDEX;
 
-  RARM_SimpleConfig_t joint1_config = {.OVERCURRENT_SD = OC_NOSHUTDOWN,
+  /*RARM_SimpleConfig_t joint1_config = {.OVERCURRENT_SD = OC_NOSHUTDOWN,
                                        .VSCOMP = VSCOMP_DISABLE,
                                        .STEP_MODE = SM_128_MICROSTEP,
                                        .steps_rev = 200,
@@ -107,7 +115,7 @@ int main(void)
                                        .fn_slp_acc = 0x89,
                                        .fn_slp_dec = 0x89};
   RARM_SetConfig(J1_INDEX, &joint1_config);
-
+*/
   RARM_SimpleConfig_t joint4_config = {.OVERCURRENT_SD = OC_NOSHUTDOWN,
                                        .VSCOMP = VSCOMP_DISABLE,
                                        .STEP_MODE = SM_128_MICROSTEP,
@@ -128,8 +136,15 @@ int main(void)
                                        .st_slp = 0x59,
                                        .fn_slp_acc = 0x29,
                                        .fn_slp_dec = 0x29};
-  RARM_SetConfig(J4_INDEX, &joint4_config);
 
+  DelayMs(500);
+  RARM_SetConfig(J4_INDEX, &joint4_config);
+  DelayMs(500);
+  LED_RED_ON();
+  DelayMs(500);
+  LED_RED_OFF();
+  DelayMs(500);
+  LED_GREEN_ON();
   RARM_SimpleConfig_t joint6_config = {.OVERCURRENT_SD = OC_NOSHUTDOWN,
                                        .VSCOMP = VSCOMP_DISABLE,
                                        .STEP_MODE = SM_128_MICROSTEP,
@@ -218,34 +233,39 @@ int main(void)
                                        .fn_slp_dec = 0x79};
   RARM_SetConfig(J2_INDEX, &joint2_config);
 
-  SHARED_DATA->motor_ready     = 1U;
+  SHARED_DATA->motor_ready = 1U;
   SHARED_DATA->motor_ready_seq = 1U;
   __DSB();
 
   uint32_t last_motor_tick = HAL_GetTick();
+
   while (1) {
     uint32_t now = HAL_GetTick();
     if ((now - last_motor_tick) >= MOTOR_LOOP_PERIOD_MS) {
       last_motor_tick = now;
 #if WIRE_TEST
       static uint32_t test_state_timer = 0;
-      static uint8_t  current_test_joint = 0;
-      static uint8_t  test_direction = 0;
+      static uint8_t current_test_joint = 0;
+      static uint8_t test_direction = 0;
 
       if ((now - test_state_timer) >= 2000) {
         test_state_timer = now;
         if (test_direction == 0) {
-          if (current_test_joint == J2_INDEX || current_test_joint == J3_INDEX) {
+          if (current_test_joint == J2_INDEX ||
+              current_test_joint == J3_INDEX) {
+            
             RARM_ReleaseBrake(current_test_joint);
             DelayMs(BRAKE_SETTLE_MS);
           }
+         
           RARM_MoveDegrees(current_test_joint, 10);
           test_direction = 1;
         } else if (test_direction == 1) {
           RARM_MoveDegrees(current_test_joint, -10);
           test_direction = 2;
         } else {
-          if (current_test_joint == J2_INDEX || current_test_joint == J3_INDEX) {
+          if (current_test_joint == J2_INDEX ||
+              current_test_joint == J3_INDEX) {
             RARM_EngageBrake(current_test_joint);
           }
           current_test_joint = (current_test_joint + 1) % N_JOINTS;
@@ -264,8 +284,7 @@ int main(void)
 }
 
 #if !WIRE_TEST
-static void Motor_ProcessCommands(void)
-{
+static void Motor_ProcessCommands(void) {
   uint32_t seq_a = SHARED_DATA->joint_cmd_seq;
   __DMB();
   uint32_t seq_b = SHARED_DATA->joint_cmd_seq;
@@ -277,8 +296,10 @@ static void Motor_ProcessCommands(void)
   if (current_seq == last_processed_cmd_seq) {
     uint32_t now_ms = HAL_GetTick();
     for (uint8_t i = 0; i < N_JOINTS; i++) {
-      if (i != J2_INDEX && i != J3_INDEX) continue;
-      if (!motion_pending[i]) continue;
+      if (i != J2_INDEX && i != J3_INDEX)
+        continue;
+      if (!motion_pending[i])
+        continue;
       if (RARM_IsMoving(i)) {
         motion_pending_start_ms[i] = now_ms;
         continue;
@@ -292,9 +313,9 @@ static void Motor_ProcessCommands(void)
   }
 
   for (uint8_t i = 0; i < N_JOINTS; i++) {
-    int32_t cmd_mdeg     = SHARED_DATA->joint_cmd_positions[i];
+    int32_t cmd_mdeg = SHARED_DATA->joint_cmd_positions[i];
     int32_t current_mdeg = RARM_GetPositionMilliDegrees(i);
-    int32_t delta_mdeg   = cmd_mdeg - current_mdeg;
+    int32_t delta_mdeg = cmd_mdeg - current_mdeg;
 
     if (delta_mdeg != 0) {
       if (i == J2_INDEX || i == J3_INDEX) {
@@ -306,14 +327,13 @@ static void Motor_ProcessCommands(void)
     }
   }
 
-  last_processed_cmd_seq        = current_seq;
-  SHARED_DATA->joint_cmd_ack    = current_seq;
+  last_processed_cmd_seq = current_seq;
+  SHARED_DATA->joint_cmd_ack = current_seq;
   __DSB();
 }
 #endif
 
-static void Motor_UpdatePositions(void)
-{
+static void Motor_UpdatePositions(void) {
   for (uint8_t i = 0; i < N_JOINTS; i++) {
     SHARED_DATA->joint_act_positions[i] = RARM_GetPositionMilliDegrees(i);
   }
@@ -321,8 +341,7 @@ static void Motor_UpdatePositions(void)
   __DSB();
 }
 
-void Error_Handler(void)
-{
+void Error_Handler(void) {
   __disable_irq();
   while (1) {
     LED_RED_ON();

@@ -17,8 +17,18 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     mot_bank->motors[joint_index].min_degs        = config->min_degs;
     mot_bank->motors[joint_index].max_degs        = config->max_degs;
 
+    /* DBG-1: before first SPI call */
+    LED_RED_ON(); LED_GREEN_OFF();
+
     ps01SetParam_chain(GATECFG1, 0x0C8);
+
+    /* DBG-2: after GATECFG1 */
+    LED_RED_OFF(); LED_GREEN_ON();
+
     ps01SetParam_chain(GATECFG2, 0x41);
+
+    /* DBG-3: after GATECFG2 */
+    LED_RED_ON(); LED_GREEN_ON();
 
     mot_bank->motors[joint_index].config.bits.OSC_SEL    = 0;
     mot_bank->motors[joint_index].config.bits.EXT_CLK    = 0;
@@ -30,6 +40,9 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     mot_bank->motors[joint_index].config.bits.F_PWM_DEC  = 0b011;
     mot_bank->motors[joint_index].config.bits.F_PWM_INT  = 0b000;
     ps01SetConfig_chain();
+
+    /* DBG-4: after CONFIG */
+    LED_RED_OFF(); LED_GREEN_OFF();
 
     mot_bank->motors[joint_index].stepmode.bits.STEP_SEL = config->STEP_MODE;
     mot_bank->motors[joint_index].stepmode.bits.CM_VM    = VOLTAGE_MODE;
