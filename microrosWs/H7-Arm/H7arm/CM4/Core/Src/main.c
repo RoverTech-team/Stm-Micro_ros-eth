@@ -186,9 +186,8 @@ static void Motor_ProcessCommands(void);
 #endif
 
 #if WIRE_TEST
-static uint32_t test_state_timer     = 0;
-static uint8_t  current_test_joint   = 0;
-static uint8_t  test_direction       = 0;
+static uint32_t test_timer     = 0;
+static uint8_t  test_idx       = 0;
 #endif
 
 static void Motor_UpdatePositions(void);
@@ -207,10 +206,17 @@ int main(void)
 
   SystemClock_Config();
 
-  /* Enable SysTick: HAL_InitTick configures LOAD/CLKSOURCE but the
-   * ENABLE bit may get lost during clock switching.  Force it here
-   * and provide a handler so HAL_GetTick() works for timeouts. */
-  SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+  /* HAL_InitTick may fail if SystemCoreClock is stale.  Force SysTick
+   * directly: 1 ms period = SystemCoreClock / 1000. */
+  SysTick->LOAD  = (SystemCoreClock / 1000U) - 1UL;
+  SysTick->VAL   = 0UL;
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+                   SysTick_CTRL_TICKINT_Msk  |
+                   SysTick_CTRL_ENABLE_Msk;
+
+  /* Enable DWT cycle counter (always available on Cortex-M4). */
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CTRL        |= DWT_CTRL_CYCCNTENA_Msk;
 
   memset((void *)SHARED_DATA, 0, sizeof(*SHARED_DATA));
   SHARED_DATA->magic          = SHARED_MAGIC;
@@ -257,12 +263,6 @@ int main(void)
   SHARED_DATA->last_fault_code = 30; /* before RARM_SetConfig loop */
 
   for (uint8_t i = 0; i < N_JOINTS; i++) {
-    SHARED_DATA->last_fault_code = 31 + i; /* before joint i config */
-    SHARED_DATA->fault_alarm = i; /* track which joint we're configuring */
-    if (i == J3_INDEX || i == J4_INDEX || i == J5_INDEX || i == J6_INDEX) {
-      SHARED_DATA->last_fault_code = 0xAA; /* skip suspect hardware */
-      continue;
-    }
     RARM_SetConfig(i, &joint_configs[i]);
   }
 
@@ -286,31 +286,30 @@ int main(void)
     SHARED_DATA->last_fault_cfb = rxb[MOT_NUMBER - 1U - mot_bank->active];
   }
 
-  SHARED_DATA->last_fault_code = 99; /* about to set motor_ready */
+  SHARED_DATA->last_fault_code = 99;
   SHARED_DATA->motor_ready     = 1U;
   SHARED_DATA->motor_ready_seq = 1U;
   __DSB();
 
-  uint32_t last_motor_tick = HAL_GetTick();
+  uint32_t const cyccnt_1ms = SystemCoreClock / 1000UL;
+  uint32_t last_cyc = DWT->CYCCNT;
   while (1) {
-    uint32_t now = HAL_GetTick();
-    if ((now - last_motor_tick) >= MOTOR_LOOP_PERIOD_MS) {
-      last_motor_tick = now;
+    uint32_t now_cyc = DWT->CYCCNT;
+    if ((now_cyc - last_cyc) >= (cyccnt_1ms * MOTOR_LOOP_PERIOD_MS)) {
+      last_cyc = now_cyc;
+      uint32_t now_ms = now_cyc / cyccnt_1ms;
 #if WIRE_TEST
-      if ((now - test_state_timer) >= 2000) {
-        test_state_timer = now;
-        if (test_direction == 0) {
-          RARM_ReleaseBrake(current_test_joint);
-          DelayMs(BRAKE_SETTLE_MS);
-          RARM_MoveDegrees(current_test_joint, 10);
-          test_direction = 1;
-        } else if (test_direction == 1) {
-          RARM_MoveDegrees(current_test_joint, -10);
-          test_direction = 2;
+      /* Rock physical J2 (software idx 5) ±10° every 2 s */
+      RARM_ReleaseBrake(J2_INDEX);
+      RARM_ReleaseBrake(J3_INDEX);
+      if ((now_ms - test_timer) >= 2000) {
+        test_timer = now_ms;
+        if (test_idx == 0) {
+          RARM_MoveDegrees(5, 10);
+          test_idx = 1;
         } else {
-          RARM_EngageBrake(current_test_joint);
-          current_test_joint = (current_test_joint == J1_INDEX) ? J2_INDEX : J1_INDEX;
-          test_direction = 0;
+          RARM_MoveDegrees(5, -10);
+          test_idx = 0;
         }
       }
 #else
@@ -321,8 +320,8 @@ int main(void)
       /* Button scan: falling edge (press with 50 ms debounce) */
       {
         uint8_t btn = HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin);
-        if (btn_prev == 1U && btn == 0U && (now - btn_last_ms) > 50U) {
-          btn_last_ms = now;
+        if (btn_prev == 1U && btn == 0U && (now_ms - btn_last_ms) > 50U) {
+          btn_last_ms = now_ms;
           uint8_t found = 0;
           for (uint8_t i = 0; i < N_JOINTS; i++) {
             mot_bank->active = i;
@@ -345,13 +344,13 @@ int main(void)
               if (rr_total == 0) rr_total = 1;
               rr_phase  = 0;
               rr_pause  = 0;
-              rr_timer  = now;
+              rr_timer  = now_ms;
               LED_RED_ON();
             }
           } else {
             btn_green_blinks = 3;
             btn_green_phase  = 0;
-            btn_green_timer  = now;
+            btn_green_timer  = now_ms;
             LED_GREEN_ON();
           }
           /* Clear latched alarms so faulted joints can be re-commanded */
@@ -363,7 +362,7 @@ int main(void)
         }
         btn_prev = btn;
       }
-      RR_Tick(now);
+      RR_Tick(now_ms);
       HAL_HSEM_FastTake(HSEM_ID_SENSOR);
       HAL_HSEM_Release(HSEM_ID_SENSOR, 0);
     }
@@ -424,6 +423,7 @@ static void Motor_ProcessCommands(void)
 
 static void Motor_UpdatePositions(void)
 {
+  /* only read configured joints (idx 0-2) */
   for (uint8_t i = 0; i < N_JOINTS; i++) {
     SHARED_DATA->joint_act_positions[i] = RARM_GetPositionMilliDegrees(i);
   }

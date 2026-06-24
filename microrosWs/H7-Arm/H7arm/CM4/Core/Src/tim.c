@@ -7,6 +7,11 @@ uint32_t Timer2_NowUs(void)
   return TIM2->CNT;
 }
 
+uint32_t Timer2_NowMs(void)
+{
+  return TIM2->CNT / 1000UL;
+}
+
 void DelayUs(uint32_t delay_us)
 {
   uint32_t start = Timer2_NowUs();
