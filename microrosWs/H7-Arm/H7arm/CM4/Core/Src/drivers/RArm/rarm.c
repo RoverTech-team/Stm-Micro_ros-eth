@@ -49,10 +49,12 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     ps01SetDeceleration_chain(config->deceleration);
     ps01SetFullStepSpeed_chain(config->fullstep_speed);
 
-    /* Disabled: BEMF compensation values may be incorrect for these motors */
-    /* ps01SetParam_chain(ST_SLP,     config->st_slp); */
-    /* ps01SetParam_chain(FN_SLP_ACC, config->fn_slp_acc); */
-    /* ps01SetParam_chain(FN_SLP_DEC, config->fn_slp_dec); */
+    /* Back-EMF compensation slopes — must match the F446 reference config
+     * per joint, otherwise the motor runs with default compensation that is
+     * wrong for these geared motors and latches genuine OCD/STALL faults. */
+    ps01SetParam_chain(ST_SLP,     config->st_slp);
+    ps01SetParam_chain(FN_SLP_ACC, config->fn_slp_acc);
+    ps01SetParam_chain(FN_SLP_DEC, config->fn_slp_dec);
 
     ps01SetOcThreshold_chain(config->oc_threshold);
     ps01SetStallThreshold_chain(config->stall_threshold);
