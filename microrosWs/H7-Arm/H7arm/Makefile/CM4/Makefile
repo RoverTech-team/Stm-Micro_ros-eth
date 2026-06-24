@@ -132,6 +132,8 @@ C_DEFS =  \
 -DUSE_PWR_DIRECT_SMPS_SUPPLY \
 -DUSE_NUCLEO_64 \
 -DUSE_FLASH_ECC=0
+-DUSE_MULTI_CORE_SHARED_CODE=0
+-DUSE_MULTI_CORE_SHARED_CODE=0
 
 
 # AS includes
@@ -146,17 +148,19 @@ AS_INCLUDES =  \
 # C includes
 C_INCLUDES =  \
 -I../../CM4/Core/Inc \
--I../../Drivers/STM32H7xx_HAL_Driver/Inc \
--I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy \
--I../../Drivers/BSP/STM32H7xx_Nucleo \
--I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include \
--I../../Drivers/CMSIS/Include
+-isystem ../../Drivers/STM32H7xx_HAL_Driver/Inc \
+-isystem ../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy \
+-isystem ../../Drivers/BSP/STM32H7xx_Nucleo \
+-isystem ../../Drivers/CMSIS/Device/ST/STM32H7xx/Include \
+-isystem ../../Drivers/CMSIS/Include \
+-isystem ../../Common \
+-isystem ../../Middlewares
 
 
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
-CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wextra -Wshadow -Wundef -Wcast-align -Wmissing-prototypes -Wstrict-prototypes -fdata-sections -ffunction-sections
+CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wextra -Wshadow -Wundef -Wmissing-prototypes -Wstrict-prototypes -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2

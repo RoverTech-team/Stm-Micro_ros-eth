@@ -1,6 +1,6 @@
 #ifndef _RARM_H_
 
-#define N_JOINTS 1
+#define N_JOINTS 6
 
 #define J1_INDEX 0
 #define J2_INDEX 1

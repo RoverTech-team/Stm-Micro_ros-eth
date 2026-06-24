@@ -49,9 +49,10 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     ps01SetDeceleration_chain(config->deceleration);
     ps01SetFullStepSpeed_chain(config->fullstep_speed);
 
-    ps01SetParam_chain(ST_SLP,     config->st_slp);
-    ps01SetParam_chain(FN_SLP_ACC, config->fn_slp_acc);
-    ps01SetParam_chain(FN_SLP_DEC, config->fn_slp_dec);
+    /* Disabled: BEMF compensation values may be incorrect for these motors */
+    /* ps01SetParam_chain(ST_SLP,     config->st_slp); */
+    /* ps01SetParam_chain(FN_SLP_ACC, config->fn_slp_acc); */
+    /* ps01SetParam_chain(FN_SLP_DEC, config->fn_slp_dec); */
 
     ps01SetOcThreshold_chain(config->oc_threshold);
     ps01SetStallThreshold_chain(config->stall_threshold);
@@ -120,7 +121,8 @@ void RARM_MoveMilliDegrees(uint8_t joint_index, int32_t mdeg)
         dir = COUNTER_CLOCKWISE;
     }
 
-    ps01MoveDegrees_chain(dir, (uint32_t)delta);
+    if ((delta / 1000) > 0)
+        ps01MoveDegrees_chain(dir, (uint16_t)(delta / 1000));
 }
 
 void RARM_Run(uint8_t joint_index, uint8_t dir, uint16_t rpm)

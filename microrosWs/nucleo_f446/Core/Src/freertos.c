@@ -286,8 +286,6 @@ void StartDefaultTask(void *argument)
 
   uint8_t i = 0;
 
-/*
-
   HAL_GPIO_WritePin(BK1_GPIO_Port, BK1_Pin, 1);
   HAL_GPIO_WritePin(BK2_GPIO_Port, BK2_Pin, 1);
 
@@ -481,7 +479,6 @@ void StartDefaultTask(void *argument)
 
   osDelay(100);
 
-  */
   
   /*if (joint[1] == '2')
       joint[1] = '5';
@@ -499,7 +496,7 @@ void StartDefaultTask(void *argument)
 
   // DRILL
 
-  conf.steps_rev = 200;
+  /*conf.steps_rev = 200;
   conf.reduction_ratio = 1;
   conf.min_degs = -140;
   conf.max_degs = 140;
@@ -529,7 +526,7 @@ void StartDefaultTask(void *argument)
   ps01SetParam_chain(FN_SLP_ACC,  0x89); // acceleration slope
   ps01SetParam_chain(FN_SLP_DEC,  0x89); // deceleration slope
 
-  RARM_SetConfig(0, &conf);
+  RARM_SetConfig(0, &conf);*/
 
 
   osDelay(osWaitForever);

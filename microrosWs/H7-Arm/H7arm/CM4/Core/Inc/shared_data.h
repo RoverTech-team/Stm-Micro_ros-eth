@@ -46,6 +46,16 @@ typedef struct
   volatile uint32_t last_fault_ipsr;
   volatile uint32_t last_fault_cfb;
 
+  /* --- Driver fault alarms (byte per joint, OR of ALARM_* flags) --- */
+  volatile uint32_t fault_alarm;
+
+  /* --- Raw status register values from last PollFaults cycle --- */
+  volatile uint16_t dbg_joint_status[SHARED_JOINT_COUNT];
+
+  /* --- Last fault latch (written once, survives until reset) --- */
+  volatile uint32_t last_fault_code;
+  volatile uint32_t last_fault_tick;
+
 } shared_data_t;
 
 __attribute__((section(".shared"))) extern shared_data_t shared_data_inst;

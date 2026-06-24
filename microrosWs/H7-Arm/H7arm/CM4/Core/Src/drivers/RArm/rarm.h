@@ -8,11 +8,11 @@
 #define N_JOINTS 6
 
 #define J1_INDEX 0
-#define J4_INDEX 1
-#define J6_INDEX 2
-#define J5_INDEX 3
-#define J3_INDEX 4
-#define J2_INDEX 5
+#define J2_INDEX 1
+#define J3_INDEX 2
+#define J4_INDEX 3
+#define J5_INDEX 4
+#define J6_INDEX 5
 
 #define CLOCKWISE         1
 #define COUNTER_CLOCKWISE 0

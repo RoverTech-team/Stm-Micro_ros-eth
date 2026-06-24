@@ -5,10 +5,8 @@
 #include <string.h>
 
 #define PS01_DAISY_MAX  10U
-#define PS01_SPI_GUARD_MS 100U
 
 static const PS01_OS_t *ps01_os;
-static volatile uint8_t ps01_spi_busy = 0U;
 
 StepperBank_t *mot_bank;
 uint8_t        MOT_NUMBER;
@@ -24,83 +22,64 @@ void ps01Init(const PS01_OS_t *os)
     ps01_os = os;
 }
 
-static void ps01_acquire_spi(void)
+static void _writebyte_chain(uint8_t byte)
 {
-    uint32_t start = HAL_GetTick();
-    while (ps01_spi_busy) {
-        if ((HAL_GetTick() - start) > PS01_SPI_GUARD_MS) {
-            ps01_spi_busy = 0U;
-            break;
-        }
-    }
-    ps01_spi_busy = 1U;
-    __DSB();
-}
+    uint8_t tx[MOT_NUMBER];
+    uint8_t rx[MOT_NUMBER];
 
-static void ps01_release_spi(void)
-{
-    __DSB();
-    ps01_spi_busy = 0U;
-}
+    memset(tx, 0x00U, sizeof(tx));
+    memset(rx, 0x00U, sizeof(rx));
+    tx[MOT_NUMBER - 1U - mot_bank->active] = byte;
 
-void ps01_write_byte(uint8_t byte)
-{
-    uint8_t tx[PS01_DAISY_MAX];
-    uint8_t n = (MOT_NUMBER < PS01_DAISY_MAX) ? MOT_NUMBER : PS01_DAISY_MAX;
-
-    memset(tx, 0, n);
-    tx[n - 1U - mot_bank->active] = byte;
-
-    ps01_acquire_spi();
+    ps01_os->mutex_acquire(ps01_os->mutex);
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&hspi1, tx, n, HAL_MAX_DELAY);
+    HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
+    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_TXC) == 0);
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 
-    ps01_release_spi();
+    ps01_os->mutex_release(ps01_os->mutex);
 
     if (ps01_os != NULL) {
         ps01_os->delay_ms(1U);
     }
 }
 
-uint8_t ps01_read_byte(void)
+static uint8_t _readbyte_chain(void)
 {
-    uint8_t tx[PS01_DAISY_MAX];
-    uint8_t rx[PS01_DAISY_MAX];
-    uint8_t n  = (MOT_NUMBER < PS01_DAISY_MAX) ? MOT_NUMBER : PS01_DAISY_MAX;
-    uint8_t rc = 0U;
+    uint8_t tx[MOT_NUMBER];
+    uint8_t rx[MOT_NUMBER];
 
-    memset(tx, 0, n);
-    memset(rx, 0, n);
+    memset(tx, 0, sizeof(tx));
+    memset(rx, 0, sizeof(rx));
 
-    ps01_acquire_spi();
+    ps01_os->mutex_acquire(ps01_os->mutex);
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi1, tx, rx, n, HAL_MAX_DELAY);
+    HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
+    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_TXC) == 0);
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
 
-    ps01_release_spi();
+    ps01_os->mutex_release(ps01_os->mutex);
 
     if (ps01_os != NULL) {
         ps01_os->delay_ms(1U);
     }
 
-    rc = rx[n - 1U - mot_bank->active];
-    return rc;
+    return rx[mot_bank->active];
 }
 
-void ps01_xfer_bits(uint32_t value, uint8_t bitlen)
+static void _xferbits_chain(uint32_t value, uint8_t bitlen)
 {
     uint8_t nbytes = bitlen / 8U;
     if ((bitlen % 8U) != 0U) nbytes++;
 
     for (uint8_t i = 0; i < nbytes; i++) {
-        ps01_write_byte((uint8_t)(value >> ((nbytes - i - 1U) * 8U)));
+        _writebyte_chain((uint8_t)(value >> ((nbytes - i - 1U) * 8U)));
     }
 }
 
-uint32_t ps01_rx_bits(uint8_t bitlen)
+static uint32_t _rxbits_chain(uint8_t bitlen)
 {
     uint32_t retval = 0U;
     uint8_t  nbytes = bitlen / 8U;
@@ -108,7 +87,7 @@ uint32_t ps01_rx_bits(uint8_t bitlen)
 
     for (uint8_t i = 0; i < nbytes; i++) {
         retval <<= 8;
-        retval |= ps01_read_byte();
+        retval |= _readbyte_chain();
     }
 
     return retval;
@@ -116,73 +95,73 @@ uint32_t ps01_rx_bits(uint8_t bitlen)
 
 uint16_t ps01GetStatus_chain(void)
 {
-    ps01_write_byte(0xD0);
-    return (uint16_t)ps01_rx_bits(16);
+    _writebyte_chain(0xD0);
+    return (uint16_t)_rxbits_chain(16);
 }
 
 void ps01SetParam_chain(uint8_t param, uint32_t value)
 {
-    ps01_write_byte(param);
+    _writebyte_chain(param);
 
     switch (param) {
-        case ABS_POS:    ps01_xfer_bits(value, 22); break;
-        case EL_POS:     ps01_xfer_bits(value,  9); break;
-        case MARK:       ps01_xfer_bits(value, 22); break;
-        case ACC:        ps01_xfer_bits(value, 12); break;
-        case DEC:        ps01_xfer_bits(value, 12); break;
-        case MAX_SPEED:  ps01_xfer_bits(value, 10); break;
-        case MIN_SPEED:  ps01_xfer_bits(value, 12); break;
-        case OCD_TH:     ps01_xfer_bits(value,  5); break;
-        case FS_SPD:     ps01_xfer_bits(value, 11); break;
-        case STEP_MODE:  ps01_xfer_bits(value,  8); break;
-        case ALARM_EN:   ps01_xfer_bits(value,  8); break;
-        case GATECFG1:   ps01_xfer_bits(value, 11); break;
-        case GATECFG2:   ps01_xfer_bits(value,  8); break;
-        case CONFIG:     ps01_xfer_bits(value, 16); break;
-        case KVAL_HOLD:  ps01_xfer_bits(value,  8); break;
-        case KVAL_RUN:   ps01_xfer_bits(value,  8); break;
-        case KVAL_ACC:   ps01_xfer_bits(value,  8); break;
-        case KVAL_DEC:   ps01_xfer_bits(value,  8); break;
-        case INT_SPEED:  ps01_xfer_bits(value, 14); break;
-        case ST_SLP:     ps01_xfer_bits(value,  8); break;
-        case FN_SLP_ACC: ps01_xfer_bits(value,  8); break;
-        case FN_SLP_DEC: ps01_xfer_bits(value,  8); break;
-        case K_THERM:    ps01_xfer_bits(value,  4); break;
-        case STALL_TH:   ps01_xfer_bits(value,  5); break;
+        case ABS_POS:    _xferbits_chain(value, 22); break;
+        case EL_POS:     _xferbits_chain(value,  9); break;
+        case MARK:       _xferbits_chain(value, 22); break;
+        case ACC:        _xferbits_chain(value, 12); break;
+        case DEC:        _xferbits_chain(value, 12); break;
+        case MAX_SPEED:  _xferbits_chain(value, 10); break;
+        case MIN_SPEED:  _xferbits_chain(value, 12); break;
+        case OCD_TH:     _xferbits_chain(value,  5); break;
+        case FS_SPD:     _xferbits_chain(value, 11); break;
+        case STEP_MODE:  _xferbits_chain(value,  8); break;
+        case ALARM_EN:   _xferbits_chain(value,  8); break;
+        case GATECFG1:   _xferbits_chain(value, 11); break;
+        case GATECFG2:   _xferbits_chain(value,  8); break;
+        case CONFIG:     _xferbits_chain(value, 16); break;
+        case KVAL_HOLD:  _xferbits_chain(value,  8); break;
+        case KVAL_RUN:   _xferbits_chain(value,  8); break;
+        case KVAL_ACC:   _xferbits_chain(value,  8); break;
+        case KVAL_DEC:   _xferbits_chain(value,  8); break;
+        case INT_SPEED:  _xferbits_chain(value, 14); break;
+        case ST_SLP:     _xferbits_chain(value,  8); break;
+        case FN_SLP_ACC: _xferbits_chain(value,  8); break;
+        case FN_SLP_DEC: _xferbits_chain(value,  8); break;
+        case K_THERM:    _xferbits_chain(value,  4); break;
+        case STALL_TH:   _xferbits_chain(value,  5); break;
         default: break;
     }
 }
 
 uint32_t ps01GetParam_chain(uint8_t param)
 {
-    ps01_write_byte(0x20 | param);
+    _writebyte_chain(0x20 | param);
     switch (param) {
-        case ABS_POS:    return ps01_rx_bits(22);
-        case EL_POS:     return ps01_rx_bits( 9);
-        case MARK:       return ps01_rx_bits(22);
-        case SPEED:      return ps01_rx_bits(20);
-        case ACC:        return ps01_rx_bits(12);
-        case DEC:        return ps01_rx_bits(12);
-        case MAX_SPEED:  return ps01_rx_bits(10);
-        case MIN_SPEED:  return ps01_rx_bits(12);
-        case ADC_OUT:    return ps01_rx_bits( 5);
-        case OCD_TH:     return ps01_rx_bits( 5);
-        case FS_SPD:     return ps01_rx_bits(11);
-        case STEP_MODE:  return ps01_rx_bits( 8);
-        case ALARM_EN:   return ps01_rx_bits( 8);
-        case GATECFG1:   return ps01_rx_bits(11);
-        case GATECFG2:   return ps01_rx_bits( 8);
-        case CONFIG:     return ps01_rx_bits(16);
-        case KVAL_HOLD:  return ps01_rx_bits( 8);
-        case KVAL_RUN:   return ps01_rx_bits( 8);
-        case KVAL_ACC:   return ps01_rx_bits( 8);
-        case KVAL_DEC:   return ps01_rx_bits( 8);
-        case INT_SPEED:  return ps01_rx_bits(14);
-        case ST_SLP:     return ps01_rx_bits( 8);
-        case FN_SLP_ACC: return ps01_rx_bits( 8);
-        case FN_SLP_DEC: return ps01_rx_bits( 8);
-        case K_THERM:    return ps01_rx_bits( 4);
-        case STALL_TH:   return ps01_rx_bits( 5);
+        case ABS_POS:    return _rxbits_chain(22);
+        case EL_POS:     return _rxbits_chain( 9);
+        case MARK:       return _rxbits_chain(22);
+        case SPEED:      return _rxbits_chain(20);
+        case ACC:        return _rxbits_chain(12);
+        case DEC:        return _rxbits_chain(12);
+        case MAX_SPEED:  return _rxbits_chain(10);
+        case MIN_SPEED:  return _rxbits_chain(12);
+        case ADC_OUT:    return _rxbits_chain( 5);
+        case OCD_TH:     return _rxbits_chain( 5);
+        case FS_SPD:     return _rxbits_chain(11);
+        case STEP_MODE:  return _rxbits_chain( 8);
+        case ALARM_EN:   return _rxbits_chain( 8);
+        case GATECFG1:   return _rxbits_chain(11);
+        case GATECFG2:   return _rxbits_chain( 8);
+        case CONFIG:     return _rxbits_chain(16);
+        case KVAL_HOLD:  return _rxbits_chain( 8);
+        case KVAL_RUN:   return _rxbits_chain( 8);
+        case KVAL_ACC:   return _rxbits_chain( 8);
+        case KVAL_DEC:   return _rxbits_chain( 8);
+        case INT_SPEED:  return _rxbits_chain(14);
+        case ST_SLP:     return _rxbits_chain( 8);
+        case FN_SLP_ACC: return _rxbits_chain( 8);
+        case FN_SLP_DEC: return _rxbits_chain( 8);
+        case K_THERM:    return _rxbits_chain( 4);
+        case STALL_TH:   return _rxbits_chain( 5);
         default:         return 0U;
     }
 }
@@ -238,9 +217,6 @@ void ps01SetOcThreshold_chain(float trip_amps)
     ps01SetParam_chain(OCD_TH, reg);
 }
 
-/* TODO(blocked on electronics): confirm Rds(ON) — currently uses HOT (125°C) value.
- * The function comment in the original code states this should be a mean value
- * between 25°C and 125°C; awaiting confirmation from the electronics team. */
 void ps01SetStallThreshold_chain(float trip_amps)
 {
     float    v_th  = trip_amps * PS01_RDS_ON_HOT_OHM;
@@ -272,23 +248,23 @@ int32_t ps01GetPosition_chain(void)
 void ps01Run_chain(uint8_t dir, uint16_t steps_s)
 {
     uint32_t spd = calculateSpeed(steps_s);
-    ps01_write_byte(RUN_CMD | (dir & 0x01U));
-    ps01_write_byte((uint8_t)(spd >> 16));
-    ps01_write_byte((uint8_t)(spd >>  8));
-    ps01_write_byte((uint8_t)spd);
+    _writebyte_chain(RUN_CMD | (dir & 0x01U));
+    _writebyte_chain((uint8_t)(spd >> 16));
+    _writebyte_chain((uint8_t)(spd >>  8));
+    _writebyte_chain((uint8_t)spd);
 }
 
 void ps01StepClock_chain(uint8_t dir)
 {
-    ps01_write_byte(STEPCLK_CMD | (dir & 0x01U));
+    _writebyte_chain(STEPCLK_CMD | (dir & 0x01U));
 }
 
 void ps01Move_chain(uint8_t dir, uint32_t n_steps)
 {
-    ps01_write_byte(MOVE_CMD | (dir & 0x01U));
-    ps01_write_byte((uint8_t)(n_steps >> 16));
-    ps01_write_byte((uint8_t)(n_steps >>  8));
-    ps01_write_byte((uint8_t)n_steps);
+    _writebyte_chain(MOVE_CMD | (dir & 0x01U));
+    _writebyte_chain((uint8_t)(n_steps >> 16));
+    _writebyte_chain((uint8_t)(n_steps >>  8));
+    _writebyte_chain((uint8_t)n_steps);
 }
 
 void ps01MoveDegrees_chain(uint8_t dir, uint16_t deg)
@@ -298,10 +274,10 @@ void ps01MoveDegrees_chain(uint8_t dir, uint16_t deg)
 
 void ps01GoTo_chain(int32_t abs_pos)
 {
-    ps01_write_byte(GOTO_CMD);
-    ps01_write_byte((uint8_t)(abs_pos >> 16));
-    ps01_write_byte((uint8_t)(abs_pos >>  8));
-    ps01_write_byte((uint8_t)abs_pos);
+    _writebyte_chain(GOTO_CMD);
+    _writebyte_chain((uint8_t)(abs_pos >> 16));
+    _writebyte_chain((uint8_t)(abs_pos >>  8));
+    _writebyte_chain((uint8_t)abs_pos);
 }
 
 void ps01GoToDegrees_chain(int32_t abs_deg)
@@ -312,10 +288,10 @@ void ps01GoToDegrees_chain(int32_t abs_deg)
 
 void ps01GoTo_DIR_chain(uint8_t dir, int32_t abs_pos)
 {
-    ps01_write_byte(GOTO_DIR_CMD | (dir & 0x01U));
-    ps01_write_byte((uint8_t)(abs_pos >> 16));
-    ps01_write_byte((uint8_t)(abs_pos >>  8));
-    ps01_write_byte((uint8_t)abs_pos);
+    _writebyte_chain(GOTO_DIR_CMD | (dir & 0x01U));
+    _writebyte_chain((uint8_t)(abs_pos >> 16));
+    _writebyte_chain((uint8_t)(abs_pos >>  8));
+    _writebyte_chain((uint8_t)abs_pos);
 }
 
 void ps01GoToDegrees_DIR_chain(uint8_t dir, int32_t abs_deg)
@@ -327,25 +303,25 @@ void ps01GoToDegrees_DIR_chain(uint8_t dir, int32_t abs_deg)
 void ps01GoUntil_chain(uint8_t act, uint8_t dir, uint16_t steps_s)
 {
     uint32_t spd = calculateSpeed(steps_s);
-    ps01_write_byte(GOUNTIL_CMD | ((act & 0x01U) << 3) | (dir & 0x01U));
-    ps01_write_byte((uint8_t)(spd >> 16));
-    ps01_write_byte((uint8_t)(spd >>  8));
-    ps01_write_byte((uint8_t)spd);
+    _writebyte_chain(GOUNTIL_CMD | ((act & 0x01U) << 3) | (dir & 0x01U));
+    _writebyte_chain((uint8_t)(spd >> 16));
+    _writebyte_chain((uint8_t)(spd >>  8));
+    _writebyte_chain((uint8_t)spd);
 }
 
 void ps01ReleaseSW_chain(uint8_t act, uint8_t dir)
 {
-    ps01_write_byte(RELEASESW_CMD | ((act & 0x01U) << 3) | (dir & 0x01U));
+    _writebyte_chain(RELEASESW_CMD | ((act & 0x01U) << 3) | (dir & 0x01U));
 }
 
-void ps01GoHome_chain(void)     { ps01_write_byte(GOHOME_CMD); }
-void ps01GoMark_chain(void)     { ps01_write_byte(GOMARK_CMD); }
-void ps01ResetPos_chain(void)   { ps01_write_byte(RESETPOS_CMD); }
-void ps01ResetDevice_chain(void){ ps01_write_byte(RESETDEV_CMD); }
-void ps01SoftStop_chain(void)   { ps01_write_byte(SOFTSTOP_CMD); }
-void ps01HardStop_chain(void)   { ps01_write_byte(HARDSTOP_CMD); }
-void ps01SoftHiZ_chain(void)    { ps01_write_byte(SOFTHIZ_CMD); }
-void ps01HardHiZ_chain(void)    { ps01_write_byte(HARDHIZ_CMD);  }
+void ps01GoHome_chain(void)     { _writebyte_chain(GOHOME_CMD); }
+void ps01GoMark_chain(void)     { _writebyte_chain(GOMARK_CMD); }
+void ps01ResetPos_chain(void)   { _writebyte_chain(RESETPOS_CMD); }
+void ps01ResetDevice_chain(void){ _writebyte_chain(RESETDEV_CMD); }
+void ps01SoftStop_chain(void)   { _writebyte_chain(SOFTSTOP_CMD); }
+void ps01HardStop_chain(void)   { _writebyte_chain(HARDSTOP_CMD); }
+void ps01SoftHiZ_chain(void)    { _writebyte_chain(SOFTHIZ_CMD); }
+void ps01HardHiZ_chain(void)    { _writebyte_chain(HARDHIZ_CMD);  }
 
 int32_t ps01GetPositionDegrees_chain(void)
 {
