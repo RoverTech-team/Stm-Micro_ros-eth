@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SPI1 Fix — NUCLEO-H755ZI-Q (CM4)</title>
+<style>
+body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 2em auto; line-height: 1.6; }
+h1 { border-bottom: 2px solid #333; }
+h2 { margin-top: 1.5em; }
+code { background: #eee; padding: 0.15em 0.4em; border-radius: 3px; }
+pre { background: #f5f5f5; padding: 1em; border-radius: 5px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+</style>
+</head>
+<body>
+
+<h1>SPI1 Fix — NUCLEO-H755ZI-Q (Cortex-M4)</h1>
+
+<p><strong>File:</strong> <code>CM4/Core/Src/spi.c</code></p>
+
+<h2>1. Root Causes</h2>
+
+<h3>1a. MODF (Mode Fault) — NSS pin low with hardware NSS management</h3>
+<p>
+The SPI NSS pin (PA4) is driven low by GPIO (the application manually controls CS).<br>
+<code>CFG2</code> had <code>SSM = 0</code> (hardware NSS management), so the SPI saw NSS low and raised a <strong>Mode Fault</strong> (<code>SR.MODF = 1</code>).<br>
+When MODF fires, hardware clears <code>SPE</code> and the transfer never starts.
+</p>
+<table>
+<tr><th>Register</th><th>Before fix</th><th>After fix</th></tr>
+<tr><td><code>CFG2</code></td><td><code>0x03000000</code> (CPOL|CPHA only, no MASTER, no SSM)</td><td><code>0x07400000</code> (MASTER|SSM|CPOL|CPHA)</td></tr>
+<tr><td><code>SR</code></td><td><code>0x00000A00</code> (MODF|SUSP)</td><td><code>0x00060012</code> (TXP|TXTF, MODF=0)</td></tr>
+</table>
+
+<h3>1b. CFG2 missing MASTER bit (SPI in slave mode)</h3>
+<p>
+Without <code>MASTER = 1</code> in <code>CFG2</code>, the SPI operates in slave mode and will never generate SCK.
+The HAL's <code>MX_SPI1_Init</code> writes CFG2 with all fields, but the register read back showed <code>0x03000000</code> — only CPOL and CPHA present.
+MASTER and SSM were missing, likely due to bus-matrix write aliasing on the dual-core part.
+</p>
+
+<h3>1c. HAL init writes not taking effect on dual-core</h3>
+<p>
+The HAL's <code>WRITE_REG(SPI1->CFG2, ...)</code> includes <code>SPI_CFG2_MASTER</code> and <code>SPI_NSS_SOFT (SSM)</code>,
+but the writes did not persist in the register when read via the CM7 debug port.
+This is consistent with dual-core address aliasing: writes by CM4 to <code>SPI1_BASE</code> may reach a different physical register
+than reads from the CM7 debug access port.
+</p>
+
+<h2>2. Fix Applied</h2>
+
+<h3>In <code>SPI1_Transfer()</code> — before every transfer:</h3>
+
+<pre>/* Force CFG2: MASTER + SSM (soft NSS, prevents MODF) + CPOL/CPHA */
+SPI1->CFG2 = SPI_CFG2_MASTER | SPI_CFG2_SSM |
+             SPI_CFG2_CPOL  | SPI_CFG2_CPHA;
+SPI1->CR1 |= SPI_CR1_SSI;   /* internal NSS high (needed when SSM=1) */</pre>
+
+<p>This ensures the SPI is always configured correctly at transfer time,
+regardless of what the HAL init actually wrote to the hardware.</p>
+
+<h2>3. Verification</h2>
+<p>After the fix, register reads confirm correct configuration:</p>
+<ul>
+  <li><code>CFG2 = 0x07400000</code> — MASTER | SSM | CPHA | CPOL</li>
+  <li><code>SR.MODF = 0</code> — no mode fault</li>
+  <li><code>CR1</code> shows <code>SPE | SSI</code></li>
+  <li><code>SR.TXP = 1</code> — TX FIFO has space, ready to send</li>
+</ul>
+<p>The application hangs later at RARM joint configuration (<code>last_fault_code = 0x1F</code>),
+but the SPI layer itself is now correctly configured.</p>
+
+</body>
+</html>

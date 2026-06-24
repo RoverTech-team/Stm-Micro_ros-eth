@@ -21,23 +21,13 @@ static volatile uint8_t bm_spinlock = 0;
 static void bm_mutex_acquire(void *arg)
 {
     (void)arg;
-    for (;;) {
-        if (__LDREXB(&bm_spinlock) == 0) {
-            if (__STREXB(1, &bm_spinlock) == 0) {
-                __DMB();
-                return;
-            }
-        }
-        __WFE();
-    }
+    /* Single-core bare-metal: no concurrency, mutex is a no-op */
 }
 
 static void bm_mutex_release(void *arg)
 {
     (void)arg;
-    __DMB();
-    bm_spinlock = 0;
-    __SEV();
+    /* Single-core bare-metal: no concurrency, mutex is a no-op */
 }
 
 static void bm_delay_ms(uint32_t ms)

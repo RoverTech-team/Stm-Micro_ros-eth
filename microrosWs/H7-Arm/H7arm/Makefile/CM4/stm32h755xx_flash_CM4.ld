@@ -210,12 +210,13 @@ SECTIONS
 
   
 
-  /* Remove information from the standard libraries */
+  /* FIX: Do NOT discard libgcc/libc/libm — __aeabi_* division helpers live there
+     and are needed for any multiply/divide/float operation. Dead-code elimination
+     is handled by -Wl,--gc-sections + -ffunction-sections. */
   /DISCARD/ :
   {
-    libc.a:* ( * )
-    libm.a:* ( * )
-    libgcc.a:* ( * )
+    /* Remove only C++ exception frame info (not used) */
+    *(.eh_frame)
   }
 
   /* Cross-core shared memory with CM7 — pinned to SRAM4 (0x38000000) */

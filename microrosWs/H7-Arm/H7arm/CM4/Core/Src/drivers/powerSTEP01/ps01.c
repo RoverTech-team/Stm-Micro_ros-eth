@@ -2,39 +2,13 @@
 #include "cfg_structs.h"
 #include "ps01calc.h"
 #include "stm32h7xx_hal.h"
+#include "spi.h"
+#include "shared_data.h"
 #include <string.h>
 
 #define PS01_DAISY_MAX  10U
 
 static const PS01_OS_t *ps01_os;
-
-/* On STM32H7 the SPI peripheral has a FIFO + EOT/TXC/OVR flags.  Between
- * chip-select edges we must wait for the transfer to be truly complete and
- * the RX FIFO fully drained, then clear any residual overrun/EOT flags.
- * Waiting on TXC alone (the original code) does not guarantee the RX FIFO is
- * empty, and stale/OVR state corrupts the next daisy-chain frame — a likely
- * contributor to the intermittent garbage reads seen before this fix.
- *
- * Note: SPI_FLAG_FRLVL is a 2-bit *field*, not a single bit, so the HAL's
- * __HAL_SPI_GET_FLAG (== field) cannot be used to test "FIFO non-empty".
- * We follow the HAL's own idiom (stm32h7xx_hal_spi.c) and drain while either
- * the RXP (packet-at-threshold) or RXWNE (>= 1 word) single-bit flag is set. */
-static void ps01_spi_wait_complete(void)
-{
-    /* End-of-transfer: TX path empty and busy flag cleared. */
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_EOT) == 0U) { ; }
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_TXC) == 0U) { ; }
-
-    /* Drain any residual RX FIFO data so the next frame samples cleanly. */
-    while ((__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_RXWNE) != 0U) ||
-           (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_RXP)   != 0U)) {
-        (void)hspi1.Instance->RXDR;
-    }
-
-    /* Clear overrun and end-of-transfer flags if they latched. */
-    __HAL_SPI_CLEAR_OVRFLAG(&hspi1);
-    __HAL_SPI_CLEAR_EOTFLAG(&hspi1);
-}
 
 StepperBank_t *mot_bank;
 uint8_t        MOT_NUMBER;
@@ -59,18 +33,31 @@ static void _writebyte_chain(uint8_t byte)
     memset(rx, 0x00U, sizeof(rx));
     tx[MOT_NUMBER - 1U - mot_bank->active] = byte;
 
+    SHARED_DATA->last_fault_cfb++;
     ps01_os->mutex_acquire(ps01_os->mutex);
+    SHARED_DATA->last_fault_cfb++;
 
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
-    ps01_spi_wait_complete();
+    SHARED_DATA->last_fault_cfb++;
+    for (int retry = 0; retry < 3; retry++) {
+        if (SPI1_Transfer(tx, rx, MOT_NUMBER) == 0)
+            break;
+        HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
+        for (volatile uint32_t d = 0; d < 20000; d++) { ; }
+        HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
+    }
+    SHARED_DATA->last_fault_cfb++;
+    SHARED_DATA->last_fault_cfb++;
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
+    SHARED_DATA->last_fault_cfb++;
 
     ps01_os->mutex_release(ps01_os->mutex);
+    SHARED_DATA->last_fault_cfb++;
 
     if (ps01_os != NULL) {
-        ps01_os->delay_ms(1U);
+        for (volatile uint32_t d = 0; d < 8000; d++) { ; }
     }
+    SHARED_DATA->last_fault_cfb++;
 }
 
 static uint8_t _readbyte_chain(void)
@@ -83,22 +70,33 @@ static uint8_t _readbyte_chain(void)
 
     ps01_os->mutex_acquire(ps01_os->mutex);
 
+    SHARED_DATA->last_fault_cfb++;
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi1, tx, rx, MOT_NUMBER, HAL_MAX_DELAY);
-    ps01_spi_wait_complete();
+    SHARED_DATA->last_fault_cfb++;
+    for (int retry = 0; retry < 3; retry++) {
+        if (SPI1_Transfer(tx, rx, MOT_NUMBER) == 0)
+            break;
+        HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
+        for (volatile uint32_t d = 0; d < 20000; d++) { ; }
+        HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
+    }
+    SHARED_DATA->last_fault_cfb++;
+    SHARED_DATA->last_fault_cfb++;
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
+    SHARED_DATA->last_fault_cfb++;
 
     ps01_os->mutex_release(ps01_os->mutex);
+    SHARED_DATA->last_fault_cfb++;
 
     if (ps01_os != NULL) {
-        ps01_os->delay_ms(1U);
+        for (volatile uint32_t d = 0; d < 8000; d++) { ; }
     }
+    SHARED_DATA->last_fault_cfb++;
 
-    /* Daisy-chain ordering: a byte shifted into position (N-1-active)
-     * propagates out of the active chip's SDO after N-1-active slave
-     * clocks.  This MUST mirror the tx index used in _writebyte_chain(). */
     return rx[MOT_NUMBER - 1U - mot_bank->active];
 }
+
+
 
 static void _xferbits_chain(uint32_t value, uint8_t bitlen)
 {

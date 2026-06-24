@@ -207,6 +207,11 @@ int main(void)
 
   SystemClock_Config();
 
+  /* Enable SysTick: HAL_InitTick configures LOAD/CLKSOURCE but the
+   * ENABLE bit may get lost during clock switching.  Force it here
+   * and provide a handler so HAL_GetTick() works for timeouts. */
+  SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+
   memset((void *)SHARED_DATA, 0, sizeof(*SHARED_DATA));
   SHARED_DATA->magic          = SHARED_MAGIC;
   SHARED_DATA->version        = SHARED_VERSION;
@@ -245,35 +250,43 @@ int main(void)
   DelayMs(100);
   LED_RED_OFF();
   LED_GREEN_ON();
+  SHARED_DATA->last_fault_code = 10; /* before RARM_SetBank */
   RARM_SetBank(&bank);
+  SHARED_DATA->last_fault_code = 20; /* before ps01Init */
   ps01Init(ps01_baremetal_get_os());
+  SHARED_DATA->last_fault_code = 30; /* before RARM_SetConfig loop */
 
-  for (uint8_t i = 0; i < N_JOINTS; i++)
+  for (uint8_t i = 0; i < N_JOINTS; i++) {
+    SHARED_DATA->last_fault_code = 31 + i; /* before joint i config */
+    SHARED_DATA->fault_alarm = i; /* track which joint we're configuring */
+    if (i == J3_INDEX || i == J4_INDEX || i == J5_INDEX || i == J6_INDEX) {
+      SHARED_DATA->last_fault_code = 0xAA; /* skip suspect hardware */
+      continue;
+    }
     RARM_SetConfig(i, &joint_configs[i]);
+  }
 
+  SHARED_DATA->last_fault_code = 40; /* after config, before fault clear */
   memset(rr_faults, 0, sizeof(rr_faults));
   SHARED_DATA->fault_alarm = 0U;
   SHARED_DATA->last_fault_code = 0U;
   SHARED_DATA->last_fault_tick = 0U;
   mot_bank->active = J1_INDEX;
 
+  SHARED_DATA->last_fault_code = 50; /* before SPI test */
   /* Debug: single-byte SPI test (like F4 reference) */
   {
-    uint8_t txb = 0xD0, rxb = 0;
+    uint8_t txb[6] = {0}, rxb[6] = {0};
+    mot_bank->active = J1_INDEX;
+    txb[MOT_NUMBER - 1U - mot_bank->active] = 0xD0;
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi1, &txb, &rxb, 1, 100);
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_TXC) == 0);
+    SPI1_Transfer(txb, rxb, MOT_NUMBER);
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
-    SHARED_DATA->last_fault_cfb = rxb;
-    /* Second transaction: send NOP, read response */
-    txb = 0x00; rxb = 0;
-    HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive(&hspi1, &txb, &rxb, 1, 100);
-    while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_TXC) == 0);
-    HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_SET);
-    SHARED_DATA->dbg_joint_status[0] = rxb;
+    SHARED_DATA->last_fault_code = 51; /* after first SPI test */
+    SHARED_DATA->last_fault_cfb = rxb[MOT_NUMBER - 1U - mot_bank->active];
   }
 
+  SHARED_DATA->last_fault_code = 99; /* about to set motor_ready */
   SHARED_DATA->motor_ready     = 1U;
   SHARED_DATA->motor_ready_seq = 1U;
   __DSB();
@@ -286,26 +299,17 @@ int main(void)
 #if WIRE_TEST
       if ((now - test_state_timer) >= 2000) {
         test_state_timer = now;
-        if (rr_faults[current_test_joint] != 0U) {
-          if (current_test_joint == J2_INDEX || current_test_joint == J3_INDEX)
-            RARM_EngageBrake(current_test_joint);
-          current_test_joint = (current_test_joint + 1) % N_JOINTS;
-          test_direction = 0;
-        } else if (test_direction == 0) {
-          if (current_test_joint == J2_INDEX || current_test_joint == J3_INDEX) {
-            RARM_ReleaseBrake(current_test_joint);
-            DelayMs(BRAKE_SETTLE_MS);
-          }
+        if (test_direction == 0) {
+          RARM_ReleaseBrake(current_test_joint);
+          DelayMs(BRAKE_SETTLE_MS);
           RARM_MoveDegrees(current_test_joint, 10);
           test_direction = 1;
         } else if (test_direction == 1) {
           RARM_MoveDegrees(current_test_joint, -10);
           test_direction = 2;
         } else {
-          if (current_test_joint == J2_INDEX || current_test_joint == J3_INDEX) {
-            RARM_EngageBrake(current_test_joint);
-          }
-          current_test_joint = (current_test_joint + 1) % N_JOINTS;
+          RARM_EngageBrake(current_test_joint);
+          current_test_joint = (current_test_joint == J1_INDEX) ? J2_INDEX : J1_INDEX;
           test_direction = 0;
         }
       }
