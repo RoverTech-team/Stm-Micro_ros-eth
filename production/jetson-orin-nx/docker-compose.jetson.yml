@@ -53,7 +53,7 @@ services:
       - FLASK_PORT=5050
       - SECRET_KEY=${SECRET_KEY:-e2e-test-secret-key}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-testpass123}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
       - DATA_FILE=/app/data/system_data.json

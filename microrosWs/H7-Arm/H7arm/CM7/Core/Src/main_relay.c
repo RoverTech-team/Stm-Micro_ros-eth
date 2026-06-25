@@ -79,33 +79,38 @@ static osThreadId_t setupTaskHandle;
 static osThreadId_t heartbeatPublisherTaskHandle;
 static osThreadId_t sensorDataTaskHandle;
 static osThreadId_t sensorDebugTaskHandle;
-static osMutexId_t microros_mutex;
+static osThreadId_t timeSyncTaskHandle;
 
 static rclc_support_t heartbeat_support;
 static rcl_node_t heartbeat_node;
 static rcl_publisher_t heartbeat_publisher;
+static rcl_publisher_t position_publisher;
 static rcl_publisher_t sensor_debug_publisher;
 static rcl_publisher_t heartbeat_telemetry_publisher;
+static rcl_publisher_t position_telemetry_publisher;
 static rcl_publisher_t time_sync_echo_publisher;
 static rcl_subscription_t time_sync_request_subscription;
-
+static rclc_executor_t time_sync_executor;
 static std_msgs__msg__Int32 heartbeat_msg;
+static std_msgs__msg__Int32 position_msg;
 static std_msgs__msg__String sensor_debug_msg;
 static std_msgs__msg__String heartbeat_telemetry_msg;
+static std_msgs__msg__String position_telemetry_msg;
 static std_msgs__msg__String time_sync_request_msg;
 static std_msgs__msg__String time_sync_echo_msg;
 static char sensor_debug_buffer[SENSOR_DEBUG_BUFFER_SIZE];
 static char heartbeat_telemetry_buffer[TELEMETRY_BUFFER_SIZE];
+static char position_telemetry_buffer[TELEMETRY_BUFFER_SIZE];
 static char time_sync_request_buffer[TIME_SYNC_BUFFER_SIZE];
 static char time_sync_echo_buffer[TIME_SYNC_BUFFER_SIZE];
 
 /* Joint states and commands */
 static rcl_publisher_t joint_states_publisher;
 static std_msgs__msg__Float32MultiArray joint_states_msg;
-static std_msgs__msg__MultiArrayDimension joint_states_dim;
 static float joint_states_data[64U];
 static char joint_states_buffer[256U];
 static rcl_subscription_t joint_commands_subscription;
+static rclc_executor_t joint_command_executor;
 static std_msgs__msg__Float32MultiArray joint_commands_msg;
 static char joint_commands_buffer[256U];
 static float joint_commanded_positions[JOINT_COUNT];
@@ -114,14 +119,15 @@ static float joint_commanded_efforts[JOINT_COUNT];
 static uint32_t joint_command_seq;
 static volatile bool joint_command_received;
 static osThreadId_t jointStatesTaskHandle;
+static osThreadId_t jointCommandExecutorTaskHandle;
 
 static bool SetupNetworkingAndMicroRos(void);
 static void StartSensorDebugTask(void *argument);
+static void StartTimeSyncTask(void *argument);
 static void SetRuntimeFault(const char *reason);
 static void ResetSharedSensorSnapshot(void);
 static void TimeSyncRequestCallback(const void *msg_in);
 static void InitHighResolutionClock(void);
-static void WaitUntilNextHeartbeatPeriod(uint64_t *next_release_us);
 static uint64_t GetMonotonicTimeUs(void);
 static size_t AppendLiteral(char *buffer, size_t capacity, size_t offset, const char *text);
 static size_t AppendUnsignedLong(char *buffer, size_t capacity, size_t offset, unsigned long value);
@@ -133,6 +139,8 @@ static void ParseJointCommand(const void *msg_in);
 static void BuildJointStatesJson(void);
 static void JointCommandCallback(const void *msg_in);
 static void StartJointStatesTask(void *argument);
+static void StartJointCommandExecutorTask(void *argument);
+
 static void InitHighResolutionClock(void)
 {
   telemetry_cycles_per_us = SystemCoreClock / 1000000U;
@@ -392,58 +400,6 @@ static void ParseJointCommand(const void *msg_in)
 
   joint_command_seq++;
   joint_command_received = true;
-
-  /* Relay commanded positions to shared SRAM4 for CM4 motor driver */
-  for(i = 0U; i < JOINT_COUNT && i < SHARED_JOINT_COUNT; i++)
-  {
-    sensor_shared_data->joint_cmd_positions[i] = joint_commanded_positions[i];
-  }
-  sensor_shared_data->joint_cmd_seq = joint_command_seq;
-  SCB_CleanDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_cmd_positions[0],
-                           sizeof(sensor_shared_data->joint_cmd_positions) +
-                           sizeof(sensor_shared_data->joint_cmd_seq));
-  __DSB();
-
-#if !defined(DEMO_MODE) || (DEMO_MODE == 0)
-  /* HIL MODE: block/poll until finished or cutoff time is reached */
-  uint32_t start_time = HAL_GetTick();
-  #ifndef CM7_HIL_CUTOFF_MS
-  #define CM7_HIL_CUTOFF_MS 2000
-  #endif
-  uint32_t cutoff_ms = CM7_HIL_CUTOFF_MS;
-
-  while ((HAL_GetTick() - start_time) < cutoff_ms)
-  {
-    /* Refresh cache to read actual positions and ack written by CM4 */
-    SCB_InvalidateDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_act_positions[0],
-                                  sizeof(sensor_shared_data->joint_act_positions) +
-                                  sizeof(sensor_shared_data->joint_cmd_ack));
-    __DSB();
-
-    /* Check if CM4 acknowledged the target sequence */
-    if (sensor_shared_data->joint_cmd_ack == joint_command_seq)
-    {
-      /* Check if all joints reached their targets */
-      bool all_joints_reached = true;
-      for (size_t j = 0U; j < JOINT_COUNT && j < SHARED_JOINT_COUNT; j++)
-      {
-        float cmd = sensor_shared_data->joint_cmd_positions[j];
-        float act = sensor_shared_data->joint_act_positions[j];
-        int16_t diff = (int16_t)(cmd - act);
-        if (diff != 0)
-        {
-          all_joints_reached = false;
-          break;
-        }
-      }
-      if (all_joints_reached)
-      {
-        break;
-      }
-    }
-    osDelay(5);
-  }
-#endif
 }
 
 static void BuildJointStatesJson(void)
@@ -507,14 +463,11 @@ static void BuildJointStatesJson(void)
   length = AppendUnsignedLong(joint_states_buffer, sizeof(joint_states_buffer), length, (unsigned long)joint_command_seq);
   length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "}");
 
-  /* Also fill the Float32MultiArray data with actual positions from CM4 */
-  SCB_InvalidateDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_act_positions[0],
-                                sizeof(sensor_shared_data->joint_act_positions));
+  /* Also fill the Float32MultiArray data */
   joint_states_msg.data.size = JOINT_COUNT * 3u;
   for(i = 0U; i < JOINT_COUNT; i++)
   {
-    joint_states_data[i] = (i < SHARED_JOINT_COUNT) ?
-        sensor_shared_data->joint_act_positions[i] : 0.0f;
+    joint_states_data[i] = joint_commanded_positions[i];
     joint_states_data[JOINT_COUNT + i] = joint_commanded_velocities[i];
     joint_states_data[JOINT_COUNT * 2u + i] = joint_commanded_efforts[i];
   }
@@ -573,12 +526,31 @@ static void StartJointStatesTask(void *argument)
     }
 
     BuildJointStatesJson();
-    osMutexAcquire(microros_mutex, osWaitForever);
     if(rcl_publish(&joint_states_publisher, &joint_states_msg, NULL) != RCL_RET_OK && healthy_publish_seen)
     {
       SetRuntimeFault("joint-states-publish");
     }
-    osMutexRelease(microros_mutex);
+  }
+}
+
+static void StartJointCommandExecutorTask(void *argument)
+{
+  (void)argument;
+
+  for(;;)
+  {
+    if(!publisher_ready)
+    {
+      osDelay(100);
+      continue;
+    }
+
+    if(rclc_executor_spin_some(&joint_command_executor, RCL_MS_TO_NS(20)) != RCL_RET_OK &&
+       healthy_publish_seen)
+    {
+      SetRuntimeFault("joint-command-spin");
+    }
+    osDelay(20);
   }
 }
 
@@ -693,13 +665,11 @@ static void TimeSyncRequestCallback(const void *msg_in)
   length = AppendLiteral(time_sync_echo_buffer, sizeof(time_sync_echo_buffer), length, "}");
   time_sync_echo_msg.data.size = length;
 
-  osMutexAcquire(microros_mutex, osWaitForever);
   if(rcl_publish(&time_sync_echo_publisher, &time_sync_echo_msg, NULL) != RCL_RET_OK &&
      healthy_publish_seen)
   {
     SetRuntimeFault("time-sync-echo-publish");
   }
-  osMutexRelease(microros_mutex);
 }
 
 static void StartSensorDataTask(void *argument)
@@ -778,85 +748,35 @@ static void StartSensorDebugTask(void *argument)
       sensor_debug_msg.data.size = (size_t)written;
     }
 
-    osMutexAcquire(microros_mutex, osWaitForever);
     if(rcl_publish(&sensor_debug_publisher, &sensor_debug_msg, NULL) != RCL_RET_OK &&
        healthy_publish_seen)
     {
       SetRuntimeFault("sensor-debug-publish");
     }
-    osMutexRelease(microros_mutex);
 
     debug_publish_seq++;
     osDelay(SENSOR_DEBUG_PERIOD_MS);
   }
 }
 
-static void ProcessPendingTimeSyncRequests(void)
+static void StartTimeSyncTask(void *argument)
 {
-  if(!publisher_ready)
+  (void)argument;
+
+  for(;;)
   {
-    time_sync_request_msg.data.size = 0U;
-    return;
-  }
-
-  int max_takes = 10;
-  while(max_takes-- > 0)
-  {
-    rmw_message_info_t message_info = rmw_get_zero_initialized_message_info();
-    rcl_ret_t take_ret;
-
-    time_sync_request_msg.data.size = 0U;
-    if(time_sync_request_msg.data.capacity > 0U)
+    if(!publisher_ready)
     {
-      time_sync_request_msg.data.data[0] = '\0';
+      osDelay(100);
+      continue;
     }
 
-    take_ret = rcl_take(
-      &time_sync_request_subscription,
-      &time_sync_request_msg,
-      &message_info,
-      NULL);
-
-    if(take_ret == RCL_RET_OK)
+    if(rclc_executor_spin_some(&time_sync_executor, RCL_MS_TO_NS(20)) != RCL_RET_OK &&
+       healthy_publish_seen)
     {
-      TimeSyncRequestCallback(&time_sync_request_msg);
+      SetRuntimeFault("time-sync-spin");
     }
-    else
-    {
-      break;
-    }
-  }
-}
-
-static void ProcessJointCommands(void)
-{
-  if(!publisher_ready)
-  {
-    return;
-  }
-
-  int max_takes = 10;
-  while(max_takes-- > 0)
-  {
-    rmw_message_info_t message_info = rmw_get_zero_initialized_message_info();
-    rcl_ret_t take_ret;
-
-    joint_commands_msg.data.size = 0U;
-
-    take_ret = rcl_take(
-      &joint_commands_subscription,
-      &joint_commands_msg,
-      &message_info,
-      NULL);
-
-    if(take_ret == RCL_RET_OK)
-    {
-      JointCommandCallback(&joint_commands_msg);
-    }
-    else
-    {
-      break;
-    }
+    osDelay(20);
   }
 }
 
@@ -949,6 +869,8 @@ static void StartStatusLedTask(void *argument)
 static void StartHeartbeatPublisherTask(void *argument)
 {
   int heartbeat_failure_count = 0;
+  int position_failure_count = 0;
+  uint32_t position_publish_sequence = 0U;
   uint64_t next_release_us = 0ULL;
   (void)argument;
 
@@ -956,12 +878,10 @@ static void StartHeartbeatPublisherTask(void *argument)
 
   for(;;)
   {
+    const int32_t measured_distance_cm = sensor_measurement_available
+      ? (int32_t)latest_sensor_distance_cm
+      : (int32_t)DEFAULT_DISTANCE_CM;
     const uint32_t heartbeat_publish_sequence = (uint32_t)heartbeat_msg.data;
-    printf("CM7: before-time-sync seq=%ld\r\n", (long)heartbeat_msg.data);
-    ProcessPendingTimeSyncRequests();
-    printf("CM7: before-joint-cmd seq=%ld\r\n", (long)heartbeat_msg.data);
-    ProcessJointCommands();
-    printf("CM7: before-publish seq=%ld\r\n", (long)heartbeat_msg.data);
     rcl_ret_t ret = rcl_publish(&heartbeat_publisher, &heartbeat_msg, NULL);
 
     if(ret == RCL_RET_OK)
@@ -1011,7 +931,37 @@ static void StartHeartbeatPublisherTask(void *argument)
       }
     }
 
-    osDelay(HEARTBEAT_PERIOD_MS);
+    position_msg.data = measured_distance_cm;
+    ret = rcl_publish(&position_publisher, &position_msg, NULL);
+    if(ret == RCL_RET_OK)
+    {
+      if(!PublishTelemetrySample(
+           &position_telemetry_publisher,
+           &position_telemetry_msg,
+           position_telemetry_buffer,
+           sizeof(position_telemetry_buffer),
+           "measured_position",
+           position_publish_sequence,
+           position_msg.data) &&
+         healthy_publish_seen)
+      {
+        SetRuntimeFault("position-telemetry-publish");
+      }
+      position_publish_sequence++;
+      position_failure_count = 0;
+    }
+    else
+    {
+      position_failure_count++;
+      printf("CM7: position-publish-failed ret=%ld count=%d\r\n", (long)ret, position_failure_count);
+
+      if(healthy_publish_seen)
+      {
+        SetRuntimeFault("position-publish");
+      }
+    }
+
+    WaitUntilNextHeartbeatPeriod(&next_release_us);
   }
 }
 
@@ -1070,12 +1020,16 @@ static bool SetupNetworkingAndMicroRos(void)
   rcl_ret_t support_ret;
   rcl_ret_t node_ret;
   rcl_ret_t pub_ret;
+  rcl_ret_t position_pub_ret;
   rcl_ret_t sensor_debug_pub_ret;
   rcl_ret_t heartbeat_telemetry_pub_ret;
+  rcl_ret_t position_telemetry_pub_ret;
   rcl_ret_t time_sync_echo_pub_ret;
   rcl_ret_t time_sync_request_sub_ret;
+  rcl_ret_t time_sync_executor_ret;
   rcl_ret_t joint_states_pub_ret;
   rcl_ret_t joint_commands_sub_ret;
+  rcl_ret_t joint_command_executor_ret;
   osThreadAttr_t eth_link_attributes = {
     .name = "EthLink",
     .stack_size = 1024,
@@ -1196,6 +1150,19 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  position_publisher = rcl_get_zero_initialized_publisher();
+  position_pub_ret = rclc_publisher_init_default(
+    &position_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+    "measured_position");
+  printf("CM7: position-publisher-init=%ld\r\n", (long)position_pub_ret);
+  if(position_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("position-publisher");
+    return false;
+  }
+
   sensor_debug_publisher = rcl_get_zero_initialized_publisher();
   sensor_debug_pub_ret = rclc_publisher_init_default(
     &sensor_debug_publisher,
@@ -1219,6 +1186,19 @@ static bool SetupNetworkingAndMicroRos(void)
   if(heartbeat_telemetry_pub_ret != RCL_RET_OK)
   {
     SetStartupFatalError("heartbeat-telemetry-publisher");
+    return false;
+  }
+
+  position_telemetry_publisher = rcl_get_zero_initialized_publisher();
+  position_telemetry_pub_ret = rclc_publisher_init_default(
+    &position_telemetry_publisher,
+    &heartbeat_node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "measured_position_telemetry");
+  printf("CM7: position-telemetry-publisher-init=%ld\r\n", (long)position_telemetry_pub_ret);
+  if(position_telemetry_pub_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("position-telemetry-publisher");
     return false;
   }
 
@@ -1248,10 +1228,31 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  time_sync_executor = rclc_executor_get_zero_initialized_executor();
+  time_sync_executor_ret = rclc_executor_init(&time_sync_executor, &heartbeat_support.context, 1, &allocator);
+  printf("CM7: time-sync-executor-init=%ld\r\n", (long)time_sync_executor_ret);
+  if(time_sync_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-executor");
+    return false;
+  }
+
   time_sync_request_msg.data.data = time_sync_request_buffer;
   time_sync_request_msg.data.size = 0U;
   time_sync_request_msg.data.capacity = sizeof(time_sync_request_buffer);
   time_sync_request_buffer[0] = '\0';
+  time_sync_executor_ret = rclc_executor_add_subscription(
+    &time_sync_executor,
+    &time_sync_request_subscription,
+    &time_sync_request_msg,
+    &TimeSyncRequestCallback,
+    ON_NEW_DATA);
+  printf("CM7: time-sync-executor-add-subscription=%ld\r\n", (long)time_sync_executor_ret);
+  if(time_sync_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("time-sync-executor-subscription");
+    return false;
+  }
 
   joint_states_publisher = rcl_get_zero_initialized_publisher();
   joint_states_pub_ret = rclc_publisher_init_default(
@@ -1279,12 +1280,34 @@ static bool SetupNetworkingAndMicroRos(void)
     return false;
   }
 
+  joint_command_executor = rclc_executor_get_zero_initialized_executor();
+  joint_command_executor_ret = rclc_executor_init(&joint_command_executor, &heartbeat_support.context, 1, &allocator);
+  printf("CM7: joint-command-executor-init=%ld\r\n", (long)joint_command_executor_ret);
+  if(joint_command_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("joint-command-executor");
+    return false;
+  }
+
   joint_commands_msg.data.data = (float *)joint_commands_buffer;
   joint_commands_msg.data.size = 0U;
   joint_commands_msg.data.capacity = sizeof(joint_commands_buffer) / sizeof(float);
   memset(joint_commands_buffer, 0, sizeof(joint_commands_buffer));
+  joint_command_executor_ret = rclc_executor_add_subscription(
+    &joint_command_executor,
+    &joint_commands_subscription,
+    &joint_commands_msg,
+    &JointCommandCallback,
+    ON_NEW_DATA);
+  printf("CM7: joint-command-executor-add-subscription=%ld\r\n", (long)joint_command_executor_ret);
+  if(joint_command_executor_ret != RCL_RET_OK)
+  {
+    SetStartupFatalError("joint-command-executor-subscription");
+    return false;
+  }
 
   heartbeat_msg.data = 0;
+  position_msg.data = (int32_t)DEFAULT_DISTANCE_CM;
   sensor_debug_msg.data.data = sensor_debug_buffer;
   sensor_debug_msg.data.size = 0U;
   sensor_debug_msg.data.capacity = sizeof(sensor_debug_buffer);
@@ -1293,6 +1316,10 @@ static bool SetupNetworkingAndMicroRos(void)
   heartbeat_telemetry_msg.data.size = 0U;
   heartbeat_telemetry_msg.data.capacity = sizeof(heartbeat_telemetry_buffer);
   heartbeat_telemetry_buffer[0] = '\0';
+  position_telemetry_msg.data.data = position_telemetry_buffer;
+  position_telemetry_msg.data.size = 0U;
+  position_telemetry_msg.data.capacity = sizeof(position_telemetry_buffer);
+  position_telemetry_buffer[0] = '\0';
   time_sync_echo_msg.data.data = time_sync_echo_buffer;
   time_sync_echo_msg.data.size = 0U;
   time_sync_echo_msg.data.capacity = sizeof(time_sync_echo_buffer);
@@ -1300,18 +1327,6 @@ static bool SetupNetworkingAndMicroRos(void)
   joint_states_msg.data.data = joint_states_data;
   joint_states_msg.data.size = 0U;
   joint_states_msg.data.capacity = sizeof(joint_states_data) / sizeof(float);
-  {
-    static char dim_label[] = "motor_joints";
-    joint_states_dim.label.data = dim_label;
-    joint_states_dim.label.size = sizeof(dim_label) - 1U;
-    joint_states_dim.label.capacity = sizeof(dim_label);
-    joint_states_dim.size = JOINT_COUNT * 3U;
-    joint_states_dim.stride = JOINT_COUNT * 3U;
-    joint_states_msg.layout.dim.data = &joint_states_dim;
-    joint_states_msg.layout.dim.size = 1U;
-    joint_states_msg.layout.dim.capacity = 1U;
-    joint_states_msg.layout.data_offset = 0U;
-  }
   memset(joint_states_buffer, 0, sizeof(joint_states_buffer));
   memset(joint_commanded_positions, 0, sizeof(joint_commanded_positions));
   memset(joint_commanded_velocities, 0, sizeof(joint_commanded_velocities));
@@ -1374,18 +1389,6 @@ void SystemClock_Config(void)
 
 void MX_FREERTOS_Init(void)
 {
-  const osMutexAttr_t microros_mutex_attributes = {
-    .name = "MicroRosMutex",
-    .attr_bits = osMutexRecursive,
-  };
-  microros_mutex = osMutexNew(&microros_mutex_attributes);
-  if(microros_mutex == NULL)
-  {
-    SetGreenLed(false);
-    SetRedLed(true);
-    while(1) {}
-  }
-
   const osThreadAttr_t status_led_task_attributes = {
     .name = "StatusLed",
     .stack_size = 1024,
@@ -1440,18 +1443,46 @@ void MX_FREERTOS_Init(void)
   }
 
    {
+     const osThreadAttr_t time_sync_task_attributes = {
+       .name = "TimeSync",
+       .stack_size = 4096,
+       .priority = osPriorityNormal,
+     };
+
+     timeSyncTaskHandle = osThreadNew(StartTimeSyncTask, NULL, &time_sync_task_attributes);
+     if(timeSyncTaskHandle == NULL)
+     {
+       SetStartupFatalError("time-sync-task");
+     }
+   }
+
+   {
      const osThreadAttr_t joint_states_task_attributes = {
        .name = "JointStates",
        .stack_size = 4096,
        .priority = osPriorityNormal,
      };
 
-      jointStatesTaskHandle = osThreadNew(StartJointStatesTask, NULL, &joint_states_task_attributes);
-      if(jointStatesTaskHandle == NULL)
-      {
-        SetStartupFatalError("joint-states-task");
-      }
-    }
+     jointStatesTaskHandle = osThreadNew(StartJointStatesTask, NULL, &joint_states_task_attributes);
+     if(jointStatesTaskHandle == NULL)
+     {
+       SetStartupFatalError("joint-states-task");
+     }
+   }
+
+   {
+     const osThreadAttr_t joint_command_executor_task_attributes = {
+       .name = "JointCmdExec",
+       .stack_size = 4096,
+       .priority = osPriorityNormal,
+     };
+
+     jointCommandExecutorTaskHandle = osThreadNew(StartJointCommandExecutorTask, NULL, &joint_command_executor_task_attributes);
+     if(jointCommandExecutorTaskHandle == NULL)
+     {
+       SetStartupFatalError("joint-command-executor-task");
+     }
+   }
 }
 
 int main(void)

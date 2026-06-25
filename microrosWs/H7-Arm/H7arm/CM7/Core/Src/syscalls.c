@@ -31,7 +31,7 @@
 #include <sys/times.h>
 
 #ifndef CM7_SERIAL_SILENT
-#define CM7_SERIAL_SILENT 1
+#define CM7_SERIAL_SILENT 0
 #endif
 
 /* Variables */
