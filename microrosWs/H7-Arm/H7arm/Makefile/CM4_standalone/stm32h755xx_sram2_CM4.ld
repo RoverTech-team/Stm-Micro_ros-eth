@@ -1,0 +1,1 @@
+../CM4/stm32h755xx_sram2_CM4.ld

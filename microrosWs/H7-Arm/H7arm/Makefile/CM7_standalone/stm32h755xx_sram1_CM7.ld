@@ -1,0 +1,1 @@
+../CM7/stm32h755xx_sram1_CM7.ld

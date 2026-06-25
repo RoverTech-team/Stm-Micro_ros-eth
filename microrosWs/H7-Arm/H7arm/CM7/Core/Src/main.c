@@ -6,6 +6,7 @@
 #include "cmsis_os.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#ifndef STANDALONE
 #include "lwip/sys.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
@@ -19,11 +20,14 @@
 #include "lwip/api.h"
 #include "lwip/sockets.h"
 #include "ethernetif.h"
+#endif
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef STANDALONE
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
@@ -35,12 +39,15 @@
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/string.h>
 #include <std_msgs/msg/float32_multi_array.h>
-
 #include "microros_transports.h"
 #include "microros_sim_network.h"
-#include "shared_data.h"
-
 extern struct netif gnetif;
+#endif
+
+#include "shared_data.h"
+#ifdef STANDALONE
+#include "standalone_path.h"
+#endif
 
 #define DEFAULT_DISTANCE_CM 100u
 #define HEARTBEAT_PERIOD_MS 500U
@@ -64,9 +71,12 @@ typedef enum
   STATUS_RUNTIME_FAULT_BLINK_RED,
 } firmware_status_t;
 
-static uint32_t microros_rand_state = 1u;
-
 static volatile firmware_status_t firmware_status = STATUS_STARTUP_BLINK_GREEN;
+
+static osThreadId_t statusLedTaskHandle;
+
+#ifndef STANDALONE
+static uint32_t microros_rand_state = 1u;
 static volatile bool healthy_publish_seen = false;
 static volatile bool publisher_ready = false;
 static volatile uint32_t latest_sensor_distance_cm = DEFAULT_DISTANCE_CM;
@@ -74,7 +84,6 @@ static volatile bool sensor_measurement_available = false;
 static volatile uint32_t last_seen_cm4_write_seq = 0U;
 static volatile uint32_t debug_publish_seq = 0U;
 
-static osThreadId_t statusLedTaskHandle;
 static osThreadId_t setupTaskHandle;
 static osThreadId_t heartbeatPublisherTaskHandle;
 static osThreadId_t sensorDataTaskHandle;
@@ -120,7 +129,9 @@ static uint32_t joint_command_seq;
 static volatile bool joint_command_received;
 static osThreadId_t jointStatesTaskHandle;
 static osThreadId_t jointCommandExecutorTaskHandle;
+#endif
 
+#ifndef STANDALONE
 static bool SetupNetworkingAndMicroRos(void);
 static void StartSensorDebugTask(void *argument);
 static void StartTimeSyncTask(void *argument);
@@ -140,7 +151,9 @@ static void BuildJointStatesJson(void);
 static void JointCommandCallback(const void *msg_in);
 static void StartJointStatesTask(void *argument);
 static void StartJointCommandExecutorTask(void *argument);
+#endif
 
+#ifndef STANDALONE
 static void InitHighResolutionClock(void)
 {
   telemetry_cycles_per_us = SystemCoreClock / 1000000U;
@@ -407,8 +420,6 @@ static void ParseJointCommand(const void *msg_in)
   joint_command_seq++;
   joint_command_received = true;
 
-  /* Relay commanded positions to shared SRAM4 for CM4 motor driver.
-   * Convert deg -> milli-degrees for sub-degree precision. */
   for(i = 0U; i < JOINT_COUNT && i < SHARED_JOINT_COUNT; i++)
   {
     sensor_shared_data->joint_cmd_positions[i] =
@@ -482,14 +493,11 @@ static void BuildJointStatesJson(void)
   length = AppendUnsignedLong(joint_states_buffer, sizeof(joint_states_buffer), length, (unsigned long)joint_command_seq);
   length = AppendLiteral(joint_states_buffer, sizeof(joint_states_buffer), length, "}");
 
-  /* Also fill the Float32MultiArray data with actual positions from CM4.
-   * Convert milli-degrees -> deg for the ROS message. */
   SCB_InvalidateDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_act_positions[0],
                                 sizeof(sensor_shared_data->joint_act_positions));
   joint_states_msg.data.size = JOINT_COUNT * 3u;
   for(i = 0U; i < JOINT_COUNT; i++)
   {
-    /* Use actual positions from CM4 if motor driver is ready, else echo commanded */
     if(sensor_shared_data->motor_ready && (i < SHARED_JOINT_COUNT))
     {
       joint_states_data[i] = (float)sensor_shared_data->joint_act_positions[i] / 1000.0f;
@@ -667,8 +675,7 @@ static void TimeSyncRequestCallback(const void *msg_in)
 {
   const std_msgs__msg__String *incoming = (const std_msgs__msg__String *)msg_in;
   unsigned long seq = 0UL;
-  uint64_t host_send_us = 0ULL;
-  const uint64_t cm7_recv_us = GetMonotonicTimeUs();
+  uint64_t host_send_us = 0ULL;  const uint64_t cm7_recv_us = GetMonotonicTimeUs();
   const uint64_t cm7_send_us = GetMonotonicTimeUs();
   size_t length = 0U;
 
@@ -810,6 +817,8 @@ static void StartTimeSyncTask(void *argument)
   }
 }
 
+#endif /* #ifndef STANDALONE */
+
 static void SetGreenLed(bool enabled)
 {
   if(enabled)
@@ -845,6 +854,7 @@ static void SetStartupFatalError(const char *reason)
   SetFirmwareStatus(STATUS_STARTUP_FATAL_SOLID_RED);
 }
 
+#ifndef STANDALONE
 static void SetRuntimeFault(const char *reason)
 {
   if(healthy_publish_seen)
@@ -853,6 +863,7 @@ static void SetRuntimeFault(const char *reason)
     SetFirmwareStatus(STATUS_RUNTIME_FAULT_BLINK_RED);
   }
 }
+#endif
 
 static void StartStatusLedTask(void *argument)
 {
@@ -896,6 +907,7 @@ static void StartStatusLedTask(void *argument)
   }
 }
 
+#ifndef STANDALONE
 static void StartHeartbeatPublisherTask(void *argument)
 {
   int heartbeat_failure_count = 0;
@@ -1378,6 +1390,7 @@ int rand(void)
   microros_rand_state = (microros_rand_state * 1103515245u) + 12345u;
   return (int)((microros_rand_state >> 16) & 0x7FFFu);
 }
+#endif /* #ifndef STANDALONE */
 
 void SystemClock_Config(void)
 {
@@ -1414,7 +1427,9 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
+#ifndef STANDALONE
   InitHighResolutionClock();
+#endif
 }
 
 void MX_FREERTOS_Init(void)
@@ -1424,11 +1439,6 @@ void MX_FREERTOS_Init(void)
     .stack_size = 1024,
     .priority = osPriorityLow,
   };
-  const osThreadAttr_t setup_task_attributes = {
-    .name = "SetupTask",
-    .stack_size = 6144,
-    .priority = osPriorityAboveNormal,
-  };
 
   statusLedTaskHandle = osThreadNew(StartStatusLedTask, NULL, &status_led_task_attributes);
   if(statusLedTaskHandle == NULL)
@@ -1437,6 +1447,22 @@ void MX_FREERTOS_Init(void)
     SetRedLed(true);
     while(1) {}
   }
+
+#ifdef STANDALONE
+  {
+    const osThreadAttr_t standalone_path_attributes = {
+      .name = "StandalonePath",
+      .stack_size = 1024,
+      .priority = osPriorityNormal,
+    };
+    osThreadNew(StartStandalonePathTask, NULL, &standalone_path_attributes);
+  }
+#else
+  const osThreadAttr_t setup_task_attributes = {
+    .name = "SetupTask",
+    .stack_size = 6144,
+    .priority = osPriorityAboveNormal,
+  };
 
   setupTaskHandle = osThreadNew(StartSetupTask, NULL, &setup_task_attributes);
   if(setupTaskHandle == NULL)
@@ -1513,6 +1539,7 @@ void MX_FREERTOS_Init(void)
        SetStartupFatalError("joint-command-executor-task");
      }
    }
+#endif /* #ifndef STANDALONE */
 }
 
 int main(void)
@@ -1531,7 +1558,9 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   SCB->VTOR = 0x08000000;
+#ifndef STANDALONE
   ResetLocalSensorSnapshot();
+#endif
   Debug_USART3_Init();
   Debug_USART3_Print("CM7: boot\r\n");
   printf("CM7: hal-clock-init-ok\r\n");
@@ -1569,6 +1598,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void Error_Handler(void)
 {
+#ifndef STANDALONE
   if(healthy_publish_seen)
   {
     SetGreenLed(false);
@@ -1580,6 +1610,7 @@ void Error_Handler(void)
       for(volatile int i = 0; i < 1500000; i++) {}
     }
   }
+#endif
 
   SetGreenLed(false);
   SetRedLed(true);
@@ -1595,9 +1626,11 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif
 
+#ifndef STANDALONE
 static void ResetLocalSensorSnapshot(void)
 {
   latest_sensor_distance_cm = DEFAULT_DISTANCE_CM;
   sensor_measurement_available = false;
   last_seen_cm4_write_seq = 0U;
 }
+#endif

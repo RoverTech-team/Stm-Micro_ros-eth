@@ -1,0 +1,1 @@
+../CM4/stm32h755xx_flash_CM4.ld

@@ -1,19 +1,27 @@
-# Motor Index Mapping (Daisy Chain)
+# Motor Index Mapping (Daisy Chain) — CONFIRMED
 
 Formula: `tx[MOT_NUMBER - 1 - active]` where `MOT_NUMBER = 6`.
 
-| Software idx | tx byte | Physical | Notes |
-|---|---|---|---|
-| 0 | tx[5] | J1 | Driver present, motor absent |
-| 1 | tx[4] | J4 or J5 | |
-| 2 | tx[3] | J6 | |
-| 3 | tx[2] | J4 or J5 | (the other) |
-| 4 | tx[1] | J3 | Target for J3 movement |
-| 5 | tx[0] | J2 | Target for J2 movement |
+| Sw idx | tx byte | Physical | Config | Notes |
+|--------|---------|----------|--------|-------|
+| 0      | tx[5]   | J1       | 3:1    | Driver present, motor absent |
+| 1      | tx[4]   | J5       | 5:1    | |
+| 2      | tx[3]   | J6       | 50:1   | |
+| 3      | tx[2]   | J4       | 5:1    | |
+| 4      | tx[1]   | J3       | 50:1   | Electromagnetic brake on PA8 |
+| 5      | tx[0]   | J2       | 50:1   | Electromagnetic brake on PE11 |
 
-Chain from MCU outward: `J1(no motor) → J4/J5 → J6 → J4/J5 → J3 → J2`
+Chain from MCU outward: `J2 → J3 → J4 → J6 → J5 → J1(no motor)`
 
-## How to test
+## Code constants
 
-Sweep: `RARM_MoveDegrees(i, 10)` for i = 0..5, 2s apart.
-Observe which physical motor moves for each index.
+In `main_cmdfollow.c` (and standalone variants):
+
+```c
+#define PHYS_J1 0
+#define PHYS_J5 1
+#define PHYS_J6 2
+#define PHYS_J4 3
+#define PHYS_J3 4
+#define PHYS_J2 5
+```

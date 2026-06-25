@@ -188,6 +188,7 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE END EXTI15_10_IRQn 1 */
 }
 
+#ifndef STANDALONE
 /**
   * @brief This function handles Ethernet global interrupt.
   */
@@ -201,6 +202,7 @@ void ETH_IRQHandler(void)
 
   /* USER CODE END ETH_IRQn 1 */
 }
+#endif
 
 /* USER CODE BEGIN 1 */
 

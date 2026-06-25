@@ -161,7 +161,8 @@ C_SOURCES =  \
 ../../Middlewares/Third_Party/LwIP/system/OS/sys_arch.c \
 ../../Middlewares/Third_Party/LwIP/src/apps/mqtt/mqtt.c \
 ../../CM7/Core/Src/sysmem.c \
-../../CM7/Core/Src/syscalls.c
+../../CM7/Core/Src/syscalls.c \
+../../CM7/Core/Src/standalone_path.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -223,6 +224,9 @@ C_DEFS =  \
 -DLWIP_SKIP_CONST_CHECK=1 \
 -DLWIP_SKIP_PACKING_CHECK=1 \
 
+ifeq ($(STANDALONE),1)
+C_DEFS += -DSTANDALONE
+endif
 
 # AS includes
 AS_INCLUDES =  \
@@ -300,8 +304,9 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 
 
 #######################################
-# micro-ROS addons
+# micro-ROS addons (excluded in standalone mode)
 #######################################
+ifneq ($(STANDALONE),1)
 LDFLAGS += ../../micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/libmicroros.a
 C_INCLUDES += -I../../micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/microros_include
 C_INCLUDES += -I../../micro_ros_stm32cubemx_utils/extra_sources/microros_transports
@@ -311,6 +316,7 @@ C_SOURCES += ../../micro_ros_stm32cubemx_utils/extra_sources/microros_transports
 C_SOURCES += ../../micro_ros_stm32cubemx_utils/extra_sources/custom_memory_manager.c
 C_SOURCES += ../../micro_ros_stm32cubemx_utils/extra_sources/microros_allocators.c
 C_SOURCES += ../../micro_ros_stm32cubemx_utils/extra_sources/microros_time.c
+endif
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
