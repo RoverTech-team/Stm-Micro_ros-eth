@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 
@@ -18,9 +18,16 @@ class Node:
     health_score: int = 100
     uptime: str = "0h 0m"
     network: str = "CAN + Ethernet"
+    latency_client_to_agent_ms: Optional[float] = None
+    latency_agent_to_ros_ms: Optional[float] = None
+    latency_end_to_end_ms: Optional[float] = None
+    latency_bandwidth_bps: float = 0.0
+    latency_sync_ready: bool = False
+    cpu_percent: float = 0.0
+    memory_bytes: int = 0
     
-    # Valid values
-    VALID_STATUSES = ['active', 'standby', 'offline']
+    # Valid values (includes transitional states reported by ROS)
+    VALID_STATUSES = ['active', 'standby', 'offline', 'unknown', 'online', 'error', 'failed']
     
     def __post_init__(self):
         """Validate node data after initialization"""

@@ -83,6 +83,7 @@ docker_stats_collector = None
 ROS_WATCH_LIMIT = 10
 ROS_SAMPLE_HISTORY_LIMIT = 20
 ros_state_lock = threading.RLock()
+system_data_lock = threading.RLock()
 
 @auth.verify_password
 def verify_password(username: str, password: str) -> Optional[str]:
@@ -139,12 +140,18 @@ def refresh_system_status(data: Dict[str, Any]) -> None:
 
 
 def load_system_data() -> Dict[str, Any]:
-    """Load system data, but never restore cached nodes or demo state."""
+    """Load persisted system data, falling back to empty state."""
     try:
         data_file = Path(app.config['DATA_FILE'])
         if data_file.exists():
-            logger.info(f"Ignoring persisted node snapshot from {data_file}; waiting for live ROS discovery")
-            return get_empty_data()
+            with open(data_file, 'r') as f:
+                raw = json.load(f)
+            raw['nodes'] = [Node.from_dict(n) for n in raw.get('nodes', [])]
+            raw.setdefault('failures', [])
+            raw.setdefault('tasks', {})
+            raw.setdefault('metrics', new_metrics_state())
+            logger.info(f"Loaded persisted state from {data_file} ({len(raw['nodes'])} nodes, {len(raw['failures'])} failures)")
+            return raw
 
         logger.warning(f"Data file not found: {data_file}. Initializing empty state.")
         return get_default_data()
@@ -269,7 +276,9 @@ def apply_runtime_metrics_to_nodes() -> None:
         per_node = node_metrics.get(str(node.id), {})
         node_aggregate = per_node.get("aggregate", aggregate)
         node.cpu = f"{float(aggregate.get('cpu_percent', 0.0)):.1f}% stack"
+        node.cpu_percent = float(aggregate.get('cpu_percent', 0.0))
         node.ram = f"{int(aggregate.get('memory_usage_bytes', 0)) / (1024 * 1024):.1f} MiB stack"
+        node.memory_bytes = int(aggregate.get('memory_usage_bytes', 0))
         sync_ready = node_aggregate.get("sync_ready", False)
         node.network = (
             f"C->A {format_metric(node_aggregate.get('client_to_agent_ms'), sync_ready, sync_scoped=True)} | "
@@ -277,6 +286,11 @@ def apply_runtime_metrics_to_nodes() -> None:
             f"E2E {format_metric(node_aggregate.get('end_to_end_ms'), sync_ready, sync_scoped=True)} | "
             f"BW {float(node_aggregate.get('bandwidth_bps', 0.0)) / 1024.0:.1f} KiB/s"
         )
+        node.latency_client_to_agent_ms = node_aggregate.get('client_to_agent_ms')
+        node.latency_agent_to_ros_ms = node_aggregate.get('agent_to_ros_ms')
+        node.latency_end_to_end_ms = node_aggregate.get('end_to_end_ms')
+        node.latency_bandwidth_bps = float(node_aggregate.get('bandwidth_bps', 0.0))
+        node.latency_sync_ready = sync_ready
 
 
 def get_ros_graph_payload() -> Dict[str, Any]:
@@ -326,25 +340,26 @@ def _upsert_watched_topic(topic_name: str, topic_type: Optional[str] = None) -> 
 
 def append_failure(node_id: Optional[int], description: str, status: str = "warning") -> None:
     """Append a failure entry, avoiding exact duplicate consecutive records."""
-    failures = system_data.setdefault("failures", [])
-    if failures:
-        last_failure = failures[-1]
-        if (
-            last_failure.get("node_id") == node_id
-            and last_failure.get("description") == description
-            and last_failure.get("status") == status
-        ):
-            return
+    with system_data_lock:
+        failures = system_data.setdefault("failures", [])
+        if failures:
+            last_failure = failures[-1]
+            if (
+                last_failure.get("node_id") == node_id
+                and last_failure.get("description") == description
+                and last_failure.get("status") == status
+            ):
+                return
 
-    failures.append(
-        {
-            "id": len(failures) + 1,
-            "timestamp": datetime.now().isoformat(),
-            "node_id": node_id,
-            "description": description,
-            "status": status,
-        }
-    )
+        failures.append(
+            {
+                "id": len(failures) + 1,
+                "timestamp": datetime.now().isoformat(),
+                "node_id": node_id,
+                "description": description,
+                "status": status,
+            }
+        )
 
 # ----------------------------------------------------------------------------
 # ROS 2 Integration Logic
@@ -355,59 +370,57 @@ def ros_update_callback(action, data):
     with app.app_context():
         try:
             if action == 'update_node':
-                node_id = data.get('id')
-                # Check if node exists, if not create it (auto-discovery)
-                node = get_node_by_id(node_id)
-                new_status = data.get('status')
-                
-                if node:
-                    previous_status = getattr(node, "status", "unknown")
-                    # Update existing node
-                    if new_status is not None:
-                        node.status = new_status
-                    if 'health' in data:
-                        node.health_score = data['health']
-                    if 'uptime' in data:
-                        node.uptime = data['uptime']
+                with system_data_lock:
+                    node_id = data.get('id')
+                    node = get_node_by_id(node_id)
+                    new_status = data.get('status')
 
-                    if new_status == "offline" and previous_status != "offline":
-                        append_failure(node_id, "Node transitioned offline", "warning")
-                        logger.warning("ROS transition: Node %s offline", node_id)
-                    elif previous_status == "offline" and new_status not in (None, "offline"):
-                        logger.info("ROS transition: Node %s recovered to %s", node_id, new_status)
-                    logger.info(f"ROS update: Node {node_id} updated")
-                else:
-                    # Auto-discover new node
-                    logger.info(f"ROS discovery: New Node {node_id} detected")
-                    new_node = Node(
-                        id=node_id,
-                        name=f"Node {node_id}",
-                        status=new_status or 'unknown',
-                        type="STM32H743VIT6", # Default, can be updated if msg includes it
-                        ram="Unknown",
-                        flash="Unknown",
-                        cpu="Unknown",
-                        active_tasks=[],
-                        health_score=data.get('health', 100),
-                        uptime=data.get('uptime', '0s'),
-                        network="ROS 2"
-                    )
-                    system_data['nodes'].append(new_node)
+                    if node:
+                        previous_status = getattr(node, "status", "unknown")
+                        if new_status is not None:
+                            node.status = new_status
+                        if 'health' in data:
+                            node.health_score = data['health']
+                        if 'uptime' in data:
+                            node.uptime = data['uptime']
 
-                refresh_system_status(system_data)
-                save_system_data(system_data)
+                        if new_status == "offline" and previous_status != "offline":
+                            append_failure(node_id, "Node transitioned offline", "warning")
+                            logger.warning("ROS transition: Node %s offline", node_id)
+                        elif previous_status == "offline" and new_status not in (None, "offline"):
+                            logger.info("ROS transition: Node %s recovered to %s", node_id, new_status)
+                        logger.info(f"ROS update: Node {node_id} updated")
+                    else:
+                        logger.info(f"ROS discovery: New Node {node_id} detected")
+                        new_node = Node(
+                            id=node_id,
+                            name=f"Node {node_id}",
+                            status=new_status or 'unknown',
+                            type="STM32H743VIT6",
+                            ram="Unknown",
+                            flash="Unknown",
+                            cpu="Unknown",
+                            active_tasks=[],
+                            health_score=data.get('health', 100),
+                            uptime=data.get('uptime', '0s'),
+                            network="ROS 2"
+                        )
+                        system_data['nodes'].append(new_node)
+
+                    refresh_system_status(system_data)
+                    save_system_data(system_data)
 
             elif action == 'add_failure':
-                node_id = data.get('node_id')
-                # Log failure even if node is unknown yet
-                append_failure(
-                    node_id,
-                    data.get('msg', 'Unknown Error'),
-                    data.get('level', 'warning')
-                )
-                refresh_system_status(system_data)
-                save_system_data(system_data)
-                logger.warning(f"ROS alert: {data}")
+                with system_data_lock:
+                    node_id = data.get('node_id')
+                    append_failure(
+                        node_id,
+                        data.get('msg', 'Unknown Error'),
+                        data.get('level', 'warning')
+                    )
+                    refresh_system_status(system_data)
+                    save_system_data(system_data)
+                    logger.warning(f"ROS alert: {data}")
 
             elif action == 'raw_heartbeat':
                 node_id = data.get('id')
@@ -420,12 +433,14 @@ def ros_update_callback(action, data):
                     )
 
             elif action == 'performance_metrics':
-                merge_performance_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
-                apply_runtime_metrics_to_nodes()
+                with system_data_lock:
+                    merge_performance_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
+                    apply_runtime_metrics_to_nodes()
 
             elif action == 'container_metrics':
-                merge_container_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
-                apply_runtime_metrics_to_nodes()
+                with system_data_lock:
+                    merge_container_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
+                    apply_runtime_metrics_to_nodes()
 
             elif action == 'graph_snapshot':
                 with ros_state_lock:
