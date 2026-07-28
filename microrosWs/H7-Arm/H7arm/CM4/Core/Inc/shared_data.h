@@ -56,6 +56,17 @@ typedef struct
   volatile uint32_t last_fault_code;
   volatile uint32_t last_fault_tick;
 
+  /* --- IMU sensor fields (LSM6DSV16X) --- */
+  volatile int32_t imu_accel_x_mg;
+  volatile int32_t imu_accel_y_mg;
+  volatile int32_t imu_accel_z_mg;
+  volatile int32_t imu_gyro_x_mdps;
+  volatile int32_t imu_gyro_y_mdps;
+  volatile int32_t imu_gyro_z_mdps;
+  volatile int32_t imu_temp_mdegc;
+  volatile uint32_t imu_data_ready;
+  volatile uint32_t imu_seq;
+
 } shared_data_t;
 
 __attribute__((section(".shared"))) extern shared_data_t shared_data_inst;

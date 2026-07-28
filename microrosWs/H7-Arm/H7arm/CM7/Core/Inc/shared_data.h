@@ -43,8 +43,26 @@ typedef struct
   volatile uint32_t last_fault_bfar;
   volatile uint32_t last_fault_lr;
   volatile uint32_t last_fault_pc;
-  volatile uint32_t last_fault_ipsr;
-  volatile uint32_t last_fault_cfb;
+  /* --- Driver fault alarms (byte per joint, OR of ALARM_* flags) --- */
+  volatile uint32_t fault_alarm;
+
+  /* --- Raw status register values from last PollFaults cycle --- */
+  volatile uint16_t dbg_joint_status[SHARED_JOINT_COUNT];
+
+  /* --- Last fault latch (written once, survives until reset) --- */
+  volatile uint32_t last_fault_code;
+  volatile uint32_t last_fault_tick;
+
+  /* --- IMU sensor fields (LSM6DSV16X) --- */
+  volatile int32_t imu_accel_x_mg;
+  volatile int32_t imu_accel_y_mg;
+  volatile int32_t imu_accel_z_mg;
+  volatile int32_t imu_gyro_x_mdps;
+  volatile int32_t imu_gyro_y_mdps;
+  volatile int32_t imu_gyro_z_mdps;
+  volatile int32_t imu_temp_mdegc;
+  volatile uint32_t imu_data_ready;
+  volatile uint32_t imu_seq;
 
 } shared_data_t;
 

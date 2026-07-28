@@ -146,6 +146,12 @@ LIBS = -lc -lm -lnosys
 LIBDIR =
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
+# IMU sensor driver sources
+C_INCLUDES += -I../../drivers/imu
+C_SOURCES += ../../drivers/imu/lsm6dsv16x.c
+C_SOURCES += ../../drivers/imu/lsm6dsv16x_stm32_hal.c
+C_SOURCES += ../../drivers/imu/imu_manager.c
+
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
