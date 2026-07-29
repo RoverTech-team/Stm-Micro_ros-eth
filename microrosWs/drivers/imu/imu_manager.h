@@ -26,7 +26,9 @@ extern "C" {
 
 typedef struct {
     lsm6dsv16x_ctx_t sensor_ctx;
+#ifdef HAL_SPI_MODULE_ENABLED
     lsm6dsv16x_spi_handle_t spi_handle;
+#endif
     lsm6dsv16x_data_scaled_t latest_data;
     uint32_t sample_sequence;
     bool is_initialized;
@@ -37,10 +39,12 @@ typedef struct {
  */
 bool IMU_Manager_InitI2C(imu_manager_t *mgr, void *hi2c_handle, uint8_t i2c_7bit_addr);
 
+#ifdef HAL_SPI_MODULE_ENABLED
 /**
  * @brief Initialize IMU manager over SPI hardware bus
  */
 bool IMU_Manager_InitSPI(imu_manager_t *mgr, void *hspi_handle, void *cs_port, uint16_t cs_pin);
+#endif
 
 /**
  * @brief Read IMU sensor data, update latest_data struct and shared_data memory

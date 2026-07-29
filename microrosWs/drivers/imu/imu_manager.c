@@ -40,6 +40,7 @@ bool IMU_Manager_InitI2C(imu_manager_t *mgr, void *hi2c_handle, uint8_t i2c_7bit
     return true;
 }
 
+#ifdef HAL_SPI_MODULE_ENABLED
 bool IMU_Manager_InitSPI(imu_manager_t *mgr, void *hspi_handle, void *cs_port, uint16_t cs_pin)
 {
     if (mgr == NULL || hspi_handle == NULL) {
@@ -76,6 +77,7 @@ bool IMU_Manager_InitSPI(imu_manager_t *mgr, void *hspi_handle, void *cs_port, u
     mgr->is_initialized = true;
     return true;
 }
+#endif
 
 bool IMU_Manager_Update(imu_manager_t *mgr)
 {

@@ -45,6 +45,7 @@ int32_t lsm6dsv16x_stm32_init_i2c(lsm6dsv16x_ctx_t *ctx, I2C_HandleTypeDef *hi2c
     return lsm6dsv16x_init(ctx, lsm6dsv16x_stm32_i2c_read, lsm6dsv16x_stm32_i2c_write, ctx, addr_8bit);
 }
 
+#ifdef HAL_SPI_MODULE_ENABLED
 /* --- SPI Callbacks --- */
 
 int32_t lsm6dsv16x_stm32_spi_read(void *handle, uint8_t reg_addr, uint8_t *data, uint16_t len)
@@ -114,3 +115,4 @@ int32_t lsm6dsv16x_stm32_init_spi(lsm6dsv16x_ctx_t *ctx, lsm6dsv16x_spi_handle_t
 
     return lsm6dsv16x_init(ctx, lsm6dsv16x_stm32_spi_read, lsm6dsv16x_stm32_spi_write, (void *)spi_handle, 0);
 }
+#endif
