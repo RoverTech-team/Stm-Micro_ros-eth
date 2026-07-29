@@ -1,10 +1,9 @@
 /**
  * @file imu_manager.c
- * @brief High-level IMU management implementation for STM32H7 micro-ROS application
+ * @brief High-level IMU management implementation for STM32H7 micro-ROS application (supports I2C and SPI)
  */
 
 #include "imu_manager.h"
-#include "lsm6dsv16x_stm32_hal.h"
 #include <string.h>
 #include <math.h>
 
@@ -17,6 +16,43 @@ bool IMU_Manager_InitI2C(imu_manager_t *mgr, void *hi2c_handle, uint8_t i2c_7bit
     memset(mgr, 0, sizeof(imu_manager_t));
 
     int32_t ret = lsm6dsv16x_stm32_init_i2c(&mgr->sensor_ctx, (I2C_HandleTypeDef *)hi2c_handle, i2c_7bit_addr);
+    if (ret != 0) {
+        return false;
+    }
+
+    /* Check WHO_AM_I register (expects 0x70) */
+    if (!lsm6dsv16x_check_whoami(&mgr->sensor_ctx)) {
+        return false;
+    }
+
+    /* Reset sensor to clean state */
+    lsm6dsv16x_reset(&mgr->sensor_ctx);
+
+    /* Configure 120Hz ODR, ±4g Accel, ±500dps Gyro */
+    ret = lsm6dsv16x_configure(&mgr->sensor_ctx,
+                                LSM6DSV16X_XL_ODR_120Hz, LSM6DSV16X_4g,
+                                LSM6DSV16X_G_ODR_120Hz, LSM6DSV16X_500dps);
+    if (ret != 0) {
+        return false;
+    }
+
+    mgr->is_initialized = true;
+    return true;
+}
+
+bool IMU_Manager_InitSPI(imu_manager_t *mgr, void *hspi_handle, void *cs_port, uint16_t cs_pin)
+{
+    if (mgr == NULL || hspi_handle == NULL) {
+        return false;
+    }
+
+    memset(mgr, 0, sizeof(imu_manager_t));
+
+    mgr->spi_handle.hspi    = (SPI_HandleTypeDef *)hspi_handle;
+    mgr->spi_handle.cs_port = (GPIO_TypeDef *)cs_port;
+    mgr->spi_handle.cs_pin  = cs_pin;
+
+    int32_t ret = lsm6dsv16x_stm32_init_spi(&mgr->sensor_ctx, &mgr->spi_handle);
     if (ret != 0) {
         return false;
     }
