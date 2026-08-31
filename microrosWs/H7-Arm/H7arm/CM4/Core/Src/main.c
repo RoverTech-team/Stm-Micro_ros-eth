@@ -18,6 +18,28 @@
 #include "shared_data.h"
 #include <stdbool.h>
 #include <string.h>
+#include "hx711.h"
+
+hx711_t hx_scale;
+typedef enum {
+    HX711_STATE_A_DISCARD_1,
+    HX711_STATE_A_DISCARD_2,
+    HX711_STATE_A_DISCARD_3,
+    HX711_STATE_A_READ,
+    HX711_STATE_B_DISCARD_1,
+    HX711_STATE_B_DISCARD_2,
+    HX711_STATE_B_DISCARD_3,
+    HX711_STATE_B_READ
+} hx711_state_t;
+
+static hx711_state_t scale_state = HX711_STATE_A_DISCARD_1;
+static float peso_A = 0.0f;
+static float peso_B = 0.0f;
+static float scale_A_factor = 442.24f;
+static float scale_B_factor = 104.82f;
+static long offset_A = 0;
+static long offset_B = 0;
+
 
 static void SystemClock_Config(void);
 
@@ -291,6 +313,55 @@ int main(void)
   SHARED_DATA->motor_ready_seq = 1U;
   __DSB();
 
+  /* --- HX711 GPIO Manual Initialization (Single Board: DT on D2/PG14, SCK on D4/PE14) --- */
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* 1. Enable GPIO Clocks */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
+
+  /* 2. Configure DT pin as Input with Pull-up (D2 = PG14) */
+  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /* 3. Configure SCK pin as Output (D4 = PE14) */
+  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /* Reset SCK pin to LOW to wake HX711 */
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_14, GPIO_PIN_RESET);
+  /* ---------------------------------------- */
+
+  /* --- HX711 Initialization & Tare --- */
+  /* Single board: DT on D2 (PG14), SCK on D4 (PE14) */
+  hx711_init(&hx_scale, GPIOG, GPIO_PIN_14, GPIOE, GPIO_PIN_14);
+
+  /* 1. Tare Channel A */
+  hx711_set_gain(&hx_scale, 128); /* Next conversions will be Channel A */
+  hx711_read(&hx_scale);          /* Dummy read to apply the gain setting */
+  HAL_Delay(50);                  /* Wait for the first Channel A conversion */
+  hx711_tare(&hx_scale, 10);      /* Average 10 samples to find tare */
+  offset_A = hx711_get_offset(&hx_scale);
+
+  /* 2. Tare Channel B */
+  hx711_set_gain(&hx_scale, 32);  /* Next conversions will be Channel B */
+  hx711_read(&hx_scale);          /* Dummy read to apply the gain setting (returns Ch A data, discarded) */
+  HAL_Delay(50);                  /* Wait for the first Channel B conversion */
+  hx711_tare(&hx_scale, 10);      /* Average 10 samples to find tare */
+  offset_B = hx711_get_offset(&hx_scale);
+
+  /* 3. Prepare for main loop (expecting Channel A first) */
+  hx711_set_gain(&hx_scale, 128); /* Next conversions will be Channel A */
+  hx711_read(&hx_scale);          /* Dummy read to apply the gain setting (returns Ch B data, discarded) */
+  
+  scale_state = HX711_STATE_A_DISCARD_1;
+  /* ----------------------------------- */
+
   uint32_t const cyccnt_1ms = SystemCoreClock / 1000UL;
   uint32_t last_cyc = DWT->CYCCNT;
   while (1) {
@@ -316,6 +387,68 @@ int main(void)
       Motor_ProcessCommands();
 #endif
       Motor_UpdatePositions();
+
+      /* Update heartbeat and raw pin states */
+      SHARED_DATA->cm4_heartbeat++;
+      SHARED_DATA->loadcell_a_dt_pin = (uint8_t)HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_14);
+      SHARED_DATA->loadcell_b_dt_pin = (scale_state >= HX711_STATE_B_DISCARD_1) ? 1 : 0;
+
+      /* --- Read Load Cells via Channel Multiplexing (non-blocking) --- */
+      if (hx711_is_ready(&hx_scale)) {
+          switch (scale_state) {
+              case HX711_STATE_A_DISCARD_1:
+                  hx711_set_gain(&hx_scale, 128); hx711_read(&hx_scale);
+                  scale_state = HX711_STATE_A_DISCARD_2;
+                  break;
+              case HX711_STATE_A_DISCARD_2:
+                  hx711_set_gain(&hx_scale, 128); hx711_read(&hx_scale);
+                  scale_state = HX711_STATE_A_DISCARD_3;
+                  break;
+              case HX711_STATE_A_DISCARD_3:
+                  hx711_set_gain(&hx_scale, 128); hx711_read(&hx_scale);
+                  scale_state = HX711_STATE_A_READ;
+                  break;
+
+              case HX711_STATE_A_READ:
+                  hx711_set_gain(&hx_scale, 32); /* Next is B */
+                  long raw_a = hx711_read(&hx_scale);
+                  float current_peso_A = (float)(raw_a - offset_A) / scale_A_factor;
+                  if (SHARED_DATA->loadcell_a_reads == 0) { peso_A = current_peso_A; }
+                  else { peso_A = (peso_A * 0.8f) + (current_peso_A * 0.2f); }
+                  SHARED_DATA->loadcell_a_raw = raw_a;
+                  SHARED_DATA->loadcell_a_weight = peso_A;
+                  SHARED_DATA->loadcell_a_reads++;
+                  scale_state = HX711_STATE_B_DISCARD_1;
+                  break;
+
+              case HX711_STATE_B_DISCARD_1:
+                  hx711_set_gain(&hx_scale, 32); hx711_read(&hx_scale);
+                  scale_state = HX711_STATE_B_DISCARD_2;
+                  break;
+              case HX711_STATE_B_DISCARD_2:
+                  hx711_set_gain(&hx_scale, 32); hx711_read(&hx_scale);
+                  scale_state = HX711_STATE_B_DISCARD_3;
+                  break;
+              case HX711_STATE_B_DISCARD_3:
+                  hx711_set_gain(&hx_scale, 32); hx711_read(&hx_scale);
+                  scale_state = HX711_STATE_B_READ;
+                  break;
+
+              case HX711_STATE_B_READ:
+                  hx711_set_gain(&hx_scale, 128); /* Next is A */
+                  long raw_b = hx711_read(&hx_scale);
+                  float current_peso_B = (float)(raw_b - offset_B) / scale_B_factor;
+                  if (SHARED_DATA->loadcell_b_reads == 0) { peso_B = current_peso_B; }
+                  else { peso_B = (peso_B * 0.8f) + (current_peso_B * 0.2f); }
+                  SHARED_DATA->loadcell_b_raw = raw_b;
+                  SHARED_DATA->loadcell_b_weight = peso_B;
+                  SHARED_DATA->loadcell_b_reads++;
+                  scale_state = HX711_STATE_A_DISCARD_1;
+                  break;
+          }
+      }
+      /* ---------------------------------------------------------------- */
+      /* ------------------------------------ */
 
       /* Button scan: falling edge (press with 50 ms debounce) */
       {

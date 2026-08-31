@@ -56,8 +56,19 @@ void *_sbrk(ptrdiff_t incr)
   extern uint8_t _end; /* Symbol defined in the linker script */
   extern uint8_t _estack; /* Symbol defined in the linker script */
   extern uint32_t _Min_Stack_Size; /* Symbol defined in the linker script */
-  const uint32_t stack_limit = (uint32_t)&_estack - (uint32_t)&_Min_Stack_Size;
-  const uint8_t *max_heap = (uint8_t *)stack_limit;
+
+  /* In STM32H7 dual-core setups, _estack (MSP stack) is in DTCMRAM (0x20000000),
+   * while heap (_end) is in RAM_D1 (0x24000000..0x24080000). */
+  const uint8_t *max_heap;
+  if ((uint32_t)&_end >= 0x24000000U && (uint32_t)&_end < 0x24080000U)
+  {
+    max_heap = (uint8_t *)0x24080000U;
+  }
+  else
+  {
+    const uint32_t stack_limit = (uint32_t)&_estack - (uint32_t)&_Min_Stack_Size;
+    max_heap = (uint8_t *)stack_limit;
+  }
   uint8_t *prev_heap_end;
 
   /* Initialize heap end at first call */
@@ -66,7 +77,7 @@ void *_sbrk(ptrdiff_t incr)
     __sbrk_heap_end = &_end;
   }
 
-  /* Protect heap from growing into the reserved MSP stack */
+  /* Protect heap from growing into reserved stack or beyond RAM_D1 */
   if (__sbrk_heap_end + incr > max_heap)
   {
     errno = ENOMEM;

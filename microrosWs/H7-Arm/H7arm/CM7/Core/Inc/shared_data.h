@@ -3,15 +3,15 @@
 
 #include <stdint.h>
 
-#define SHARED_MAGIC        0x53485244U  /* "SHRD" in ASCII */
-#define SHARED_VERSION      2U
+#define SHARED_MAGIC 0x53485244U /* "SHRD" in ASCII */
+#define SHARED_VERSION 2U
 
-#define SHARED_JOINT_COUNT  6U
+#define SHARED_JOINT_COUNT 6U
 
-_Static_assert(SHARED_JOINT_COUNT == 6, "SHARED_JOINT_COUNT must match motor driver N_JOINTS");
+_Static_assert(SHARED_JOINT_COUNT == 6,
+               "SHARED_JOINT_COUNT must match motor driver N_JOINTS");
 
-typedef struct
-{
+typedef struct {
   uint32_t magic;
   uint32_t version;
 
@@ -26,8 +26,8 @@ typedef struct
   volatile uint32_t cm4_last_measurement_valid;
 
   /* --- Motor command/state (protocol v2: int32_t milli-degrees) --- */
-  volatile int32_t  joint_cmd_positions[SHARED_JOINT_COUNT];
-  volatile int32_t  joint_act_positions[SHARED_JOINT_COUNT];
+  volatile int32_t joint_cmd_positions[SHARED_JOINT_COUNT];
+  volatile int32_t joint_act_positions[SHARED_JOINT_COUNT];
 
   volatile uint32_t joint_cmd_seq;
   volatile uint32_t joint_cmd_ack;
@@ -43,6 +43,9 @@ typedef struct
   volatile uint32_t last_fault_bfar;
   volatile uint32_t last_fault_lr;
   volatile uint32_t last_fault_pc;
+  volatile uint32_t last_fault_ipsr;
+  volatile uint32_t last_fault_cfb;
+
   /* --- Driver fault alarms (byte per joint, OR of ALARM_* flags) --- */
   volatile uint32_t fault_alarm;
 
@@ -64,12 +67,23 @@ typedef struct
   volatile uint32_t imu_data_ready;
   volatile uint32_t imu_seq;
 
+  /* --- Load cell fields --- */
+  volatile float    loadcell_a_weight;
+  volatile float    loadcell_b_weight;
+  volatile int32_t  loadcell_a_raw;
+  volatile int32_t  loadcell_b_raw;
+  volatile uint32_t loadcell_a_reads;
+  volatile uint32_t loadcell_b_reads;
+  volatile uint32_t cm4_heartbeat;
+  volatile uint8_t  loadcell_a_dt_pin;
+  volatile uint8_t  loadcell_b_dt_pin;
+
 } shared_data_t;
 
 __attribute__((section(".shared"))) extern shared_data_t shared_data_inst;
 
-#define SHARED_DATA  (&shared_data_inst)
+#define SHARED_DATA (&shared_data_inst)
 
-#define HSEM_ID_SENSOR  1U
+#define HSEM_ID_SENSOR 1U
 
 #endif

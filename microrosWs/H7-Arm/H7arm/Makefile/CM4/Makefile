@@ -72,7 +72,8 @@ C_SOURCES =  \
 ../../CM4/Core/Src/ps01_baremetal_os.c \
 ../../CM4/Core/Src/drivers/powerSTEP01/ps01.c \
 ../../CM4/Core/Src/drivers/powerSTEP01/ps01calc.c \
-../../CM4/Core/Src/drivers/RArm/rarm.c  
+../../CM4/Core/Src/drivers/RArm/rarm.c \
+../../../../drivers/hx711/hx711.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -154,7 +155,9 @@ C_INCLUDES =  \
 -isystem ../../Drivers/CMSIS/Device/ST/STM32H7xx/Include \
 -isystem ../../Drivers/CMSIS/Include \
 -isystem ../../Common \
--isystem ../../Middlewares
+-isystem ../../Middlewares \
+-I../../../../drivers/hx711
+
 
 
 # compile gcc flags

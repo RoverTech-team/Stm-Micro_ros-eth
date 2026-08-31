@@ -727,8 +727,24 @@ static void StartSensorDataTask(void *argument)
       SCB_CleanDCache_by_Addr((uint32_t *)sensor_shared_data, (int32_t)sizeof(*sensor_shared_data));
       __DSB();
     }
+    
+    /* Print Load Cells via UART (with rich diagnostics) */
+    SCB_InvalidateDCache_by_Addr((uint32_t *)sensor_shared_data, sizeof(*sensor_shared_data));
+    __DSB();
+    
+    printf("Peso_A:%.2f,Peso_B:%.2f | HB:%lu | DT_A:%u,DT_B:%u | CntA:%lu,CntB:%lu | RawA:%ld,RawB:%ld\r\n", 
+           sensor_shared_data->loadcell_a_weight, 
+           sensor_shared_data->loadcell_b_weight,
+           (unsigned long)sensor_shared_data->cm4_heartbeat,
+           (unsigned int)sensor_shared_data->loadcell_a_dt_pin,
+           (unsigned int)sensor_shared_data->loadcell_b_dt_pin,
+           (unsigned long)sensor_shared_data->loadcell_a_reads,
+           (unsigned long)sensor_shared_data->loadcell_b_reads,
+           (long)sensor_shared_data->loadcell_a_raw,
+           (long)sensor_shared_data->loadcell_b_raw);
+    fflush(stdout);
 
-    osDelay(100);
+    osDelay(200);
   }
 }
 
@@ -1013,10 +1029,10 @@ static void StartSetupTask(void *argument)
 
   printf("CM7: task-start\r\n");
 
-  if(!SetupNetworkingAndMicroRos())
-  {
-    osThreadExit();
-  }
+  // if(!SetupNetworkingAndMicroRos())
+  // {
+  //   osThreadExit();
+  // }
 
   if(heartbeatPublisherTaskHandle == NULL)
   {
@@ -1474,7 +1490,7 @@ void MX_FREERTOS_Init(void)
     const osThreadAttr_t sensor_data_task_attributes = {
       .name = "SensorData",
       .stack_size = 1024,
-      .priority = osPriorityNormal,
+      .priority = osPriorityHigh,
     };
 
     sensorDataTaskHandle = osThreadNew(StartSensorDataTask, NULL, &sensor_data_task_attributes);
