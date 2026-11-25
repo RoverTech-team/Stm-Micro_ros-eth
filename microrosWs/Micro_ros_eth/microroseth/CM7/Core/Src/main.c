@@ -18,6 +18,7 @@
 #include "lwip/sockets.h"
 #include "ethernetif.h"
 
+#include <stdint.h>
 #include <stdbool.h>
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
@@ -50,6 +51,8 @@ static volatile bool publisher_ready = false;
 static osThreadId_t statusLedTaskHandle;
 static osThreadId_t setupTaskHandle;
 static osThreadId_t heartbeatPublisherTaskHandle;
+static UART_HandleTypeDef huart2;
+static osThreadId_t loraTaskHandle;
 
 static rclc_support_t heartbeat_support;
 static rcl_node_t heartbeat_node;
@@ -423,6 +426,68 @@ void SystemClock_Config(void)
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
 }
 
+static void LoRa_Init(void)
+{
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_USART2_CLK_ENABLE();
+
+  GPIO_InitTypeDef gpio = {0};
+  gpio.Pin       = GPIO_PIN_5 | GPIO_PIN_6;
+  gpio.Mode      = GPIO_MODE_AF_PP;
+  gpio.Pull      = GPIO_NOPULL;
+  gpio.Speed     = GPIO_SPEED_FREQ_LOW;
+  gpio.Alternate = GPIO_AF7_USART2;
+  HAL_GPIO_Init(GPIOD, &gpio);
+
+  huart2.Instance        = USART2;
+  huart2.Init.BaudRate   = 9600;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits   = UART_STOPBITS_1;
+  huart2.Init.Parity     = UART_PARITY_NONE;
+  huart2.Init.Mode       = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  HAL_UART_Init(&huart2);
+}
+
+static bool LoRa_Send(const uint8_t *data, uint16_t len)
+{
+  return HAL_UART_Transmit(&huart2, (uint8_t *)data, len, 100) == HAL_OK;
+}
+
+static int LoRa_Receive(uint8_t *buf, uint16_t max_len, uint32_t timeout_ms)
+{
+  uint16_t rx_len = 0;
+  if(HAL_UARTEx_ReceiveToIdle(&huart2, buf, max_len, &rx_len, timeout_ms) == HAL_OK)
+  {
+    return (int)rx_len;
+  }
+  return 0;
+}
+
+static void StartLoRaTask(void *argument)
+{
+  (void)argument;
+  uint8_t rx_buf[64];
+  const uint8_t ping_msg[] = "PING_433\r\n";
+
+  LoRa_Init();
+  printf("CM7: lora-433t30d-init-ok\r\n");
+
+  for(;;)
+  {
+    LoRa_Send(ping_msg, sizeof(ping_msg) - 1);
+
+    int n = LoRa_Receive(rx_buf, sizeof(rx_buf) - 1, 500);
+    if(n > 0)
+    {
+      rx_buf[n] = '\0';
+      printf("CM7: lora-rx (%dB): %s\r\n", n, (char *)rx_buf);
+    }
+
+    osDelay(1000);
+  }
+}
+
 void MX_FREERTOS_Init(void)
 {
   const osThreadAttr_t status_led_task_attributes = {
@@ -449,6 +514,13 @@ void MX_FREERTOS_Init(void)
   {
     SetStartupFatalError("setup-task");
   }
+
+  const osThreadAttr_t lora_task_attributes = {
+    .name = "LoRaTask",
+    .stack_size = 2048,
+    .priority = osPriorityNormal,
+  };
+  loraTaskHandle = osThreadNew(StartLoRaTask, NULL, &lora_task_attributes);
 }
 
 int main(void)
