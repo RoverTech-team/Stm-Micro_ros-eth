@@ -1,0 +1,26 @@
+[Unit]
+Description=MicroK3 hil-host stack – IP-resilient Caddy :5050/:8080 + microk3 (auto-boot)
+Documentation=https://rovertech-team.github.io/Stm-Micro_ros-eth/production/overview.html
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/home/RoverTech/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.hil-host.yml
+ConditionPathExists=/home/RoverTech/Stm-Micro_ros-eth/production/jetson-orin-nx/.env
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/RoverTech/Stm-Micro_ros-eth/production/jetson-orin-nx
+EnvironmentFile=-/home/RoverTech/Stm-Micro_ros-eth/production/jetson-orin-nx/.env
+# Ensure docker daemon is responsive
+ExecStartPre=-/usr/bin/docker info
+# STACK-aware start via helper (defaults to hil-host, respects .env)
+ExecStart=/bin/sh -c 'STACK=${STACK:-hil-host} ./scripts/start.sh'
+ExecStop=/bin/sh -c 'STACK=${STACK:-hil-host} ./scripts/stop.sh'
+# Health gate: wait up to 30s for microk3 direct port
+ExecStartPost=/bin/sh -c 'for i in 1 2 3 4 5 6; do curl -sf http://localhost:5051/health && break; sleep 5; done'
+TimeoutStartSec=180
+TimeoutStopSec=60
+
+[Install]
+WantedBy=graphical.target multi-user.target

@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .images-toolbar { background: #f7f9fb; border: 1px solid #d9e0e6; border-radius: 8px; }
+    .images-grid { display: grid; gap: 12px; }
+    .images-grid.cols-1 { grid-template-columns: 1fr; }
+    .images-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .images-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 991px) {
+        .images-grid.cols-2, .images-grid.cols-3 { grid-template-columns: 1fr; }
+    }
+    .feed-card { background: #101820; border-radius: 8px; overflow: hidden; border: 1px solid #26313a; display: flex; flex-direction: column; min-height: 280px; }
+    .feed-card header { background: #1a232c; padding: 8px 10px; }
+    .feed-card img { width: 100%; height: 320px; object-fit: contain; background: #000; display: block; }
+    .images-grid.cols-1 .feed-card img { height: 520px; }
+    .feed-meta { font-size: 12px; color: #9fb0bc; }
+    .feed-badge { font-size: 11px; }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <h2 class="h5 mb-0"><i class="fas fa-video me-2"></i>Image Feeds</h2>
+    <span id="images-ros-badge" class="badge text-bg-secondary">ROS: unknown</span>
+</div>
+
+<div class="images-toolbar p-3 mb-3">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold mb-1">Layout</label>
+            <div class="btn-group w-100" role="group" aria-label="Feed layout">
+                <input type="radio" class="btn-check" name="images-layout" id="layout-1" value="1">
+                <label class="btn btn-outline-primary btn-sm" for="layout-1" title="Single">1</label>
+                <input type="radio" class="btn-check" name="images-layout" id="layout-2" value="2">
+                <label class="btn btn-outline-primary btn-sm" for="layout-2" title="Side by side">2</label>
+                <input type="radio" class="btn-check" name="images-layout" id="layout-4" value="4" checked>
+                <label class="btn btn-outline-primary btn-sm" for="layout-4" title="Quad">4</label>
+                <input type="radio" class="btn-check" name="images-layout" id="layout-6" value="6">
+                <label class="btn btn-outline-primary btn-sm" for="layout-6" title="Six">6</label>
+                <input type="radio" class="btn-check" name="images-layout" id="layout-9" value="9">
+                <label class="btn btn-outline-primary btn-sm" for="layout-9" title="Nine">9</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label for="images-interval" class="form-label small fw-semibold mb-1">Refresh</label>
+            <select id="images-interval" class="form-select form-select-sm">
+                <option value="250">Fast (~4 Hz)</option>
+                <option value="500" selected>Normal (~2 Hz)</option>
+                <option value="1000">Slow (~1 Hz)</option>
+                <option value="2000">Very slow (~0.5 Hz)</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="images-quality" class="form-label small fw-semibold mb-1">Quality / width</label>
+            <select id="images-quality" class="form-select form-select-sm">
+                <option value="480:60">Low (480px)</option>
+                <option value="640:80" selected>Medium (640px)</option>
+                <option value="960:80">High (960px)</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-grid gap-2 d-md-flex justify-content-md-end">
+            <button id="refresh-topics" class="btn btn-sm btn-outline-secondary" type="button"><i class="fas fa-rotate me-1"></i>Topics</button>
+            <button id="connect-all" class="btn btn-sm btn-primary" type="button"><i class="fas fa-plug me-1"></i>Connect all</button>
+            <button id="disconnect-all" class="btn btn-sm btn-outline-secondary" type="button"><i class="fas fa-link-slash me-1"></i>Stop all</button>
+        </div>
+    </div>
+    <div class="small text-muted mt-2">Per tile pick <strong>ROS</strong> (sensor_msgs/Image or CompressedImage topic) or <strong>Socket</strong> (raw TCP JPEG stream <code>tcp://host:port</code>, MJPEG over HTTP <code>http://host:port/path</code>, or raw mono8 VFR0 over UDP <code>udp://host:port</code>). Layout and sources persist in this browser.</div>
+    <div id="images-error" class="alert alert-warning small py-2 mt-2 d-none mb-0" role="alert"></div>
+</div>
+
+<div id="images-grid" class="images-grid cols-2"></div>
+
+<script>
+const storageKey = 'microk3.images.settings.v2';
+const legacyKey = 'microk3.images.settings.v1';
+function loadSaved() {
+    try {
+        const v2 = JSON.parse(localStorage.getItem(storageKey) || 'null');
+        if (v2 && typeof v2 === 'object') return v2;
+    } catch (e) {}
+    try {
+        const v1 = JSON.parse(localStorage.getItem(legacyKey) || '{}');
+        if (Array.isArray(v1.topics)) {
+            return {
+                layout: v1.layout, intervalMs: v1.intervalMs, quality: v1.quality,
+                sources: v1.topics.map(t => ({ type: 'ros', topic: t || '', socket: { scheme: 'tcp', host: '', port: '', path: '/video' } })),
+            };
+        }
+        return v1;
+    } catch (e) { return {}; }
+}
+const saved = loadSaved();
+const grid = document.getElementById('images-grid');
+const errorBox = document.getElementById('images-error');
+const rosBadge = document.getElementById('images-ros-badge');
+const intervalSelect = document.getElementById('images-interval');
+const qualitySelect = document.getElementById('images-quality');
+
+const state = {
+    layout: Number(saved.layout) || 4,
+    intervalMs: Number(saved.intervalMs) || 500,
+    maxWidth: Number((saved.quality || '640:80').split(':')[0]) || 640,
+    quality: Number((saved.quality || '640:80').split(':')[1]) || 80,
+    sources: Array.isArray(saved.sources) ? saved.sources.slice(0, 9) : [],
+    tiles: [],
+    availableTopics: [],
+};
+
+const DEFAULT_TOPICS = ['/camera/image_raw', '/camera/compressed', '/zed/zed_node/rgb/image_rect_color', '/zed/zed_node/stereo/image_rect_color'];
+
+function setError(msg) {
+    errorBox.textContent = msg || '';
+    errorBox.classList.toggle('d-none', !msg);
+}
+
+function tileSource(tile) {
+    return {
+        type: tile.srcType.value || 'ros',
+        topic: (tile.topicInput.value || '').trim(),
+        socket: {
+            scheme: tile.sockScheme.value || 'tcp',
+            host: tile.sockHost.value.trim(),
+            port: tile.sockPort.value.trim(),
+            path: tile.sockPath.value.trim() || '/',
+        },
+    };
+}
+
+function persist() {
+    localStorage.setItem(storageKey, JSON.stringify({
+        layout: state.layout,
+        intervalMs: state.intervalMs,
+        quality: `${state.maxWidth}:${state.quality}`,
+        sources: state.tiles.map(tileSource),
+    }));
+}
+
+function normalizeTopic(value) {
+    const t = (value || '').trim().replace(/^\/+/, '');
+    return t ? `/${t}` : '';
+}
+
+function gridClass(n) {
+    if (n <= 1) return 'cols-1';
+    if (n === 2) return 'cols-2';
+    return 'cols-3';
+}
+
+async function fetchTopics() {
+    try {
+        const r = await fetch('/api/ros/image/topics');
+        const j = await r.json();
+        state.availableTopics = j.topics || [];
+        rosBadge.textContent = j.ros_connected ? `ROS: connected (${state.availableTopics.length} image topics)` : 'ROS: disconnected';
+        rosBadge.className = `badge ${j.ros_connected ? 'text-bg-success' : 'text-bg-secondary'}`;
+    } catch (e) {
+        rosBadge.textContent = 'ROS: unknown';
+        rosBadge.className = 'badge text-bg-secondary';
+    }
+    state.tiles.forEach(fillDropdown);
+}
+
+function fillDropdown(tile) {
+    const select = tile.topicSelect;
+    const current = tile.topicInput.value.trim() || select.value;
+    select.innerHTML = '<option value="">— select discovered topic —</option>';
+    const names = new Set([...state.availableTopics.map(t => t.name), ...DEFAULT_TOPICS]);
+    [...names].sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        const info = state.availableTopics.find(t => t.name === name);
+        opt.textContent = info ? `${name} (${(info.types || []).join(', ')})` : `${name} (manual)`;
+        if (name === current) opt.selected = true;
+        select.appendChild(opt);
+    });
+    if (current && ![...select.options].some(o => o.value === current)) {
+        const opt = document.createElement('option');
+        opt.value = current;
+        opt.textContent = `${current} (manual)`;
+        opt.selected = true;
+        select.appendChild(opt);
+    }
+}
+
+function makeTile(index) {
+    const card = document.createElement('div');
+    card.className = 'feed-card';
+    card.innerHTML = `
+        <header>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <strong class="text-light small">Feed ${index + 1}</strong>
+                <span class="badge feed-badge text-bg-secondary" data-role="badge">Idle</span>
+                <span class="feed-meta ms-auto" data-role="meta">—</span>
+            </div>
+            <div class="d-flex gap-2 mb-2">
+                <select class="form-select form-select-sm" data-role="srctype" aria-label="Feed ${index + 1} source type" style="max-width:130px">
+                    <option value="ros">ROS topic</option>
+                    <option value="socket">Socket</option>
+                </select>
+                <button class="btn btn-sm btn-primary" data-role="connect" type="button">Connect</button>
+                <button class="btn btn-sm btn-outline-light" data-role="disconnect" type="button" disabled>Stop</button>
+            </div>
+            <div data-role="ros-block">
+                <select class="form-select form-select-sm mb-2" data-role="select" aria-label="Feed ${index + 1} topic"></select>
+                <input class="form-control form-control-sm" data-role="input" placeholder="/camera/image_raw (or pick above)" value="">
+            </div>
+            <div data-role="socket-block" class="d-none">
+                <div class="d-flex gap-2 mb-2">
+                    <select class="form-select form-select-sm" data-role="sock-scheme" aria-label="Socket protocol" style="max-width:110px">
+                        <option value="tcp">tcp://</option>
+                        <option value="http">http://</option>
+                        <option value="udp">udp://</option>
+                    </select>
+                    <input class="form-control form-control-sm" data-role="sock-host" placeholder="192.168.0.10">
+                    <input class="form-control form-control-sm" data-role="sock-port" placeholder="8080" inputmode="numeric" style="max-width:90px">
+                </div>
+                <input class="form-control form-control-sm" data-role="sock-path" placeholder="/video (HTTP path; TCP/UDP ignore)" value="/video">
+            </div>
+        </header>
+        <img data-role="img" alt="Feed ${index + 1} — not connected">
+        <div class="feed-meta px-2 py-1" data-role="status">Not connected.</div>
+    `;
+    grid.appendChild(card);
+    const tile = {
+        index,
+        el: card,
+        badge: card.querySelector('[data-role=badge]'),
+        meta: card.querySelector('[data-role=meta]'),
+        status: card.querySelector('[data-role=status]'),
+        img: card.querySelector('[data-role=img]'),
+        srcType: card.querySelector('[data-role=srctype]'),
+        rosBlock: card.querySelector('[data-role=ros-block]'),
+        sockBlock: card.querySelector('[data-role=socket-block]'),
+        topicSelect: card.querySelector('[data-role=select]'),
+        topicInput: card.querySelector('[data-role=input]'),
+        sockScheme: card.querySelector('[data-role=sock-scheme]'),
+        sockHost: card.querySelector('[data-role=sock-host]'),
+        sockPort: card.querySelector('[data-role=sock-port]'),
+        sockPath: card.querySelector('[data-role=sock-path]'),
+        connectBtn: card.querySelector('[data-role=connect]'),
+        disconnectBtn: card.querySelector('[data-role=disconnect]'),
+        feedKind: '',
+        feedId: '',
+        timer: null,
+        frames: 0,
+    };
+    const src = state.sources[index] || { type: 'ros', topic: '', socket: {} };
+    tile.srcType.value = src.type === 'socket' ? 'socket' : 'ros';
+    tile.topicInput.value = src.topic || '';
+    tile.sockScheme.value = (src.socket && src.socket.scheme) || 'tcp';
+    tile.sockHost.value = (src.socket && src.socket.host) || '';
+    tile.sockPort.value = (src.socket && src.socket.port) || '';
+    tile.sockPath.value = (src.socket && src.socket.path) || '/video';
+
+    function syncBlocks() {
+        const isSocket = tile.srcType.value === 'socket';
+        tile.rosBlock.classList.toggle('d-none', isSocket);
+        tile.sockBlock.classList.toggle('d-none', !isSocket);
+        tile.sockPath.disabled = tile.sockScheme.value !== 'http';
+        persist();
+    }
+    tile.srcType.addEventListener('change', syncBlocks);
+    tile.sockScheme.addEventListener('change', syncBlocks);
+    tile.topicSelect.addEventListener('change', () => {
+        tile.topicInput.value = tile.topicSelect.value;
+        persist();
+    });
+    [tile.topicInput, tile.sockHost, tile.sockPort, tile.sockPath].forEach(el =>
+        el.addEventListener('input', persist));
+    tile.connectBtn.addEventListener('click', () => connectTile(tile));
+    tile.disconnectBtn.addEventListener('click', () => disconnectTile(tile, true));
+    syncBlocks();
+    return tile;
+}
+
+function setTileState(tile, connected, label) {
+    tile.badge.textContent = label || (connected ? 'Live' : 'Idle');
+    tile.badge.className = `badge feed-badge ${connected ? 'text-bg-success' : 'text-bg-secondary'}`;
+    tile.connectBtn.disabled = connected;
+    tile.disconnectBtn.disabled = !connected;
+    tile.srcType.disabled = connected;
+    tile.topicSelect.disabled = connected;
+    tile.topicInput.disabled = connected;
+    tile.sockScheme.disabled = connected;
+    tile.sockHost.disabled = connected;
+    tile.sockPort.disabled = connected;
+    tile.sockPath.disabled = connected || tile.sockScheme.value !== 'http';
+}
+
+function socketLabel(tile) {
+    const s = tileSource(tile).socket;
+    return `${s.scheme}://${s.host}:${s.port}${s.scheme === 'http' ? (s.path || '/') : ''}`;
+}
+
+async function connectTile(tile) {
+    const kind = tile.srcType.value || 'ros';
+    try {
+        if (kind === 'socket') {
+            const s = tileSource(tile).socket;
+            if (!s.host || !s.port) {
+                tile.status.textContent = 'Enter socket host + port first.';
+                return;
+            }
+            const r = await fetch('/api/socket/image/subscribe', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheme: s.scheme, host: s.host, port: s.port, path: s.path, max_width: state.maxWidth, quality: state.quality }),
+            });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || `Socket subscribe failed (${r.status})`);
+            tile.feedKind = 'socket';
+            tile.feedId = j.feed_id;
+            setTileState(tile, true, 'Live');
+            tile.status.textContent = `Streaming ${j.feed_id} …`;
+        } else {
+            const topic = normalizeTopic(tile.topicInput.value || tile.topicSelect.value);
+            if (!topic) {
+                tile.status.textContent = 'Enter or pick a topic first.';
+                return;
+            }
+            tile.topicInput.value = topic;
+            fillDropdown(tile);
+            const r = await fetch('/api/ros/image/subscribe', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic_name: topic, max_width: state.maxWidth, quality: state.quality }),
+            });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || `Subscribe failed (${r.status})`);
+            tile.feedKind = 'ros';
+            tile.feedId = topic;
+            setTileState(tile, true, 'Live');
+            tile.status.textContent = `Streaming ${topic} …`;
+        }
+        persist();
+        await pollTile(tile);
+        window.clearInterval(tile.timer);
+        tile.timer = window.setInterval(() => pollTile(tile), state.intervalMs);
+    } catch (e) {
+        tile.status.textContent = e.message;
+        setError(e.message);
+    }
+}
+
+async function disconnectTile(tile, unsubscribe) {
+    window.clearInterval(tile.timer);
+    tile.timer = null;
+    if (unsubscribe && tile.feedId) {
+        try {
+            const url = tile.feedKind === 'socket' ? '/api/socket/image/unsubscribe' : '/api/ros/image/unsubscribe';
+            const key = tile.feedKind === 'socket' ? { feed_id: tile.feedId } : { topic_name: tile.feedId };
+            await fetch(url, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(key),
+            });
+        } catch (e) { /* best effort */ }
+    }
+    tile.feedKind = '';
+    tile.feedId = '';
+    setTileState(tile, false, 'Idle');
+    tile.status.textContent = 'Not connected.';
+    tile.meta.textContent = '—';
+    persist();
+}
+
+async function pollTile(tile) {
+    if (!tile.feedId) return;
+    try {
+        const url = tile.feedKind === 'socket'
+            ? `/api/socket/image/${encodeURIComponent(tile.feedId)}/latest?max_width=${state.maxWidth}`
+            : `/api/ros/image/${encodeURIComponent(tile.feedId.replace(/^\//, ''))}/latest?max_width=${state.maxWidth}`;
+        const r = await fetch(url);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || `Poll failed (${r.status})`);
+        if (j.jpeg_base64) {
+            tile.img.src = `data:${j.mime || 'image/jpeg'};base64,${j.jpeg_base64}`;
+            tile.img.alt = `${tile.feedId}`;
+            tile.frames = j.frames_received || tile.frames;
+            tile.meta.textContent = `${j.width || '?'}×${j.height || '?'} · ${j.frames_received || 0} frames`;
+            const extra = tile.feedKind === 'socket'
+                ? `${j.scheme || ''} ${j.connected === false ? '· reconnecting' : ''}`
+                : `${j.encoding || ''} ${j.frame_id ? '· ' + j.frame_id : ''}`;
+            tile.status.textContent = `${tile.feedId} · ${extra}`;
+            if (j.last_error) tile.status.textContent += ` · ⚠ ${j.last_error}`;
+        } else {
+            tile.status.textContent = j.last_error || 'Waiting for first frame…';
+        }
+        setError('');
+    } catch (e) {
+        tile.status.textContent = e.message;
+    }
+}
+
+function tileHasInput(tile) {
+    if ((tile.srcType.value || 'ros') === 'socket') {
+        return tile.sockHost.value.trim() !== '' && tile.sockPort.value.trim() !== '';
+    }
+    return (tile.topicInput.value.trim() || tile.topicSelect.value) !== '';
+}
+
+function rebuildGrid() {
+    state.tiles.forEach(t => { window.clearInterval(t.timer); });
+    grid.innerHTML = '';
+    grid.className = `images-grid ${gridClass(state.layout)}`;
+    state.tiles = [];
+    for (let i = 0; i < state.layout; i++) {
+        state.tiles.push(makeTile(i));
+    }
+    state.tiles.forEach(fillDropdown);
+    document.querySelector(`input[name=images-layout][value="${state.layout}"]`).checked = true;
+}
+
+document.querySelectorAll('input[name=images-layout]').forEach(input => input.addEventListener('change', async (e) => {
+    const next = Number(e.target.value);
+    state.tiles.slice(next).forEach(t => { if (t.feedId) disconnectTile(t, true); });
+    state.layout = next;
+    persist();
+    rebuildGrid();
+    await fetchTopics();
+}));
+
+intervalSelect.value = String(state.intervalMs);
+intervalSelect.addEventListener('change', () => {
+    state.intervalMs = Number(intervalSelect.value);
+    persist();
+    state.tiles.forEach(t => {
+        if (t.feedId) {
+            window.clearInterval(t.timer);
+            t.timer = window.setInterval(() => pollTile(t), state.intervalMs);
+        }
+    });
+});
+
+qualitySelect.value = `${state.maxWidth}:${state.quality}`;
+qualitySelect.addEventListener('change', async () => {
+    const [w, q] = qualitySelect.value.split(':').map(Number);
+    state.maxWidth = w;
+    state.quality = q;
+    persist();
+    for (const t of state.tiles) {
+        if (t.feedId) {
+            const kind = t.feedKind;
+            const backupTopic = t.topicInput.value;
+            const backupSock = tileSource(t).socket;
+            await disconnectTile(t, true);
+            if (kind === 'socket') {
+                t.srcType.value = 'socket';
+                t.sockScheme.value = backupSock.scheme;
+                t.sockHost.value = backupSock.host;
+                t.sockPort.value = backupSock.port;
+                t.sockPath.value = backupSock.path;
+            } else {
+                t.topicInput.value = backupTopic || t.feedId;
+            }
+            // re-sync disabled state visuals before reconnect
+            setTileState(t, false, 'Idle');
+            await connectTile(t);
+        }
+    }
+});
+
+document.getElementById('refresh-topics').addEventListener('click', fetchTopics);
+document.getElementById('connect-all').addEventListener('click', async () => {
+    for (const t of state.tiles) {
+        if (!t.feedId && tileHasInput(t)) {
+            await connectTile(t);
+        }
+    }
+});
+document.getElementById('disconnect-all').addEventListener('click', async () => {
+    for (const t of state.tiles) await disconnectTile(t, true);
+    setError('');
+});
+
+// init
+rebuildGrid();
+fetchTopics();
+</script>
+{% endblock %}

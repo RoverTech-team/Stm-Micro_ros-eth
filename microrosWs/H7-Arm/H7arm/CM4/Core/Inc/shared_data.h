@@ -56,6 +56,9 @@ typedef struct
   volatile uint32_t last_fault_code;
   volatile uint32_t last_fault_tick;
 
+  /* --- Brake state (bit0 = J2 engaged, bit1 = J3 engaged) --- */
+  volatile uint32_t brake_state;
+
 } shared_data_t;
 
 __attribute__((section(".shared"))) extern shared_data_t shared_data_inst;

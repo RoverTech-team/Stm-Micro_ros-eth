@@ -44,8 +44,8 @@ services:
     build:
       context: ../../microrosWs/microk3
       dockerfile: Dockerfile
-    ports:
-      - "${DASHBOARD_PORT:-5050}:5050"
+    expose:
+      - "5050"
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=false
@@ -59,15 +59,44 @@ services:
       - DATA_FILE=/app/data/system_data.json
       - LOG_FILE=/app/logs/microk3.log
       - MICROROS_DISABLE_SHM=1
+      - SSH_TERMINAL_ENABLED=${SSH_TERMINAL_ENABLED:-true}
+      - SSH_TERMINAL_HOST=${SSH_TERMINAL_HOST:-127.0.0.1}
+      - SSH_TERMINAL_PORT=${SSH_TERMINAL_PORT:-22}
+      - SSH_TERMINAL_USERNAME=${SSH_TERMINAL_USERNAME:-}
+      - SSH_TERMINAL_AUTH_METHOD=${SSH_TERMINAL_AUTH_METHOD:-key}
+      - SSH_TERMINAL_KEY_PATH=/run/secrets/ssh_terminal_key
+      - SSH_TERMINAL_KNOWN_HOSTS_PATH=/run/secrets/ssh_terminal_known_hosts
+      - SSH_TERMINAL_IDLE_TIMEOUT_SEC=${SSH_TERMINAL_IDLE_TIMEOUT_SEC:-1800}
+      - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-1}
     volumes:
       - microk3_jetson_data:/app/data
       - microk3_jetson_logs:/app/logs
+      - ${SSH_TERMINAL_KEY_PATH_HOST:-/dev/null}:/run/secrets/ssh_terminal_key:ro
+      - ${SSH_TERMINAL_KNOWN_HOSTS_PATH_HOST:-/dev/null}:/run/secrets/ssh_terminal_known_hosts:ro
+      - ../../microrosWs/microk3/Model3D_mesh2.obj:/app/Model3D_mesh2.obj:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5050/health"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
+    networks:
+      - renode_jetson_net
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "${DASHBOARD_PORT:-5050}:5050"
+      - "${DASHBOARD_HTTP_PORT:-8080}:8080"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      microk3:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - renode_jetson_net
 
@@ -143,3 +172,5 @@ networks:
 volumes:
   microk3_jetson_data:
   microk3_jetson_logs:
+  caddy_data:
+  caddy_config:

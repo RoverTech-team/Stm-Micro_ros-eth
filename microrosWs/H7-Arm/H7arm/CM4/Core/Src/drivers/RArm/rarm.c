@@ -1,6 +1,8 @@
 #include "rarm.h"
 #include "main.h"
 
+int32_t j1_sim_mdeg = 0;
+
 void RARM_SetBank(StepperBank_t *bank)
 {
     ps01SetBank(bank, N_JOINTS);
@@ -55,6 +57,9 @@ void RARM_SetConfig(uint8_t joint_index, RARM_SimpleConfig_t *config)
     ps01SetParam_chain(ST_SLP,     config->st_slp);
     ps01SetParam_chain(FN_SLP_ACC, config->fn_slp_acc);
     ps01SetParam_chain(FN_SLP_DEC, config->fn_slp_dec);
+    if (config->int_speed != 0) {
+        ps01SetParam_chain(INT_SPEED, config->int_speed);
+    }
 
     ps01SetOcThreshold_chain(config->oc_threshold);
     ps01SetStallThreshold_chain(config->stall_threshold);
@@ -123,8 +128,13 @@ void RARM_MoveMilliDegrees(uint8_t joint_index, int32_t mdeg)
         dir = COUNTER_CLOCKWISE;
     }
 
-    if ((delta / 1000) > 0)
-        ps01MoveDegrees_chain(dir, (uint16_t)(delta / 1000));
+    int64_t steps_per_rev = mot_bank->motors[joint_index].steps_rev;
+    int64_t ratio         = mot_bank->motors[joint_index].reduction_ratio;
+    int64_t microsteps    = mot_bank->motors[joint_index].stepmode.bits.STEP_SEL;
+    int64_t steps = ((int64_t)delta * steps_per_rev * (1LL << microsteps) * ratio) / 360000LL;
+
+    if (steps > 0)
+        ps01Move_chain(dir, (uint32_t)steps);
 }
 
 void RARM_Run(uint8_t joint_index, uint8_t dir, uint16_t rpm)

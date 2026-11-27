@@ -1,9 +1,12 @@
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request, abort, send_file
 from flask_httpauth import HTTPBasicAuth
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_sock import Sock
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
+from base64 import b64encode
 import json
 import os
 import logging
@@ -14,6 +17,7 @@ from typing import Dict, List, Any, Optional
 from functools import wraps
 import threading
 import sys
+import time
 import traceback
 
 from models.node import Node
@@ -25,10 +29,21 @@ from metrics import (
     new_metrics_state,
 )
 from config import get_config
+from socket_stream import SOCKET_VIEW_MAX, SocketImageViewer, parse_socket_source
+from vfr_stream import VfrUdpViewer
+from ssh_terminal import SSHAuthenticationFailed, SSHConnectionFailed, SSHPasswordRequired, SSHSessionManager
+
+try:
+    from jetson_diagnostics import JetsonDiagnosticsCollector  # type: ignore
+except Exception:  # pragma: no cover - missing wheel not fatal, sysfs path still works
+    JetsonDiagnosticsCollector = None  # type: ignore
 
 # Initialize Flask app
 app = Flask(__name__, template_folder='templates')
 app.config.from_object(get_config())
+if app.config['TRUSTED_PROXY_HOPS']:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=app.config['TRUSTED_PROXY_HOPS'])
+sock = Sock(app)
 
 # Setup logging first to capture startup errors
 log_file_path = Path(app.config['LOG_FILE'])
@@ -73,8 +88,13 @@ users = {
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=app.config['RATELIMIT_DEFAULT'].split(';'),
-    storage_uri=app.config['RATELIMIT_STORAGE_URL']
+    default_limits=(
+        app.config['RATELIMIT_DEFAULT'].split(';')
+        if app.config.get('RATELIMIT_DEFAULT')
+        else []
+    ),
+    storage_uri=app.config['RATELIMIT_STORAGE_URL'],
+    enabled=app.config.get('RATELIMIT_ENABLED', True)
 )
 
 # ROS 2 Manager Instance
@@ -83,13 +103,34 @@ docker_stats_collector = None
 ROS_WATCH_LIMIT = 10
 ROS_SAMPLE_HISTORY_LIMIT = 20
 ros_state_lock = threading.RLock()
-system_data_lock = threading.RLock()
+# Raw socket image feeds (no ROS required): feed_id -> SocketImageViewer
+socket_viewers: Dict[str, Any] = {}
+socket_viewers_lock = threading.RLock()
+SSH_SESSION_COOKIE = 'ssh_session_id'
+ssh_manager = None
+if os.environ.get('SSH_TERMINAL_ENABLED', '').lower() == 'true':
+    try:
+        ssh_manager = SSHSessionManager(
+            idle_timeout_sec=int(os.environ.get('SSH_TERMINAL_IDLE_TIMEOUT_SEC', '1800'))
+        )
+        logger.info('SSH terminal support is enabled')
+    except (KeyError, ValueError, OSError) as exc:
+        logger.error('SSH terminal is disabled because its configuration is invalid: %s', exc)
 
 @auth.verify_password
 def verify_password(username: str, password: str) -> Optional[str]:
     """Verify user credentials"""
     if username in users and check_password_hash(users.get(username), password):
         return username
+    return None
+
+
+def _ssh_terminal_available():
+    """Return a secure failure response, or None when terminal access is permitted."""
+    if ssh_manager is None:
+        return jsonify({'error': 'SSH terminal is not configured'}), 503
+    if not request.is_secure:
+        return jsonify({'error': 'SSH terminal requires HTTPS'}), 403
     return None
 
 
@@ -140,18 +181,12 @@ def refresh_system_status(data: Dict[str, Any]) -> None:
 
 
 def load_system_data() -> Dict[str, Any]:
-    """Load persisted system data, falling back to empty state."""
+    """Load system data, but never restore cached nodes or demo state."""
     try:
         data_file = Path(app.config['DATA_FILE'])
         if data_file.exists():
-            with open(data_file, 'r') as f:
-                raw = json.load(f)
-            raw['nodes'] = [Node.from_dict(n) for n in raw.get('nodes', [])]
-            raw.setdefault('failures', [])
-            raw.setdefault('tasks', {})
-            raw.setdefault('metrics', new_metrics_state())
-            logger.info(f"Loaded persisted state from {data_file} ({len(raw['nodes'])} nodes, {len(raw['failures'])} failures)")
-            return raw
+            logger.info(f"Ignoring persisted node snapshot from {data_file}; waiting for live ROS discovery")
+            return get_empty_data()
 
         logger.warning(f"Data file not found: {data_file}. Initializing empty state.")
         return get_default_data()
@@ -227,6 +262,8 @@ def get_node_log_lines(node_id: int, limit: int = 100) -> List[str]:
 # Global variable to hold system data
 system_data = None  # Will be initialized in main block
 ros_inspector_state = get_empty_ros_state()
+jetson_diag_state: Dict[str, Any] = {"available": False}
+jetson_diag_collector = None  # type: ignore
 
 
 def require_json(f):
@@ -237,6 +274,64 @@ def require_json(f):
             return jsonify({"error": "Content-Type must be application/json"}), 400
         return f(*args, **kwargs)
     return wrapper
+
+
+def _normalize_topic_name(value: Any) -> str:
+    topic_name = str(value or "").strip()
+    return "/" + topic_name.lstrip("/") if topic_name else ""
+
+
+def _serialize_pointcloud_snapshot(topic_name: str, snapshot: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Encode binary point-cloud arrays for efficient browser transport."""
+    if snapshot is None:
+        return {
+            "topic_name": topic_name,
+            "frame_id": None,
+            "point_count": 0,
+            "has_color": False,
+            "positions_base64": "",
+            "colors_base64": None,
+            "frames_received": 0,
+            "last_error": "Waiting for a PointCloud2 frame.",
+        }
+
+    points = snapshot.get("xyz", snapshot.get("points"))
+    colors = snapshot.get("colors")
+    point_count = int(snapshot.get("point_count_after_downsample", snapshot.get("point_count", 0)))
+    payload = {
+        "topic_name": topic_name,
+        "frame_id": snapshot.get("frame_id"),
+        "point_count": point_count,
+        "has_color": bool(snapshot.get("has_color") and colors is not None),
+        "positions_base64": b64encode(
+            points.astype("float32", copy=False).tobytes()
+        ).decode("ascii"),
+        "colors_base64": (
+            b64encode(colors.astype("uint8", copy=False).tobytes()).decode("ascii")
+            if colors is not None
+            else None
+        ),
+        "frames_received": int(snapshot.get("frames_received", 0)),
+        "last_error": snapshot.get("last_error"),
+    }
+    if "frames_dropped_no_pose" in snapshot:
+        payload["frames_dropped_no_pose"] = int(snapshot["frames_dropped_no_pose"])
+    if "point_count_after_downsample" in snapshot:
+        payload["source_point_count"] = int(snapshot.get("point_count", point_count))
+    return payload
+
+
+def _parse_pointcloud_parameters(data: Dict[str, Any]):
+    try:
+        voxel_size = float(data.get("voxel_size", 0.05))
+        max_map_points = int(data.get("max_map_points", 500000))
+    except (TypeError, ValueError):
+        return None, None, "voxel_size must be a number and max_map_points an integer"
+    if voxel_size <= 0 or voxel_size > 10:
+        return None, None, "voxel_size must be greater than 0 and at most 10"
+    if max_map_points < 1 or max_map_points > 2_000_000:
+        return None, None, "max_map_points must be between 1 and 2000000"
+    return voxel_size, max_map_points, None
 
 
 def get_node_by_id(node_id: int) -> Optional[Node]:
@@ -276,9 +371,7 @@ def apply_runtime_metrics_to_nodes() -> None:
         per_node = node_metrics.get(str(node.id), {})
         node_aggregate = per_node.get("aggregate", aggregate)
         node.cpu = f"{float(aggregate.get('cpu_percent', 0.0)):.1f}% stack"
-        node.cpu_percent = float(aggregate.get('cpu_percent', 0.0))
         node.ram = f"{int(aggregate.get('memory_usage_bytes', 0)) / (1024 * 1024):.1f} MiB stack"
-        node.memory_bytes = int(aggregate.get('memory_usage_bytes', 0))
         sync_ready = node_aggregate.get("sync_ready", False)
         node.network = (
             f"C->A {format_metric(node_aggregate.get('client_to_agent_ms'), sync_ready, sync_scoped=True)} | "
@@ -286,11 +379,6 @@ def apply_runtime_metrics_to_nodes() -> None:
             f"E2E {format_metric(node_aggregate.get('end_to_end_ms'), sync_ready, sync_scoped=True)} | "
             f"BW {float(node_aggregate.get('bandwidth_bps', 0.0)) / 1024.0:.1f} KiB/s"
         )
-        node.latency_client_to_agent_ms = node_aggregate.get('client_to_agent_ms')
-        node.latency_agent_to_ros_ms = node_aggregate.get('agent_to_ros_ms')
-        node.latency_end_to_end_ms = node_aggregate.get('end_to_end_ms')
-        node.latency_bandwidth_bps = float(node_aggregate.get('bandwidth_bps', 0.0))
-        node.latency_sync_ready = sync_ready
 
 
 def get_ros_graph_payload() -> Dict[str, Any]:
@@ -340,26 +428,25 @@ def _upsert_watched_topic(topic_name: str, topic_type: Optional[str] = None) -> 
 
 def append_failure(node_id: Optional[int], description: str, status: str = "warning") -> None:
     """Append a failure entry, avoiding exact duplicate consecutive records."""
-    with system_data_lock:
-        failures = system_data.setdefault("failures", [])
-        if failures:
-            last_failure = failures[-1]
-            if (
-                last_failure.get("node_id") == node_id
-                and last_failure.get("description") == description
-                and last_failure.get("status") == status
-            ):
-                return
+    failures = system_data.setdefault("failures", [])
+    if failures:
+        last_failure = failures[-1]
+        if (
+            last_failure.get("node_id") == node_id
+            and last_failure.get("description") == description
+            and last_failure.get("status") == status
+        ):
+            return
 
-        failures.append(
-            {
-                "id": len(failures) + 1,
-                "timestamp": datetime.now().isoformat(),
-                "node_id": node_id,
-                "description": description,
-                "status": status,
-            }
-        )
+    failures.append(
+        {
+            "id": len(failures) + 1,
+            "timestamp": datetime.now().isoformat(),
+            "node_id": node_id,
+            "description": description,
+            "status": status,
+        }
+    )
 
 # ----------------------------------------------------------------------------
 # ROS 2 Integration Logic
@@ -370,57 +457,59 @@ def ros_update_callback(action, data):
     with app.app_context():
         try:
             if action == 'update_node':
-                with system_data_lock:
-                    node_id = data.get('id')
-                    node = get_node_by_id(node_id)
-                    new_status = data.get('status')
+                node_id = data.get('id')
+                # Check if node exists, if not create it (auto-discovery)
+                node = get_node_by_id(node_id)
+                new_status = data.get('status')
+                
+                if node:
+                    previous_status = getattr(node, "status", "unknown")
+                    # Update existing node
+                    if new_status is not None:
+                        node.status = new_status
+                    if 'health' in data:
+                        node.health_score = data['health']
+                    if 'uptime' in data:
+                        node.uptime = data['uptime']
 
-                    if node:
-                        previous_status = getattr(node, "status", "unknown")
-                        if new_status is not None:
-                            node.status = new_status
-                        if 'health' in data:
-                            node.health_score = data['health']
-                        if 'uptime' in data:
-                            node.uptime = data['uptime']
+                    if new_status == "offline" and previous_status != "offline":
+                        append_failure(node_id, "Node transitioned offline", "warning")
+                        logger.warning("ROS transition: Node %s offline", node_id)
+                    elif previous_status == "offline" and new_status not in (None, "offline"):
+                        logger.info("ROS transition: Node %s recovered to %s", node_id, new_status)
+                    logger.info(f"ROS update: Node {node_id} updated")
+                else:
+                    # Auto-discover new node
+                    logger.info(f"ROS discovery: New Node {node_id} detected")
+                    new_node = Node(
+                        id=node_id,
+                        name=f"Node {node_id}",
+                        status=new_status or 'unknown',
+                        type="STM32H743VIT6", # Default, can be updated if msg includes it
+                        ram="Unknown",
+                        flash="Unknown",
+                        cpu="Unknown",
+                        active_tasks=[],
+                        health_score=data.get('health', 100),
+                        uptime=data.get('uptime', '0s'),
+                        network="ROS 2"
+                    )
+                    system_data['nodes'].append(new_node)
 
-                        if new_status == "offline" and previous_status != "offline":
-                            append_failure(node_id, "Node transitioned offline", "warning")
-                            logger.warning("ROS transition: Node %s offline", node_id)
-                        elif previous_status == "offline" and new_status not in (None, "offline"):
-                            logger.info("ROS transition: Node %s recovered to %s", node_id, new_status)
-                        logger.info(f"ROS update: Node {node_id} updated")
-                    else:
-                        logger.info(f"ROS discovery: New Node {node_id} detected")
-                        new_node = Node(
-                            id=node_id,
-                            name=f"Node {node_id}",
-                            status=new_status or 'unknown',
-                            type="STM32H743VIT6",
-                            ram="Unknown",
-                            flash="Unknown",
-                            cpu="Unknown",
-                            active_tasks=[],
-                            health_score=data.get('health', 100),
-                            uptime=data.get('uptime', '0s'),
-                            network="ROS 2"
-                        )
-                        system_data['nodes'].append(new_node)
-
-                    refresh_system_status(system_data)
-                    save_system_data(system_data)
+                refresh_system_status(system_data)
+                save_system_data(system_data)
 
             elif action == 'add_failure':
-                with system_data_lock:
-                    node_id = data.get('node_id')
-                    append_failure(
-                        node_id,
-                        data.get('msg', 'Unknown Error'),
-                        data.get('level', 'warning')
-                    )
-                    refresh_system_status(system_data)
-                    save_system_data(system_data)
-                    logger.warning(f"ROS alert: {data}")
+                node_id = data.get('node_id')
+                # Log failure even if node is unknown yet
+                append_failure(
+                    node_id,
+                    data.get('msg', 'Unknown Error'),
+                    data.get('level', 'warning')
+                )
+                refresh_system_status(system_data)
+                save_system_data(system_data)
+                logger.warning(f"ROS alert: {data}")
 
             elif action == 'raw_heartbeat':
                 node_id = data.get('id')
@@ -433,14 +522,16 @@ def ros_update_callback(action, data):
                     )
 
             elif action == 'performance_metrics':
-                with system_data_lock:
-                    merge_performance_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
-                    apply_runtime_metrics_to_nodes()
+                merge_performance_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
+                apply_runtime_metrics_to_nodes()
 
             elif action == 'container_metrics':
-                with system_data_lock:
-                    merge_container_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
-                    apply_runtime_metrics_to_nodes()
+                merge_container_metrics(system_data.setdefault("metrics", new_metrics_state()), data)
+                apply_runtime_metrics_to_nodes()
+
+            elif action == 'jetson_diagnostics':
+                global jetson_diag_state
+                jetson_diag_state = data if isinstance(data, dict) else {"available": False, "raw": data}
 
             elif action == 'graph_snapshot':
                 with ros_state_lock:
@@ -531,7 +622,22 @@ def index():
         system_data=template_data,
         ros_connected=ros_connected,
         metrics_summary=get_metrics_summary(),
+        jetson_diag=jetson_diag_state,
     )
+
+
+@app.route('/jetson-diagnostics')
+def jetson_diagnostics_page():
+    """Jetson host diagnostics page."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('jetson_diagnostics.html', jetson_diag=jetson_diag_state)
+
+
+@app.route('/api/jetson/diagnostics')
+def api_jetson_diagnostics():
+    """Return latest Jetson host diagnostics payload."""
+    return jsonify(jetson_diag_state), 200
 
 
 @app.route('/nodes')
@@ -551,6 +657,64 @@ def ros_page():
         return "System initializing...", 503
 
     return render_template('ros.html', ros_state=get_ros_graph_payload())
+
+
+@app.route('/pointcloud')
+def pointcloud_page():
+    """Dedicated live and accumulated PointCloud2 viewer."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('pointcloud.html')
+
+
+@app.route('/rover-map')
+def rover_map_page():
+    """Interactive static mesh with the rover pose marker."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('rover_map.html')
+
+
+@app.route('/occupancy-map')
+def occupancy_map_page():
+    """Dedicated 2D viewer for nav_msgs/OccupancyGrid topics."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('occupancy_map.html')
+
+
+@app.route('/images')
+def images_page():
+    """Multi-feed image viewer with selectable layouts and sources."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('images.html')
+
+
+@app.route('/command')
+def command_page():
+    """Publisher Studio — generic topic publisher."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('command.html', ros_state=get_ros_graph_payload())
+
+
+@app.route('/drive')
+def drive_page():
+    """Teleop Drive — joystick / keyboard teleop publishing Twist."""
+    if not system_data:
+        return "System initializing...", 503
+    return render_template('drive.html', ros_state=get_ros_graph_payload())
+
+
+@app.route('/assets/models/Model3D_mesh2.obj')
+def rover_map_mesh_asset():
+    """Serve the supplied mesh without duplicating its large source file."""
+    return send_file(
+        Path(__file__).with_name('Model3D_mesh2.obj'),
+        mimetype='text/plain',
+        conditional=True,
+    )
 
 
 @app.route('/failures')
@@ -893,6 +1057,732 @@ def api_ros_unwatch_topic():
     except Exception as e:
         logger.error(f"Error unwatching ROS topic: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+# ------------------------------------------------------------------
+# Generic publish + Teleop (Publisher Studio / Drive)
+# ------------------------------------------------------------------
+
+def _is_publish_allowed(topic_name: str) -> bool:
+    allowed = app.config.get('PUBLISH_ALLOWED_TOPICS', '*')
+    if allowed == '*' or allowed == ['*']:
+        return True
+    # support both string and list from config
+    if isinstance(allowed, str):
+        if allowed.strip() == '*':
+            return True
+        allowed_list = [s.strip() for s in allowed.split(',') if s.strip()]
+    else:
+        allowed_list = list(allowed)
+    return topic_name in allowed_list or '*' in allowed_list
+
+
+def _is_teleop_allowed(topic_name: str) -> bool:
+    allowed = app.config.get('TELEOP_ALLOWED_TOPICS', ['/cmd_vel'])
+    if isinstance(allowed, str):
+        allowed = [s.strip() for s in allowed.split(',') if s.strip()]
+    return topic_name in allowed
+
+
+@app.route('/api/ros/publish', methods=['POST'])
+@require_json
+@limiter.limit("60 per minute")
+def api_ros_publish():
+    """Generic topic publish — validated and delegated to ROS node."""
+    try:
+        data = request.get_json() or {}
+        topic_name = _normalize_topic_name(data.get("topic_name"))
+        topic_type = str(data.get("topic_type", "")).strip()
+        payload = data.get("payload", data.get("data"))
+        if not topic_name:
+            return jsonify({"error": "Missing required field: topic_name"}), 400
+        if not topic_type:
+            return jsonify({"error": "Missing required field: topic_type"}), 400
+        if payload is None:
+            return jsonify({"error": "Missing required field: payload"}), 400
+        if not _is_publish_allowed(topic_name):
+            return jsonify({"error": f"Publishing to {topic_name} is not allowed"}), 403
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.publish_generic(topic_name, topic_type, payload)
+        status = 200 if result.get("success") else 400
+        if result.get("success"):
+            logger.info("Publish %s %s payload=%s", topic_name, topic_type, str(payload)[:300])
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error publishing ROS topic")
+        return jsonify({"error": "Internal server error", "detail": str(e)}), 500
+
+
+@app.route('/api/ros/teleop', methods=['POST'])
+@require_json
+@limiter.limit("120 per minute")
+def api_ros_teleop():
+    """Teleop velocity publish — clamped, rate-limited, watch-dogged.
+
+    Publishes TwistStamped (header.stamp=now) when `stamped` is true or when
+    the topic is /diff_drive_controller/cmd_vel, matching diff_drive_controller
+    `use_stamped_vel: true` so the joystick drives the controller directly.
+    """
+    try:
+        data = request.get_json() or {}
+        topic_name = _normalize_topic_name(data.get("topic_name") or app.config.get('TELEOP_DEFAULT_TOPIC', '/cmd_vel'))
+        if not topic_name:
+            topic_name = _normalize_topic_name(app.config.get('TELEOP_DEFAULT_TOPIC', '/cmd_vel'))
+        if not _is_teleop_allowed(topic_name):
+            return jsonify({"error": f"Teleop to {topic_name} is not allowed"}), 403
+        try:
+            linear_x = float(data.get("linear_x", 0.0))
+            angular_z = float(data.get("angular_z", 0.0))
+            linear_y = float(data.get("linear_y", 0.0))
+            linear_z = float(data.get("linear_z", 0.0))
+            angular_x = float(data.get("angular_x", 0.0))
+            angular_y = float(data.get("angular_y", 0.0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "linear_x/angular_z must be numbers"}), 400
+
+        max_lin = float(app.config.get('TELEOP_MAX_LINEAR', 1.0))
+        max_ang = float(app.config.get('TELEOP_MAX_ANGULAR', 2.0))
+        # clamp
+        linear_x = max(-max_lin, min(max_lin, linear_x))
+        angular_z = max(-max_ang, min(max_ang, angular_z))
+
+        # stamped: explicit bool wins; otherwise auto-stamp diff-drive cmd_vel
+        stamped = data.get("stamped", None)
+        if stamped is not None:
+            if isinstance(stamped, str):
+                stamped = stamped.strip().lower() not in ("0", "false", "no", "off", "")
+            else:
+                stamped = bool(stamped)
+        elif topic_name.rstrip("/") == "/diff_drive_controller/cmd_vel":
+            stamped = True
+
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.publish_twist(topic_name, linear_x, angular_z, linear_y, linear_z, angular_x, angular_y, stamped=stamped)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error in teleop publish")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/teleop/stop', methods=['POST'])
+@require_json
+@limiter.limit("60 per minute")
+def api_ros_teleop_stop():
+    try:
+        data = request.get_json() or {}
+        topic_name = _normalize_topic_name(data.get("topic_name") or app.config.get('TELEOP_DEFAULT_TOPIC', '/cmd_vel'))
+        if not topic_name:
+            topic_name = _normalize_topic_name(app.config.get('TELEOP_DEFAULT_TOPIC', '/cmd_vel'))
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.stop_teleop(topic_name)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error stopping teleop")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/arm/move', methods=['POST'])
+@require_json
+@limiter.limit("60 per minute")
+def api_ros_arm_move():
+    """Arm JointTrajectory publish — joints clamped to URDF limits."""
+    try:
+        data = request.get_json() or {}
+        positions = data.get("positions") or data.get("joints") or {}
+        if not isinstance(positions, dict) or not positions:
+            return jsonify({"error": "Missing required field: positions (dict of joint->value)"}), 400
+        try:
+            duration = float(data.get("duration", 0.5))
+        except (TypeError, ValueError):
+            return jsonify({"error": "duration must be a number"}), 400
+        # validate numeric
+        clean = {}
+        for k, v in positions.items():
+            try:
+                clean[str(k)] = float(v)
+            except (TypeError, ValueError):
+                return jsonify({"error": f"joint {k} value must be numeric"}), 400
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.publish_arm_trajectory(clean, duration)
+        status = 200 if result.get("success") else 400
+        if result.get("success"):
+            logger.info("Arm move positions=%s duration=%.2f", clean, duration)
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error in arm move")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/arm/home', methods=['POST'])
+@require_json
+@limiter.limit("30 per minute")
+def api_ros_arm_home():
+    try:
+        data = request.get_json() or {}
+        duration = float(data.get("duration", 0.8))
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        positions = {
+            'j1_joint': 0.0,
+            'j2_joint': 0.0,
+            'j3_joint': 0.0,
+            'ee_base_joint_x': 0.0,
+            'ee_base_joint_y': 0.0,
+            'slider_joint': 0.0,
+        }
+        result = ros_manager.publish_arm_trajectory(positions, duration)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error in arm home")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/arm/gripper', methods=['POST'])
+@require_json
+@limiter.limit("30 per minute")
+def api_ros_arm_gripper():
+    try:
+        data = request.get_json() or {}
+        action = str(data.get("action", "")).strip().lower()
+        duration = float(data.get("duration", 0.5))
+        if action not in ("open", "close"):
+            # also allow explicit position
+            if "position" in data:
+                pos = float(data["position"])
+                positions = {"slider_joint": pos}
+            else:
+                return jsonify({"error": "action must be 'open' or 'close' or provide position"}), 400
+        else:
+            positions = {"slider_joint": 0.0 if action == "open" else 0.05}
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.publish_arm_trajectory(positions, duration)
+        status = 200 if result.get("success") else 400
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error in gripper action")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/joint_states')
+@limiter.limit("120 per minute")
+def api_ros_joint_states():
+    try:
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        data = ros_manager.get_joint_states()
+        if data is None:
+            return jsonify({"positions": {}, "stamp": None}), 200
+        return jsonify(data), 200
+    except Exception as e:
+        logger.exception("Error getting joint states")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/pointcloud/live/start', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_pointcloud_live_start():
+    try:
+        data = request.get_json() or {}
+        topic_name = _normalize_topic_name(data.get("topic_name"))
+        if not topic_name:
+            return jsonify({"error": "Missing required field: topic_name"}), 400
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.start_pointcloud_live(topic_name)
+        return jsonify(result), 200 if result.get("success") else 400
+    except Exception as exc:
+        logger.exception("Failed to start live point-cloud viewer")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/ros/pointcloud/live/stop', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_pointcloud_live_stop():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name"))
+    if not topic_name:
+        return jsonify({"error": "Missing required field: topic_name"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.stop_pointcloud_live(topic_name)
+    return jsonify(result), 200 if result.get("success") else 404
+
+
+@app.route('/api/ros/pointcloud/live/<path:topic_name>/latest')
+@limiter.limit("240 per minute")
+def api_pointcloud_live_latest(topic_name: str):
+    normalized_name = _normalize_topic_name(topic_name)
+    try:
+        max_points = int(request.args.get("max_points", 20000))
+    except ValueError:
+        return jsonify({"error": "max_points must be an integer"}), 400
+    if max_points < 1 or max_points > 200000:
+        return jsonify({"error": "max_points must be between 1 and 200000"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    snapshot = ros_manager.get_pointcloud_live_snapshot(normalized_name, max_points)
+    if snapshot is not None and snapshot.get("active") is False:
+        return jsonify({"error": f"Live viewer for {normalized_name} is not active"}), 404
+    return jsonify(_serialize_pointcloud_snapshot(normalized_name, snapshot)), 200
+
+
+@app.route('/api/ros/pointcloud/accumulate/start', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_pointcloud_accumulation_start():
+    try:
+        data = request.get_json() or {}
+        topic_name = _normalize_topic_name(data.get("topic_name"))
+        pose_topic = _normalize_topic_name(data.get("pose_topic", "/zed/zed_node/pose"))
+        if not topic_name:
+            return jsonify({"error": "Missing required field: topic_name"}), 400
+        if not pose_topic:
+            return jsonify({"error": "pose_topic must not be empty"}), 400
+        voxel_size, max_map_points, error = _parse_pointcloud_parameters(data)
+        if error:
+            return jsonify({"error": error}), 400
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"error": "ROS 2 is not connected"}), 503
+        result = ros_manager.start_pointcloud_accumulation(
+            topic_name, pose_topic, voxel_size, max_map_points
+        )
+        return jsonify(result), 200 if result.get("success") else 400
+    except Exception as exc:
+        logger.exception("Failed to start point-cloud accumulation")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/ros/pointcloud/accumulate/stop', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_pointcloud_accumulation_stop():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name"))
+    if not topic_name:
+        return jsonify({"error": "Missing required field: topic_name"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.stop_pointcloud_accumulation(topic_name)
+    return jsonify(result), 200 if result.get("success") else 404
+
+
+@app.route('/api/ros/pointcloud/accumulate/reset', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_pointcloud_accumulation_reset():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name"))
+    if not topic_name:
+        return jsonify({"error": "Missing required field: topic_name"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.reset_pointcloud_accumulation(topic_name)
+    return jsonify(result), 200 if result.get("success") else 404
+
+
+@app.route('/api/ros/pointcloud/accumulate/<path:topic_name>/snapshot')
+@limiter.limit("90 per minute")
+def api_pointcloud_accumulation_snapshot(topic_name: str):
+    normalized_name = _normalize_topic_name(topic_name)
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    snapshot = ros_manager.get_pointcloud_accumulation_snapshot(normalized_name)
+    if snapshot is not None and snapshot.get("active") is False:
+        return jsonify({"error": f"Accumulator for {normalized_name} is not active"}), 404
+    payload = _serialize_pointcloud_snapshot(normalized_name, snapshot)
+    payload.setdefault("frames_dropped_no_pose", 0)
+    return jsonify(payload), 200
+
+
+@app.route('/api/ros/occupancy_map/subscribe', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_occupancy_map_subscribe():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name", "/map"))
+    if not topic_name:
+        return jsonify({"error": "topic_name must not be empty"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.start_occupancy_map(topic_name)
+    return jsonify(result), 200 if result.get("success") else 400
+
+
+@app.route('/api/ros/occupancy_map/unsubscribe', methods=['POST'])
+@require_json
+@limiter.limit("20 per minute")
+def api_occupancy_map_unsubscribe():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name", "/map"))
+    if not topic_name:
+        return jsonify({"error": "topic_name must not be empty"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.stop_occupancy_map(topic_name)
+    return jsonify(result), 200 if result.get("success") else 404
+
+
+@app.route('/api/ros/occupancy_map/<path:topic_name>/latest')
+@limiter.limit("120 per minute")
+def api_occupancy_map_latest(topic_name: str):
+    normalized_name = _normalize_topic_name(topic_name)
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    snapshot = ros_manager.get_occupancy_map_snapshot(normalized_name)
+    if snapshot is not None and snapshot.get("active") is False:
+        return jsonify({"error": f"Occupancy map viewer for {normalized_name} is not active"}), 404
+    if snapshot is None:
+        return jsonify({
+            "width": 0,
+            "height": 0,
+            "resolution": None,
+            "origin": None,
+            "frame_id": None,
+            "data_base64": "",
+            "frames_received": 0,
+            "last_error": "Waiting for an OccupancyGrid message.",
+        }), 200
+    return jsonify(snapshot), 200
+
+
+@app.route('/api/ros/image/topics')
+@limiter.limit("120 per minute")
+def api_image_topics():
+    """List discovered image topics (sensor_msgs/Image, CompressedImage)."""
+    try:
+        if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+            return jsonify({"ros_connected": False, "topics": []}), 200
+        return jsonify({"ros_connected": True, "topics": ros_manager.list_image_topics()}), 200
+    except Exception as e:
+        logger.error(f"Error listing image topics: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/ros/image/subscribe', methods=['POST'])
+@require_json
+@limiter.limit("30 per minute")
+def api_image_subscribe():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name"))
+    if not topic_name:
+        return jsonify({"error": "topic_name must not be empty"}), 400
+    try:
+        max_width = int(data.get("max_width", 640))
+    except (TypeError, ValueError):
+        return jsonify({"error": "max_width must be an integer"}), 400
+    if max_width < 160 or max_width > 1920:
+        return jsonify({"error": "max_width must be between 160 and 1920"}), 400
+    try:
+        quality = int(data.get("quality", 80))
+    except (TypeError, ValueError):
+        return jsonify({"error": "quality must be an integer"}), 400
+    if quality < 10 or quality > 100:
+        return jsonify({"error": "quality must be between 10 and 100"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.start_image(topic_name, max_width=max_width, quality=quality)
+    return jsonify(result), 200 if result.get("success") else 400
+
+
+@app.route('/api/ros/image/unsubscribe', methods=['POST'])
+@require_json
+@limiter.limit("30 per minute")
+def api_image_unsubscribe():
+    data = request.get_json() or {}
+    topic_name = _normalize_topic_name(data.get("topic_name"))
+    if not topic_name:
+        return jsonify({"error": "topic_name must not be empty"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    result = ros_manager.stop_image(topic_name)
+    return jsonify(result), 200 if result.get("success") else 404
+
+
+@app.route('/api/ros/image/<path:topic_name>/latest')
+@limiter.limit("240 per minute")
+def api_image_latest(topic_name: str):
+    normalized_name = _normalize_topic_name(topic_name)
+    try:
+        max_width = int(request.args.get("max_width", 640))
+    except ValueError:
+        return jsonify({"error": "max_width must be an integer"}), 400
+    if max_width < 160 or max_width > 1920:
+        return jsonify({"error": "max_width must be between 160 and 1920"}), 400
+    if not (ROS_AVAILABLE and ros_manager and ros_manager.running):
+        return jsonify({"error": "ROS 2 is not connected"}), 503
+    snapshot = ros_manager.get_image_snapshot(normalized_name, max_width=max_width)
+    if snapshot is not None and snapshot.get("active") is False:
+        return jsonify({"error": f"Image viewer for {normalized_name} is not active"}), 404
+    if snapshot is None:
+        return jsonify({
+            "topic_name": normalized_name,
+            "width": 0,
+            "height": 0,
+            "encoding": None,
+            "frame_id": None,
+            "jpeg_base64": "",
+            "mime": "image/jpeg",
+            "frames_received": 0,
+            "last_error": "Waiting for an Image message.",
+        }), 200
+    return jsonify(snapshot), 200
+
+
+def _parse_image_size_params(data: Dict[str, Any], *, default_width: int = 640,
+                               default_quality: int = 80):
+    """Shared max_width/quality validation for ROS + socket image endpoints."""
+    try:
+        max_width = int(data.get("max_width", default_width))
+    except (TypeError, ValueError):
+        return None, None, "max_width must be an integer"
+    if max_width < 160 or max_width > 1920:
+        return None, None, "max_width must be between 160 and 1920"
+    try:
+        quality = int(data.get("quality", default_quality))
+    except (TypeError, ValueError):
+        return None, None, "quality must be an integer"
+    if quality < 10 or quality > 100:
+        return None, None, "quality must be between 10 and 100"
+    return max_width, quality, None
+
+
+@app.route('/api/socket/image/feeds')
+@limiter.limit("120 per minute")
+def api_socket_image_feeds():
+    """List active raw socket image feeds (no ROS required)."""
+    try:
+        with socket_viewers_lock:
+            feeds = [viewer.status() for viewer in socket_viewers.values()]
+        return jsonify({"feeds": feeds}), 200
+    except Exception as e:
+        logger.error(f"Error listing socket image feeds: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/api/socket/image/subscribe', methods=['POST'])
+@require_json
+@limiter.limit("30 per minute")
+def api_socket_image_subscribe():
+    data = request.get_json() or {}
+    max_width, quality, size_error = _parse_image_size_params(data)
+    if size_error:
+        return jsonify({"error": size_error}), 400
+    try:
+        feed_id, cfg = parse_socket_source(
+            str(data.get("address", data.get("feed_id", "")) or ""),
+            host=str(data.get("host", "") or ""),
+            port=data.get("port", ""),
+            path=str(data.get("path", "/") or "/"),
+            scheme=str(data.get("scheme", "tcp") or "tcp"),
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    with socket_viewers_lock:
+        if feed_id not in socket_viewers and len(socket_viewers) >= SOCKET_VIEW_MAX:
+            return jsonify({"error": f"Socket feed limit reached ({SOCKET_VIEW_MAX})"}), 400
+        viewer = socket_viewers.get(feed_id)
+        if viewer is None:
+            try:
+                if str(cfg["scheme"]) == "udp":
+                    viewer = VfrUdpViewer(
+                        feed_id, host=str(cfg["host"]), port=int(cfg["port"]),
+                        max_width=max_width, quality=quality,
+                    )
+                else:
+                    viewer = SocketImageViewer(
+                        feed_id, str(cfg["host"]), int(cfg["port"]),
+                        path=str(cfg["path"]), scheme=str(cfg["scheme"]),
+                        max_width=max_width, quality=quality,
+                    )
+            except Exception as exc:
+                logger.error(f"Failed to start socket image feed {feed_id}: {exc}")
+                return jsonify({"error": f"Failed to start socket feed: {exc}"}), 500
+            socket_viewers[feed_id] = viewer
+            created = True
+        else:
+            created = False
+        status = viewer.status()
+    status = {**status, "success": True, "feed_id": feed_id, "already_started": not created}
+    return jsonify(status), 200
+
+
+@app.route('/api/socket/image/unsubscribe', methods=['POST'])
+@require_json
+@limiter.limit("30 per minute")
+def api_socket_image_unsubscribe():
+    data = request.get_json() or {}
+    raw = str(data.get("feed_id", data.get("address", "")) or "").strip()
+    if not raw:
+        # Also accept discrete host/port/path fields.
+        try:
+            raw, _ = parse_socket_source(
+                "", host=str(data.get("host", "") or ""), port=data.get("port", ""),
+                path=str(data.get("path", "/") or "/"),
+                scheme=str(data.get("scheme", "tcp") or "tcp"),
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+    with socket_viewers_lock:
+        viewer = socket_viewers.pop(raw, None)
+        if viewer is None:
+            # Be lenient: match by host:port prefix so the UI does not wedge.
+            match = next((fid for fid in socket_viewers if fid.startswith(raw)), None)
+            if match is None:
+                return jsonify({"error": f"Socket feed {raw} is not active"}), 404
+            viewer = socket_viewers.pop(match)
+            raw = match
+    try:
+        viewer.shutdown()
+    except Exception:
+        pass
+    return jsonify({"success": True, "feed_id": raw}), 200
+
+
+@app.route('/api/socket/image/<path:feed_id>/latest')
+@limiter.limit("240 per minute")
+def api_socket_image_latest(feed_id: str):
+    from urllib.parse import unquote
+    normalized = unquote(feed_id).strip()
+    try:
+        max_width = int(request.args.get("max_width", 640))
+    except ValueError:
+        return jsonify({"error": "max_width must be an integer"}), 400
+    if max_width < 160 or max_width > 1920:
+        return jsonify({"error": "max_width must be between 160 and 1920"}), 400
+    with socket_viewers_lock:
+        viewer = socket_viewers.get(normalized)
+        if viewer is None:
+            match = next((v for fid, v in socket_viewers.items() if fid.startswith(normalized)), None)
+            viewer = match
+    if viewer is None:
+        return jsonify({"error": f"Socket feed {normalized} is not active"}), 404
+    snapshot = viewer.snapshot(max_width=max_width)
+    if snapshot is None:
+        status = viewer.status()
+        return jsonify({
+            "feed_id": status.get("feed_id", normalized),
+            "source": "socket",
+            "width": 0,
+            "height": 0,
+            "encoding": None,
+            "jpeg_base64": "",
+            "mime": "image/jpeg",
+            "frames_received": status.get("frames_received", 0),
+            "connected": status.get("connected", False),
+            "last_error": status.get("last_error") or "Waiting for first JPEG frame on socket.",
+        }), 200
+    return jsonify(snapshot), 200
+
+
+@app.route('/api/ssh-terminal/session-id')
+@auth.login_required
+def api_ssh_terminal_session_id():
+    unavailable = _ssh_terminal_available()
+    if unavailable:
+        return unavailable
+    session_id = request.cookies.get(SSH_SESSION_COOKIE)
+    if not session_id:
+        session_id = os.urandom(32).hex()
+    response = jsonify({'success': True})
+    response.set_cookie(
+        SSH_SESSION_COOKIE,
+        session_id,
+        max_age=int(os.environ.get('SSH_TERMINAL_IDLE_TIMEOUT_SEC', '1800')),
+        secure=True,
+        httponly=True,
+        samesite='Lax',
+        path='/',
+    )
+    return response
+
+
+@sock.route('/ws/ssh-terminal')
+def ssh_terminal_ws(ws):
+    session_id = request.cookies.get(SSH_SESSION_COOKIE)
+    if not session_id:
+        ws.close(1008, 'SSH terminal session is missing; authenticate first')
+        return
+    unavailable = _ssh_terminal_available()
+    if unavailable:
+        ws.close(1008, 'SSH terminal unavailable')
+        return
+
+    try:
+        terminal_session = ssh_manager.get_or_create(session_id)
+    except SSHPasswordRequired:
+        ws.send(json.dumps({'type': 'password_required'}))
+        terminal_session = None
+        while terminal_session is None:
+            message = ws.receive()
+            if message is None:
+                return
+            try:
+                payload = json.loads(message)
+                password = payload.get('data') if payload.get('type') == 'password' else None
+                if not isinstance(password, str):
+                    raise ValueError('SSH password is required')
+                terminal_session = ssh_manager.get_or_create(session_id, password=password)
+            except SSHAuthenticationFailed:
+                ws.send(json.dumps({'type': 'error', 'data': 'SSH authentication failed'}))
+                ws.send(json.dumps({'type': 'password_required'}))
+            except SSHConnectionFailed:
+                ws.send(json.dumps({'type': 'error', 'data': 'Configured SSH host is unreachable'}))
+                return
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                ws.send(json.dumps({'type': 'error', 'data': str(exc)}))
+            except Exception:
+                logger.exception('Failed to authenticate SSH terminal session')
+                ws.send(json.dumps({'type': 'error', 'data': 'SSH authentication failed'}))
+                return
+    except Exception as exc:
+        logger.exception('Failed to open SSH terminal session')
+        ws.send(json.dumps({'type': 'error', 'data': str(exc)}))
+        ws.close(1011, 'SSH terminal connection failed')
+        return
+
+    stop_reader = threading.Event()
+    offset, scrollback = terminal_session.output_snapshot()
+    if scrollback:
+        ws.send(json.dumps({'type': 'output', 'data': scrollback.decode('utf-8', errors='replace')}))
+
+    def reader_loop():
+        nonlocal offset
+        try:
+            while not stop_reader.is_set() and terminal_session.is_alive():
+                offset, data = terminal_session.output_since(offset)
+                if data:
+                    ws.send(json.dumps({'type': 'output', 'data': data.decode('utf-8', errors='replace')}))
+                else:
+                    time.sleep(0.05)
+        except Exception:
+            stop_reader.set()
+
+    reader_thread = threading.Thread(target=reader_loop, daemon=True)
+    reader_thread.start()
+    try:
+        while not stop_reader.is_set():
+            message = ws.receive()
+            if message is None:
+                break
+            payload = json.loads(message)
+            if payload.get('type') == 'input' and isinstance(payload.get('data'), str):
+                terminal_session.write(payload['data'])
+            elif payload.get('type') == 'resize':
+                terminal_session.resize(payload.get('cols', 80), payload.get('rows', 24))
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning('Invalid SSH terminal WebSocket message: %s', exc)
+    finally:
+        stop_reader.set()
 
 
 # ============================================================================

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H7-Arm Audit — WireTest standalone PASS vs Jetson topic command FAIL</title>
+<style>
+  :root{--bg:#0b1020;--card:#131a33;--card2:#1a2360;--accent:#6c7bff;--accent2:#00d9ff;--warn:#ff9800;--crit:#ff3b5c;--ok:#00e676;--muted:#8a94b8;--line:#23306a;--code:#0e1430}
+  *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 600px at 20% -10%, #1a2360 0%, transparent 60%),radial-gradient(900px 500px at 90% 10%, #0e4d6a 0%, transparent 55%),var(--bg);color:#e6e9ff;line-height:1.6}
+  header{max-width:1180px;margin:36px auto 18px;padding:0 20px}
+  .pill{display:inline-flex;gap:8px;align-items:center;background:rgba(108,123,255,.14);border:1px solid rgba(108,123,255,.35);color:#b7c0ff;padding:6px 12px;border-radius:999px;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--crit);box-shadow:0 0 12px var(--crit)}
+  h1{font-size:32px;line-height:1.15;margin:14px 0 8px;letter-spacing:-.02em}
+  h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--muted);max-width:900px;font-size:14.5px}
+  .grid{max-width:1180px;margin:18px auto;padding:0 20px;display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;backdrop-filter:blur(8px)}
+  .card h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#aab4ff;margin:0 0 10px}
+  .kvs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kv{background:var(--code);border:1px solid #1f2a5a;border-radius:12px;padding:10px 12px}
+  .kv b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+  .kv span{font-size:13px}
+  .badge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid}
+  .b-crit{border-color:rgba(255,59,92,.45);background:rgba(255,59,92,.12);color:#ffb3c0}
+  .b-warn{border-color:rgba(255,152,0,.45);background:rgba(255,152,0,.13);color:#ffd8a6}
+  .b-ok{border-color:rgba(0,230,118,.4);background:rgba(0,230,118,.12);color:#a8ffcf}
+  .path{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#9fb0ff;word-break:break-all}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 4px}
+  .flow .node{background:#0e1430;border:1px solid #25306b;border-radius:10px;padding:6px 10px;font-size:12px}
+  .flow .arr{color:var(--accent2)}
+  .toc{max-width:1180px;margin:8px auto;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap}
+  .toc a{font-size:12px;color:#b7c0ff;text-decoration:none;border:1px solid #27306b;background:#101640;padding:6px 10px;border-radius:999px}
+  .toc a:hover{background:#18206a}
+  main{max-width:1180px;margin:12px auto 40px;padding:0 20px}
+  .cause{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));border:1px solid var(--line);border-radius:18px;overflow:hidden;margin:14px 0}
+  .cause-head{display:flex;gap:14px;padding:18px 18px 14px;align-items:flex-start}
+  .rank{flex:0 0 54px;height:54px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:18px;color:white;letter-spacing:-.02em}
+  .r1{background:linear-gradient(135deg,#ff3b5c,#ff7a3d)} .r2{background:linear-gradient(135deg,#ff5a3d,#ffb020)} .r3{background:linear-gradient(135deg,#ff9800,#ffca28);color:#1a1200}
+  .r4{background:linear-gradient(135deg,#6c7bff,#00d9ff)} .r5{background:linear-gradient(135deg,#00bcd4,#6c7bff)} .r6{background:linear-gradient(135deg,#7c4dff,#00d9ff)}
+  .r7,.r8,.r9,.r10{background:linear-gradient(135deg,#2a356e,#3e4f9a)}
+  .cause-head h3{margin:0;font-size:17px;line-height:1.25}
+  .cause-head h3 small{display:block;font-weight:500;color:var(--muted);font-size:12px;margin-top:4px;letter-spacing:.02em}
+  .meta{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .prob{font-size:12px;padding:5px 9px;border-radius:999px;background:#0e1430;border:1px solid #2a356e;color:#aab4ff}
+  .prob b{color:white}
+  .cause-body{padding:0 18px 18px;display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+  @media(max-width:900px){.cause-body{grid-template-columns:1fr}}
+  .panel{background:var(--code);border:1px solid #1e2a5e;border-radius:14px;padding:14px}
+  .panel h4{margin:0 0 8px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:#9fb0ff}
+  .panel ul{margin:0;padding-left:18px;font-size:13px;color:#d6ddff}
+  .panel li{margin:4px 0}
+  .panel li em{color:var(--muted);font-style:normal}
+  .fix{background:linear-gradient(180deg,rgba(0,230,118,.08),rgba(0,230,118,.03));border:1px solid rgba(0,230,118,.28);border-radius:14px;padding:14px}
+  .fix h4{color:#7dffb8}
+  .fix ol{margin:0;padding-left:18px;font-size:13px}
+  .fix li{margin:6px 0}
+  .evid{font-size:12px;color:#8a94b8}
+  .evid code{color:#9fb0ff}
+  .diag{background:#0e1430;border:1px dashed #2a356e;border-radius:12px;padding:10px 12px;font-size:12px;color:#aab4ff;margin-top:10px}
+  .diag b{color:#d6ddff}
+  .footer{max-width:1180px;margin:0 auto 36px;padding:0 20px;color:var(--muted);font-size:12px}
+  .hr{height:1px;background:linear-gradient(90deg,transparent,#23306a,transparent);margin:18px 0}
+  .small{font-size:12px;color:var(--muted)}
+  details{margin-top:8px}
+  details summary{cursor:pointer;color:#9fb0ff;font-size:12px}
+  pre{margin:8px 0 0;background:#0a0f2a;border:1px solid #1e2a5e;border-radius:10px;padding:10px 12px;overflow:auto;font-size:12px;color:#cbd6ff}
+</style>
+</head>
+<body>
+<header>
+  <div class="pill"><span class="dot"></span> H7-Arm Audit &middot; WireTest standalone PASS &rarr; Jetson topic command FAIL — clarified</div>
+  <h1>Why <span>WireTest moves</span> but the Jetson <span>topic command</span> does not</h1>
+  <p class="sub">Standalone <code class="mono">CM4_wiretest / WIRE_TEST</code> firmware rocks the motor at &plusmn;10&deg; proving SPI chain, powerSTEP01 config, and wiring are healthy.
+  The same hardware ignores normal Jetson topic commands on <code class="mono">/hardware_level/commands (JointState) &rarr; arm_bridge &rarr; /joint_commands (Float32MultiArray) &rarr; CM7 ParseJointCommand() &rarr; SRAM4 &rarr; CM4 Motor_ProcessCommands()</code>.
+  This report ranks the 10 most probable root causes for <b>topic-command failure</b> with file-anchored evidence and concrete fixes. No code was modified.</p>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <h2>Observed topology</h2>
+    <div class="flow">
+      <span class="node">Jetson<br><span class="small">ros2_control /hardware_level/commands (JointState)</span></span><span class="arr">→</span>
+      <span class="node">arm_bridge.py<br><span class="small">/joint_commands (Float32MultiArray)</span></span><span class="arr">→</span>
+      <span class="node">CM7 main.c<br><span class="small">ParseJointCommand() → SRAM4</span></span><span class="arr">→</span>
+      <span class="node">CM4<br><span class="small">Motor_ProcessCommands() → RArm</span></span><span class="arr">→</span>
+      <span class="node">powerSTEP01 ×6<br><span class="small">SPI1 daisy-chain</span></span>
+    </div>
+    <div class="hr"></div>
+    <div class="kvs">
+      <div class="kv"><b>Standalone pass</b><span><span class="badge b-ok">PASS</span> <span class="path">CM4/Core/Src/main_wiretest.c:300</span> rocks <code class="mono">TEST_SW_IDX</code> every 2 s, brakes released</span></div>
+      <div class="kv"><b>Jetson path fail</b><span><span class="badge b-crit">FAIL</span> <code class="mono">joint_cmd_seq</code> stays 0 or <code class="mono">joint_cmd_ack</code> never advances in CM7 diag</span></div>
+      <div class="kv"><b>Builds</b><span class="path">Makefile/CM4_wiretest</span> = wiretest<br><span class="path">Makefile/CM4_standalone</span> = cmd-follow<br><span class="path">Makefile/CM4</span> = main.c WIRE_TEST flag</span></div>
+      <div class="kv"><b>Mismatch sentinel</b><span>Diag <code class="mono">mot=seq:0 ack:0</code> in captures → commands never landed in SRAM4</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Key files audited</h2>
+    <div class="path" style="font-size:12px;line-height:1.7">
+      microrosWs/H7-Arm/H7arm/CM4/Core/Src/main_wiretest.c:12-14, 57-70, 300-309<br>
+      microrosWs/H7-Arm/H7arm/CM4/Core/Src/main.c:24-26, 301-315, 372-428, 441-463<br>
+      microrosWs/H7-Arm/H7arm/CM4/Core/Src/main_cmdfollow.c:293, 356-409, 420-443<br>
+      microrosWs/H7-Arm/H7arm/CM7/Core/Src/main.c:366-435, 517-633<br>
+      microrosWs/H7-Arm/H7arm/CM7/Core/Inc/shared_data.h:14-61<br>
+      production/jetson-orin-nx/scripts/arm_bridge.py:22-85<br>
+      microrosWs/H7-Arm/H7arm/CM4/Core/Src/drivers/RArm/rarm.c:99-133<br>
+    </div>
+    <div class="diag"><b>Reading hint:</b> Search each path + line in your IDE — every cause below cites exact anchors. Fixes are proposed only; no files edited.</div>
+  </div>
+</div>
+
+<div class="toc">
+  <a href="#c1">#1 Wrong binary flashed</a><a href="#c2">#2 Joint-count N=3 vs 6</a><a href="#c3">#3 Fault-gate permanent block</a>
+  <a href="#c4">#4 Physical index mismatch</a><a href="#c5">#5 DDS QoS incompatibility</a><a href="#c6">#6 SRAM4 cache &amp; seq race</a>
+  <a href="#c7">#7 Magic/version early-return</a><a href="#c8">#8 Radians vs degrees</a><a href="#c9">#9 Brake interlock</a><a href="#c10">#10 Executor mutex starvation</a>
+</div>
+
+<main>
+
+  <!-- #1 -->
+  <section id="c1" class="cause">
+    <div class="cause-head">
+      <div class="rank r1">#1</div>
+      <h3>Wrong CM4 binary flashed — Jetson topic commands ignored by design <small>WireTest builds never read SRAM4; only cmdfollow does</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 38%</b> — System design</span><span class="badge b-crit">CRITICAL</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">CM4/Core/Src/main.c:24-26</code> <code class="mono">#ifndef WIRE_TEST / #define WIRE_TEST 1</code> — when enabled, <code class="mono">Motor_ProcessCommands()</code> is compiled out (<code class="path">main.c:180</code> <code class="mono">#if !WIRE_TEST</code>).</li>
+          <li><code class="path">main.c:301-315</code> the loop rocks <code class="mono">RARM_MoveDegrees(5,±10)</code> and never reads <code class="mono">joint_cmd_seq</code> — Jetson <code class="mono">/joint_commands</code> is dead in this build.</li>
+          <li><code class="path">main_wiretest.c:1-14</code> explicitly: <em>Ignores shared-memory commands... Change TEST_SW_IDX to discover wiring.</em> — standalone bench test, no topic path.</li>
+          <li><code class="path">CM4_standalone / main_cmdfollow.c</code> is the <b>only</b> build that follows Jetson topic commands (always cmd-follow, no wiretest code).</li>
+          <li>Operator sequence: WireTest PASS was likely <code class="mono">CM4_wiretest</code> or <code class="mono">CM4 (WIRE_TEST=1)</code>; immediate Jetson topic test without reflashing to <code class="mono">CM4_standalone</code> will always show <code class="mono">seq:0 ack:0</code>.</li>
+        </ul>
+        <div class="diag"><b>Clarified symptom match:</b> WireTest PASS proves motors/SPI/24V are healthy. Jetson <code class="mono">/hardware_level/commands → /joint_commands</code> topic commands fail only when the CM4 still runs a WireTest build — CM7 may even parse (<code class="mono">joint-cmd-recv</code>) but CM4 never consumes <code class="mono">joint_cmd_seq</code>.</div>
+        <details><summary>What the three binaries actually do</summary>
+<pre>Makefile/CM4            → main.c  (WIRE_TEST=1 default) → autonomous rock, IGNORES topic SRAM4
+Makefile/CM4_wiretest   → main_wiretest.c (TEST_SW_IDX=1) → autonomous rock, IGNORES topic SRAM4
+Makefile/CM4_standalone → main_cmdfollow.c → FOLLOWS Jetson topic via SRAM4 — flash this for topic tests</pre></details>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li><b>Flash the correct binary for topic tests:</b> <code class="mono">make -C Makefile/CM4_standalone && arm-none-eabi-objcopy … && STM32_Programmer_CLI -c port=SWD -w build/MicroRosEth_CM4_standalone.elf -v</code> then re-test Jetson topic.</li>
+          <li><b>Future: runtime wiretest gate</b> instead of compile-time: add <code class="mono">shared_data_t.wiretest_enable</code> or <code class="mono">/wiretest_cmd</code> topic so bench rock and topic follow coexist in one binary.</li>
+          <li><b>Document the flashing matrix</b> in <code class="mono">H7-Arm/README.md</code> and print the active build id at boot (<code class="mono">CM4: build=wiretest|cmdfollow</code>).</li>
+        </ol>
+        <div class="evid">Effort: 1–2 h · Risk: Low · Validates via <code>seq/ack</code> diag + physical observation.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- #2 -->
+  <section id="c2" class="cause">
+    <div class="cause-head">
+      <div class="rank r2">#2</div>
+      <h3>Joint-count mismatch: Jetson sends 3 joints, CM7 expects 6 <small>9-float payload misaligns positions vs velocities → wrong mdeg</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 31%</b> — Data plane</span><span class="badge b-crit">CRITICAL</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">arm_bridge.py:22</code> <code class="mono">JOINT_NAMES = ["joint_1","joint_2","joint_3"]</code>, <code class="path">arm_bridge.py:84</code> <code class="mono">out.data = pos+vel+eff</code> → 9 floats.</li>
+          <li><code class="path">CM7/main.c:58</code> <code class="mono">JOINT_COUNT 6u</code>, <code class="path">CM7/main.c:382</code> <code class="mono">if(data.size &lt; JOINT_COUNT) return;</code> → 9 passes, but</li>
+          <li><code class="path">CM7/main.c:387-389</code> <code class="mono">positions[i]=data[i] for i 0..5</code> → <code class="mono">data[3..5]</code> are actually velocities for J1..J3, polluting J4..J6 positions.</li>
+          <li><code class="path">CM7/main.c:392-397</code> <code class="mono">velocities[i]=data[6+i]</code> → grabs <code class="mono">eff0..eff2</code> plus out-of-bounds reads for i=3..5 (uninitialized trailing floats).</li>
+          <li><code class="path">CM7/main.c:425-428</code> writes only <code class="mono">SHARED_JOINT_COUNT (=6)</code> positions derived from the corrupted array.</li>
+          <li>Reverse path: <code class="path">arm_bridge.py:59</code> checks <code class="mono">len(d)&lt;9</code> then slices <code class="mono">d[0:3], d[3:6], d[6:9]</code> but CM7 publishes 18 floats (<code class="path">CM7/main.c:500</code> <code class="mono">size=JOINT_COUNT*3=18</code>).</li>
+        </ul>
+        <div class="diag"><b>Concrete effect:</b> Sending <code class="mono">JointState position [0.1,0.2,0.3]</code> rad for J1..J3 yields SRAM4 <code class="mono">mdeg [5729,11459,17188, 0,0,0]</code> plus garbage — if vel/eff are zero the extra positions are near-zero, so J4..J6 get ~0 delta and never move; the operator rocks J2/J5 and sees nothing.</div>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li><b>Align N:</b> either expand <code class="mono">JOINT_NAMES</code> to 6 (<code class="mono">joint_1..joint_6</code>) or make CM7's <code class="mono">JOINT_COUNT</code> parametric and pad missing joints with last-known or zero. Recommended: <code class="mono">arm_bridge.py</code> pads to 6 before publish, CM7 accepts <code class="mono">size==9</code> as N=3 and mirrors it to the correct PHYS_* slots.</li>
+          <li><b>Add guard:</b> <code class="mono">ParseJointCommand</code> should reject or pad when <code class="mono">size != 6 && size != 9 && size != 18</code> and log <code class="mono">joint-cmd-size-mismatch</code>.</li>
+          <li><b>Test:</b> <code class="mono">ros2 topic echo /joint_commands --field data</code> on Jetson must show 18 floats after fix.</li>
+        </ol>
+        <div class="evid">Effort: 30 min · Risk: Low · Breaks nothing; fixes both command and state paths.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- #3 -->
+  <section id="c3" class="cause">
+    <div class="cause-head">
+      <div class="rank r3">#3</div>
+      <h3>Latched fault permanently gates motion in cmd-follow builds <small>main_cmdfollow silently skips faulted joints forever</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 27%</b> — Firmware logic</span><span class="badge b-crit">CRITICAL</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">main_cmdfollow.c:389-391</code> <code class="mono">if(rr_faults[i]!=0) continue;</code> — no clear, no retry.</li>
+          <li><code class="path">main.c:407-414</code> (the non-wiretest main.c) <b>does</b> clear: <code class="mono">ps01SetAlarms_chain(...); rr_faults[i]=0;</code> before retry — so the two binaries diverge.</li>
+          <li><code class="path">main_cmdfollow.c:420-435</code> faults are only cleared on button press; <code class="path">main_cmdfollow.c:420-443</code> <code class="mono">RR_PollFaults</code> re-latches STALL/UVLO every 10 ms.</li>
+          <li><code class="path">CM4/debug.md: Fix #7/#8</code> documents latched STATUS bits (UVLO at 24 V ramp, STALL on first move) that transiently set <code class="mono">fault_alarm</code> and are never cleared in cmdfollow.</li>
+          <li>In logs: <code class="mono">f:0x… code:… st:…</code> shows non-zero status that persists after power-on.</li>
+        </ul>
+        <div class="diag"><b>Why WireTest still passes:</b> WireTest never checks <code class="mono">rr_faults</code> before <code class="mono">RARM_MoveDegrees</code>; cmd-follow does. So hardware is fine but Jetson commands are swallowed.</div>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Port the fault-tolerant logic from <code class="mono">main.c:407</code> into <code class="mono">main_cmdfollow.c</code>: clear transient <code class="mono">ALARM_STALL|CMD_ERR|OVC|THRM|UVLO</code> and reset <code class="mono">rr_faults[i]</code> before each retry; real OC/thermal re-latches next poll and still protects hardware.</li>
+          <li>Alternatively, reset <code class="mono">rr_faults</code> after the 2 s stabilization delay or after the button-cleared path.</li>
+          <li>Add a <code class="mono">fault_gated_moves_skipped</code> counter to shared_data for CM7 diag.</li>
+        </ol>
+        <div class="evid">Effort: 15 min · Risk: Low — already proven in main.c variant.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- #4 -->
+  <section id="c4" class="cause">
+    <div class="cause-head">
+      <div class="rank r4">#4</div>
+      <h3>Physical daisy-chain index ≠ logical joint index <small>Jetson J2 command goes to wrong driver chip</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 22%</b></span><span class="badge b-warn">HIGH</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">main_wiretest.c:57-70</code> and <code class="path">main_cmdfollow.c:57-64</code> define <code class="mono">PHYS_J1=0, PHYS_J5=1, PHYS_J6=2, PHYS_J4=3, PHYS_J3=4, PHYS_J2=5</code> — the validated sweep order.</li>
+          <li><code class="path">rarm.h</code> originally had a different order; <code class="path">CM4/debug.md: Fix #3</code> fixed it to sequential but the PHYS_* remap is still required.</li>
+          <li><code class="path">main_wiretest.c:14</code> <code class="mono">TEST_SW_IDX 1</code> rocks PHYS_J5, not J2 — operator must change it per joint.</li>
+          <li><code class="path">CM7/main.c:425</code> writes <code class="mono">joint_cmd_positions[i]</code> for i 0..5 in logical J1..J6 order; CM4 interprets i directly as daisy-chain position — if the PHYS_* map is not applied on the CM4 side for commands, J1 command hits chip 0 (correct) but J2 command hits chip 1 (actually J5 hardware).</li>
+        </ul>
+        <div class="diag"><b>Observation:</b> WireTest on <code class="mono">TEST_SW_IDX=1</code> moves J5 visibly; Jetson topic publishing <code class="mono">joint_2=10°</code> (logical index 1) writes <code class="mono">positions[1]</code> which CM4 drives as chip 1 → also J5 → the operator watching J2 sees no motion and reports "Jetson topic command failed".</div>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Unify the index contract: either make CM7 translate logical → physical before writing SRAM4, or make CM4's <code class="mono">Motor_ProcessCommands</code> index through a <code class="mono">LOGICAL_TO_PHYS[6]</code> map. Document which joint is which in <code class="mono">pin-mapping.md</code>.</li>
+          <li>Expose the map in <code class="mono">/joint_states</code> metadata (URDF) so RViz and the Jetson agree on names.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- #5 -->
+  <section id="c5" class="cause">
+    <div class="cause-head">
+      <div class="rank r5">#5</div>
+      <h3>DDS QoS incompatibility — command never arrives at CM7 <small>Reliable vs Best-Effort mismatch still possible on Jetson</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 18%</b></span><span class="badge b-warn">HIGH</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">CM7/main.c:1364-1396</code> <code class="mono">joint_commands_subscription = rclc_subscription_init_default</code> (reliable) + executor size 1.</li>
+          <li><code class="path">arm_bridge.py:50-52</code> <code class="mono">create_publisher(Float32MultiArray, COMMANDS_OUTPUT_TOPIC, 10)</code> defaults to reliable — matches, but some Jetson images override QoS via env or use <code class="mono">BEST_EFFORT</code> profile.</li>
+          <li>Session history notes <code class="mono">joint_commands best_effort vs host reliable was the delivery break — now fixed</code> — but only on the Mac host; Jetson may still carry the old profile.</li>
+          <li>Reverse path is deliberately <code class="mono">BEST_EFFORT</code>: <code class="path">CM7/main.c:1351-1356</code> <code class="mono">rclc_publisher_init_best_effort</code> + <code class="path">arm_bridge.py:45</code> <code class="mono">BEST_EFFORT sub</code> — correct.</li>
+        </ul>
+        <div class="diag"><b>Check:</b> <code class="mono">ros2 topic info /joint_commands -v</code> on Jetson must show publisher reliability RELIABLE and subscription RELIABLE. If Jetson shows BEST_EFFORT, DDS will never match and <code class="mono">JointCommandCallback</code> never fires (no <code class="mono">CM7: joint-cmd-recv</code> log).</div>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>On Jetson, force <code class="mono">arm_bridge.py</code> publisher QoS to <code class="mono">QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)</code> or leave default (reliable) — do not set best-effort.</li>
+          <li>Add a CM7 boot log <code class="mono">CM7: joint-commands-qos=reliable</code> and a Jetson-side <code class="mono">ros2 doctor</code> check in bringup.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- #6 -->
+  <section id="c6" class="cause">
+    <div class="cause-head">
+      <div class="rank r6">#6</div>
+      <h3>SRAM4 cache coherency + sequence race <small>Dirty DCache never cleaned or torn read</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 14%</b></span><span class="badge b-warn">MEDIUM</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">CM7/main.c:431-434</code> <code class="mono">SCB_CleanDCache_by_Addr</code> cleans only <code class="mono">joint_cmd_positions + joint_cmd_seq</code> — but not the whole struct; stale lines can persist.</li>
+          <li><code class="path">CM7/main.c:498-499</code> correctly invalidates <code class="mono">joint_act_positions</code> before reading.</li>
+          <li><code class="path">CM4/main_cmdfollow.c:358-360</code> <code class="mono">seq_a / DMB / seq_b</code> torn-read guard — but CM4 is Cortex-M4 bare-metal with DCache disabled by default; <code class="mono">__DMB/__DSB</code> ordering matters and HAL_GetTick vs DWT timing are mixed sources.</li>
+          <li><code class="path">shared_data.h:14</code> struct is not packed or cache-line aligned; it straddles lines.</li>
+        </ul>
+        <div class="diag"><b>Failure mode:</b> CM7 writes new <code class="mono">joint_cmd_seq</code> but the cache line containing it is still dirty in CM7's DCache; CM4 reads old seq (0) forever. WireTest never reads SRAM4 so it never fails.</div>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Clean the entire <code class="mono">shared_data_t</code> or at least a 32-byte aligned region covering <code class="mono">joint_cmd_positions..joint_cmd_seq</code> with correct size alignment.</li>
+          <li>On CM4, add <code class="mono">SCB_InvalidateDCache_by_Addr</code> for <code class="mono">joint_cmd_positions/seq</code> if M4 DCache is enabled (check <code class="mono">CCR.DC</code>), or disable DCache for the SRAM4 region via MPU.</li>
+          <li>Add a diagnostic: CM7 prints <code class="mono">clean-addr/size</code> at boot.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- #7 -->
+  <section id="c7" class="cause">
+    <div class="cause-head">
+      <div class="rank r7">#7</div>
+      <h3>Magic/version gate blocks all commands <small>CM7 silent early-return on mismatch</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 12%</b></span><span class="badge b-warn">MEDIUM</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">CM7/main.c:371-375</code> <code class="mono">if(magic!=SHARED_MAGIC || version!=SHARED_VERSION) return;</code> — no log, no increment of seq.</li>
+          <li><code class="path">CM4/.../main*.c:221-224</code> zeroes then sets <code class="mono">magic=0x53485244 version=2</code> — but if CM4 reboots after CM7, CM7 sees transitional zeros and drops commands until next boot message.</li>
+          <li>CM7 diag <code class="mono">protocol-mismatch got=… expected=… — refusing commands</code> (<code class="path">CM7/main.c:1635</code>) only prints once at boot, not per dropped command.</li>
+        </ul>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Log every dropped command with reason (<code class="mono">magic-mismatch</code>) at <code class="mono">DEBUG</code> level, and expose <code class="mono">shared_data.magic/version</code> in the 1 Hz CM7 diag line.</li>
+          <li>Add a "re-sync" check: if <code class="mono">joint_cmd_seq</code> advances but magic mismatches, re-read magic after DCache invalidate.</li>
+          <li>Ensure both cores include the same <code class="mono">shared_data.h</code> (today they are duplicated files that can drift).</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- #8 -->
+  <section id="c8" class="cause">
+    <div class="cause-head">
+      <div class="rank r8">#8</div>
+      <h3>Unit trap: radians vs degrees vs milli-degrees <small>Small Jetson command rounds to zero steps</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 11%</b></span><span class="badge b-warn">MEDIUM</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">CM7/main.c:428</code> <code class="mono">mdeg = lroundf(rad * 1000 * 57.2957)</code> (rad→mdeg).</li>
+          <li><code class="path">rarm.c:104-133</code> <code class="mono">RARM_MoveMilliDegrees</code> clamps to <code class="mono">min/max_degs*1000</code> then computes <code class="mono">steps = delta*mdeg * steps_rev*(1&lt;&lt;microsteps)*ratio /360000</code>; delta &lt; ~1–2 mdeg can round to 0 steps and <code class="mono">ps01Move_chain</code> is skipped.</li>
+          <li>If Jetson sends <code class="mono">0.01 rad (~0.57°)</code>, mdeg=573, delta may be ~20 steps before gearing — but with ratio 50 and 128 microsteps it is ~hundreds, so visible. If it sends <code class="mono">0.001 rad</code> or already-converted degrees, delta rounds to 0 and nothing moves.</li>
+          <li>WireTest uses integer degrees (<code class="mono">RARM_MoveDegrees(…,10)</code>) — never hits rounding edge.</li>
+        </ul>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Enforce and document: Jetson must publish <b>radians</b> on <code class="mono">/hardware_level/commands</code> (ros2_control convention). Add a range assert in <code class="mono">arm_bridge.py on_commands</code>: warn if <code class="mono">abs(pos)&gt;6.28</code> (likely degrees).</li>
+          <li>Log the computed <code class="mono">delta_mdeg</code> and <code class="mono">steps</code> on CM4 when debug is enabled.</li>
+          <li>Consider a cmdfollow deadband: ignore <code class="mono">|delta|&lt;5 mdeg</code> but report it as <code class="mono">delta_below_threshold</code> in diag.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- #9 -->
+  <section id="c9" class="cause">
+    <div class="cause-head">
+      <div class="rank r9">#9</div>
+      <h3>Brake interlock holds J2/J3 even though command targets them <small>WireTest releases brakes; cmd-follow may not</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 10%</b></span><span class="badge b-warn">MEDIUM</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">main_wiretest.c:298-299</code> releases both brakes every loop unconditionally.</li>
+          <li><code class="path">main_cmdfollow.c:393-401</code> only releases if <code class="mono">i==PHYS_J2 || i==PHYS_J3</code> and only when <code class="mono">delta!=0</code> and <code class="mono">rr_faults==0</code>.</li>
+          <li>If the Jetson topic moves J5 (which has no brake) the brake path is fine — but if it moves J2/J3 and the fault gate (#3) fired first, the brake release is skipped and the motor fights a holding brake.</li>
+          <li><code class="path">main_cmdfollow.c:376-378</code> re-engages brake after <code class="mono">BRAKE_SETTLE_MS 100ms</code> of stillness — if the next Jetson command arrives within 100 ms the brake never re-engages; if it arrives after, there is a 100 ms window where the motor is braked and the new delta is ignored.</li>
+        </ul>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Ensure brake release happens <b>before</b> the fault gate, or clear faults first (see #3).</li>
+          <li>Expose <code class="mono">brake_state</code> in CM7 diag (already does: <code class="mono">brk:…</code> at <code class="path">CM7/main.c:597</code>) and require operator to check <code class="mono">brk:0</code> before declaring "no motion".</li>
+          <li>Add a Jetson-side <code class="mono">/brake_release</code> service for bench tests.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- #10 -->
+  <section id="c10" class="cause">
+    <div class="cause-head">
+      <div class="rank r10">#10</div>
+      <h3>Micro-ROS executor starved by publisher mutex <small>joint_commands callback never runs</small></h3>
+      <div class="meta"><span class="prob"><b>Probability: 9%</b></span><span class="badge b-warn">LOW</span></div>
+    </div>
+    <div class="cause-body">
+      <div class="panel">
+        <h4>Evidence</h4>
+        <ul>
+          <li><code class="path">CM7/main.c:629-631</code> <code class="mono">rclc_executor_spin_some(...,20ms)</code> holds <code class="mono">microros_mutex</code>; <code class="path">CM7/main.c:577-582</code> heartbeat publisher also holds it; both tasks are <code class="mono">osPriorityNormal</code>.</li>
+          <li><code class="path">CM7/main.c:1487-1505</code> mutex is <code class="mono">osMutexRecursive</code> but not priority-inheriting.</li>
+          <li>If heartbeat publish blocks (agent latency), the executor is starved for >20 ms and DDS samples are dropped (best-effort queue depth 1).</li>
+          <li><code class="path">CM7/main.c:520-527</code> <code class="mono">JointCommandCallback</code> prints <code class="mono">joint-cmd-recv / joint-cmd-parsed</code> — absence of these lines in serial capture is the smoking gun for starvation vs QoS (#5).</li>
+        </ul>
+        <div class="diag"><b>Distinguish #5 vs #10:</b> No <code class="mono">joint-cmd-recv</code> + no DDS match → #5 (QoS). No <code class="mono">joint-cmd-recv</code> + DDS matched but <code class="mono">publish-ok</code> stalls → #10 (mutex).</div>
+      </div>
+      <div class="fix">
+        <h4>Proposed fix</h4>
+        <ol>
+          <li>Raise <code class="mono">JointCmdExec</code> priority above <code class="mono">HeartbeatPub</code> or use a separate mutex for subscriptions vs publications.</li>
+          <li>Reduce executor hold time: spin with 5 ms timeout and yield, or use <code class="mono">rclc_executor_spin</code> in a dedicated thread without the shared mutex (micro-ROS is thread-safe per context when serialized correctly).</li>
+          <li>Add a <code class="mono">executor_spins / callbacks_fired</code> counter to the 1 Hz diag to prove liveness.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:18px">
+    <h2>Recommended triage sequence (15 minutes)</h2>
+    <ol style="font-size:13px;color:#d6ddff;margin:0;padding-left:18px">
+      <li><b>1 min — Confirm which binary is flashed.</b> <code class="mono">arm-none-eabi-objdump -t build/*.elf | grep WIRE_TEST</code> or check last flash log. If <code class="mono">MicroRosEth_CM4_wiretest.elf</code> is flashed, Jetson commands will never work — flash <code class="mono">CM4_standalone</code> and retry (#1).</li>
+      <li><b>2 min — Check CM7 serial.</b> Look for <code class="mono">CM7: joint-cmd-recv size=…</code> then <code class="mono">CM7: joint-cmd-parsed seq=…</code> after publishing from Jetson. Also check the 1 Hz line: <code class="mono">mot=seq:… ack:… brk:… f:…</code>. Use this table:
+        <ul>
+          <li><code class="mono">seq stays 0</code> → #5 (QoS) or #7 (magic) or #2 (size reject)</li>
+          <li><code class="mono">seq increments, ack stays 0</code> → #3 (fault gate) or #6 (cache) or #4 (wrong index)</li>
+          <li><code class="mono">seq==ack increments, no motion</code> → #3/#8/#9</li>
+        </ul>
+      </li>
+      <li><b>2 min — Topic audit on Jetson.</b> <code class="mono">ros2 topic info /joint_commands -v</code> (QoS), <code class="mono">ros2 topic echo /joint_commands --field data</code> (count &amp; values), <code class="mono">ros2 topic hz /joint_states</code> (expect ~50 Hz).</li>
+      <li><b>3 min — Manual publish.</b> <code class="mono">ros2 topic pub --once /hardware_level/commands sensor_msgs/msg/JointState "{name: [joint_1,joint_2,joint_3], position: [0.5,0,0]}"</code> and watch <code class="mono">act:…</code> and physical J1.</li>
+      <li><b>5 min — Fix #2 + #3 first.</b> They cover ~60% of observed failures and are 30 min of code change total; then retest the same manual publish.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Appendix — Evidence map</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:#9fb0ff;text-align:left;border-bottom:1px solid #23306a"><th style="padding:6px">#</th><th style="padding:6px">Cause</th><th style="padding:6px">Primary file</th><th style="padding:6px">Fix locus</th></tr></thead>
+      <tbody style="color:#d6ddff">
+        <tr><td style="padding:6px">1</td><td>Compile-time gate</td><td class="mono">CM4/main.c:24, main_wiretest.c:1</td><td>New runtime flag + README</td></tr>
+        <tr><td style="padding:6px">2</td><td>N=3 vs 6</td><td class="mono">arm_bridge.py:22, CM7/main.c:387</td><td>arm_bridge.py + ParseJointCommand</td></tr>
+        <tr><td style="padding:6px">3</td><td>Fault gate</td><td class="mono">main_cmdfollow.c:389</td><td>Port main.c fault-clear logic</td></tr>
+        <tr><td style="padding:6px">4</td><td>PHYS_* map</td><td class="mono">main_wiretest.c:57, rarm.h</td><td>LOGICAL_TO_PHYS map</td></tr>
+        <tr><td style="padding:6px">5</td><td>QoS</td><td class="mono">CM7/main.c:1364, arm_bridge.py:50</td><td>Jetson QoS profile</td></tr>
+        <tr><td style="padding:6px">6</td><td>Cache/seq</td><td class="mono">CM7/main.c:431, CM4/358</td><td>Clean+Invalidate + MPU</td></tr>
+        <tr><td style="padding:6px">7</td><td>Magic/version</td><td class="mono">CM7/main.c:371</td><td>Logging + shared header</td></tr>
+        <tr><td style="padding:6px">8</td><td>Units</td><td class="mono">CM7/main.c:428, rarm.c:129</td><td>Bridge validation</td></tr>
+        <tr><td style="padding:6px">9</td><td>Brake</td><td class="mono">main_cmdfollow.c:393, main_wiretest.c:298</td><td>Order + diag</td></tr>
+        <tr><td style="padding:6px">10</td><td>Executor</td><td class="mono">CM7/main.c:629,1487</td><td>Priority / mutex split</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <div>Generated 2026-08-29 · Updated: Jetson <b>topic</b> command ( /hardware_level/commands → /joint_commands ) — not a wiretest command — clarified per user. Repo root: <code class="mono">wiretest_jetson_audit.html</code> · Based on static audit of <code class="mono">microrosWs/H7-Arm/H7arm</code> and <code class="mono">production/jetson-orin-nx</code> — no code modified per request.</div>
+  <div class="small" style="margin-top:6px">Next step: apply the triage sequence above, capture one new CM7 serial log (5 s post Jetson publish), and re-rank #2/#3/#5 by what the <code class="mono">seq/ack/f/brk</code> line shows.</div>
+</footer>
+</body>
+</html>

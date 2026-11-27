@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan: Caddy IP-Resilient Configuration for microk3 — 2026-09-02</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1a1a1a; --muted:#6b7280; --accent:#0e7490; --accent2:#155e75; --border:#e7e5e4; --card:#ffffff; --code:#f5f5f4; --warn:#fef3c7; --ok:#dcfce7; --err:#fee2e2; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0c0a09; --fg:#e7e5e4; --muted:#a8a29e; --accent:#22d3ee; --accent2:#06b6d4; --border:#292524; --card:#1c1917; --code:#292524; --warn:#422006; --ok:#052e16; --err:#450a0a; } }
+  * { box-sizing:border-box }
+  body { font-family: ui-sans-system, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--fg); line-height:1.6; margin:0; padding:0; }
+  .container { max-width:980px; margin:0 auto; padding:32px 20px 60px; }
+  h1 { font-size:28px; line-height:1.2; margin:0 0 8px; letter-spacing:-0.02em; }
+  h2 { font-size:20px; margin:32px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+  h3 { font-size:16px; margin:20px 0 8px; color:var(--accent2); }
+  .subtitle { color:var(--muted); font-size:14px; margin-bottom:20px; }
+  .badge { display:inline-block; font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:4px 8px; border-radius:999px; background:var(--accent); color:white; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin:12px 0; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .grid{grid-template-columns:1fr} }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:13px; }
+  pre { background:var(--code); border:1px solid var(--border); border-radius:8px; padding:12px 14px; overflow-x:auto; white-space:pre; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+  th { font-weight:600; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:0.04em; }
+  .callout { border-left:3px solid var(--accent); padding:10px 14px; background:var(--card); border-radius:0 8px 8px 0; margin:12px 0; }
+  .footer { margin-top:36px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:12px; }
+  a { color:var(--accent2); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">Plan Mode — Read-Only</div>
+  <h1>Caddy IP-Resilient Configuration for microk3</h1>
+  <div class="subtitle">Jetson Orin NX · production/jetson-orin-nx · RoverTech@192.168.0.164 · STACK=hil-host · 2026-09-02 19:14 UTC</div>
+  <div class="callout"><strong>Goal:</strong> Dashboard reachable at <code>https://&lt;any-IP&gt;:5050</code> after subnet change (10.42.0.1 → 192.168.0.164 → 192.168.3.22) without .env edit. No HOST_IP in Caddyfile, survive DHCP.</div>
+  <h2>1 — Verified Current State</h2>
+  <p>Live Jetson 192.168.0.164: STACK=hil-host, 5 containers Up healthy, microk3 on 0.0.0.0:5051 OK, caddy host-mode mounts Caddyfile.host. ss shows *:5050, 0.0.0.0:5051. CURL: https://localhost:5050 200 OK, http:// 400 HTTPS required, https://10.42.0.1 hang (IP not assigned), https://192.168.0.164 timeout when old Caddyfile still pinned to HOST_IP.</p>
+  <p>Local repo disk already resilient: Caddyfile:7 and Caddyfile.host:7 both use <code>:5050 { tls internal {on_demand} }</code> – no HOST_IP. Jetson still ran stale https://{$HOST_IP}:5050 variant before sync.</p>
+  <h2>2 — Root Cause</h2>
+  <ul><li>Host-pinned Caddyfile minted SAN only for localhost/127.0.0.1/10.42.0.1</li><li>HOST_IP=10.42.0.1 stale in .env, no auto-detect</li><li>Two Caddyfiles drift, compose still declares HOST_IP env unused</li><li>resolve-compose.sh hil-host typo maps to wrong compose</li></ul>
+  <h2>3 — Target Architecture (Resilient)</h2>
+  <p>Wildcard bind <code>:5050</code> + <code>tls internal {on_demand}</code> → binds 0.0.0.0:5050, mints cert for any Host/IP on demand. Works for localhost, 127.0.0.1, any LAN IP, mDNS. Two files keep distinct backends: Caddyfile → microk3:5050 (bridge), Caddyfile.host → 127.0.0.1:5051 (host). No HOST_IP needed; DASHBOARD_PORT kept for mapping.</p>
+<pre>{
+    servers { protocols h1 h2 }
+}
+:5050 {
+    tls internal { on_demand }
+    reverse_proxy 127.0.0.1:5051 { flush_interval -1 }
+}
+# Caddyfile (bridge): same but reverse_proxy microk3:5050 + optional :443 block
+</pre>
+  <h2>4 — File Changes</h2>
+  <table><tr><th>File</th><th>Change</th></tr>
+  <tr><td>Caddyfile / Caddyfile.host</td><td>Add header comment, confirm wildcard – no code change (already resilient)</td></tr>
+  <tr><td>.env / .env.example</td><td>Comment out HOST_IP, add deprecation note: optional, not required</td></tr>
+  <tr><td>docker-compose.jetson.yml:88, hil.yml:95, hil-host.yml:80</td><td>Remove HOST_IP env line</td></tr>
+  <tr><td>scripts/resolve-compose.sh:14</td><td>hil-host → docker-compose.hil-host.yml</td></tr>
+  <tr><td>scripts/setup_caddy_certs.sh</td><td>Generic reset-certs via resolve-compose.sh + both volume names; test auto-detects IP</td></tr>
+  <tr><td>README.md</td><td>Note: Caddy :5050 on_demand serves any IP</td></tr></table>
+  <h2>5 — Sequence</h2>
+  <p>Phase0: capture pre-state via SSH. Phase1: edit 6 files locally + lint docker compose config. Phase2: rsync to Jetson, reset-certs, stop/start. Phase3: curl matrix all IPs. Phase4: DHCP rebase test with lo alias 192.168.99.1.</p>
+  <h2>6 — Verification</h2>
+  <table><tr><th>Check</th><th>Pass</th></tr><tr><td>curl -sk https://192.168.0.164:5050/health</td><td>200 Via Caddy</td></tr><tr><td>curl -sk https://localhost:5050:200</td><td>regression OK</td></tr><tr><td>openssl s_client -connect IP:5050</td><td>CN matches IP, handshake OK</td></tr><tr><td>grep :5050 Caddyfile.host && ! grep HOST_IP</td><td>wildcard confirmed</td></tr></table>
+  <h2>7 — Rollback</h2>
+<pre>git checkout HEAD -- Caddyfile* .env* docker-compose*.yml scripts/
+docker volume rm jetson-orin-nx_caddy_data; ./scripts/start.sh</pre>
+  <h2>8 — Questions</h2>
+  <ol><li>Keep HTTPS-only (400 on http) or add http://:5050 fallback?</li><li>Keep DASHBOARD_PORT fixed or templatize Caddy port?</li><li>Auto-export CA or manual?</li><li>Confirm hil-host compose fix desired?</li></ol>
+  <div class="footer">Plan file .plans/caddy-resilient-ip-20260902_191400.html · Sources: production/jetson-orin-nx/Caddyfile:1, Caddyfile.host:1, docker-compose*.yml, live SSH RoverTech@192.168.0.164</div>
+</div>
+</body>
+</html>

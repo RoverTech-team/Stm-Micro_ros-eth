@@ -1,6 +1,7 @@
 # Core
 Flask==3.0.2
 Werkzeug==3.0.1
+flask-sock==0.7.0
 
 # Environment
 python-dotenv==1.0.1
@@ -8,9 +9,14 @@ docker==7.1.0
 
 # Security
 Flask-HTTPAuth==4.8.0
+paramiko==3.5.1
 
 # Rate Limiting
 Flask-Limiter==3.5.1
+
+# Image feeds (/images page: sensor_msgs/Image -> JPEG via Pillow + numpy)
+Pillow==11.3.0
+numpy==1.26.4
 
 # Production Server
 gunicorn==21.2.0

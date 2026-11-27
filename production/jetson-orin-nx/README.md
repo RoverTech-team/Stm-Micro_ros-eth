@@ -34,6 +34,26 @@ When using `STACK=hil-host`:
 - `hil-host` is the production integration mode when the Jetson already has an active ROS 2 environment
 - `hil` remains the legacy standalone containerized HIL stack
 
+## Caddy (IP-Resilient, HTTPS + HTTP Fallback)
+
+Caddy now binds `:5050` (HTTPS, `tls internal {on_demand}`) + `:8080` (HTTP fallback, plain) on all interfaces.
+- `https://<any-jetson-IP>:5050` – TLS self-signed, on-demand cert for any Host/IP (no `HOST_IP` edit needed)
+- `http://<any-jetson-IP>:8080` – plain HTTP fallback for `curl`/clients without `-k`
+- `https://localhost:5050` / `http://localhost:8080` also work; `HOST_IP` in `.env` is deprecated (left commented for legacy pinning only)
+- `DASHBOARD_PORT` (default 5050) + `DASHBOARD_HTTP_PORT` (default 8080) control host mappings
+- After subnet/DHCP change, just `curl -k https://<new-IP>:5050/health` or `curl http://<new-IP>:8080/health` – no Caddy rebuild needed. If stale SAN errors appear, run `./scripts/setup_caddy_certs.sh reset-certs --yes`.
+
+## Systemd Autolaunch (hil-host)
+
+Whole `hil-host` stack (`microk3` + `caddy` + `micro-ros-agent` + `renode-bridge`) can autolaunch at boot via system unit:
+
+- Source unit (git-tracked): `systemd/microk3.service` – `Requires=docker.service` + `After=network-online.target`, `Type=oneshot RemainAfterExit` calling `scripts/start.sh` / `stop.sh` with `STACK=hil-host` (`WorkingDirectory` set, `EnvironmentFile=.env`).
+- Install: `./scripts/install-systemd.sh` (`sudo cp` → `/etc/systemd/system/microk3.service`, `daemon-reload`, `enable --now`)
+- Uninstall: `./scripts/uninstall-systemd.sh`
+- Logs: `systemctl status microk3`, `journalctl -u microk3 -f`, `docker ps`
+- Verify after reboot: `curl -k https://$(hostname -I | awk '{print $1}'):5050/health` and `curl http://$(hostname -I | awk '{print $1}'):8080/health`
+- Complements compose `restart: unless-stopped` (at `docker-compose.hil-host.yml:27`) – survives `down` and `STACK` switch cases.
+
 For `hil-host`, make the container ROS settings match the host ROS 2 instance:
 
 - `ROS_DOMAIN_ID`

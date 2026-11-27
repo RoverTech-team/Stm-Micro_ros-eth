@@ -393,10 +393,11 @@ static void ParseJointCommand(const void *msg_in)
   joint_command_seq++;
   joint_command_received = true;
 
-  /* Relay commanded positions to shared SRAM4 for CM4 motor driver */
+  /* Relay commanded positions to shared SRAM4 for CM4 motor driver (rad -> mdeg) */
   for(i = 0U; i < JOINT_COUNT && i < SHARED_JOINT_COUNT; i++)
   {
-    sensor_shared_data->joint_cmd_positions[i] = joint_commanded_positions[i];
+    sensor_shared_data->joint_cmd_positions[i] =
+      (int32_t)lroundf(joint_commanded_positions[i] * 1000.0f * 57.29577951308232f);
   }
   sensor_shared_data->joint_cmd_seq = joint_command_seq;
   SCB_CleanDCache_by_Addr((uint32_t *)&sensor_shared_data->joint_cmd_positions[0],
@@ -514,7 +515,7 @@ static void BuildJointStatesJson(void)
   for(i = 0U; i < JOINT_COUNT; i++)
   {
     joint_states_data[i] = (i < SHARED_JOINT_COUNT) ?
-        sensor_shared_data->joint_act_positions[i] : 0.0f;
+        (float)sensor_shared_data->joint_act_positions[i] * 0.0174532925199433f / 1000.0f : 0.0f;
     joint_states_data[JOINT_COUNT + i] = joint_commanded_velocities[i];
     joint_states_data[JOINT_COUNT * 2u + i] = joint_commanded_efforts[i];
   }
@@ -1184,7 +1185,7 @@ static bool SetupNetworkingAndMicroRos(void)
   }
 
   heartbeat_publisher = rcl_get_zero_initialized_publisher();
-  pub_ret = rclc_publisher_init_default(
+  pub_ret = rclc_publisher_init_best_effort(
     &heartbeat_publisher,
     &heartbeat_node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
@@ -1197,7 +1198,7 @@ static bool SetupNetworkingAndMicroRos(void)
   }
 
   sensor_debug_publisher = rcl_get_zero_initialized_publisher();
-  sensor_debug_pub_ret = rclc_publisher_init_default(
+  sensor_debug_pub_ret = rclc_publisher_init_best_effort(
     &sensor_debug_publisher,
     &heartbeat_node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
@@ -1210,7 +1211,7 @@ static bool SetupNetworkingAndMicroRos(void)
   }
 
   heartbeat_telemetry_publisher = rcl_get_zero_initialized_publisher();
-  heartbeat_telemetry_pub_ret = rclc_publisher_init_default(
+  heartbeat_telemetry_pub_ret = rclc_publisher_init_best_effort(
     &heartbeat_telemetry_publisher,
     &heartbeat_node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
@@ -1254,7 +1255,7 @@ static bool SetupNetworkingAndMicroRos(void)
   time_sync_request_buffer[0] = '\0';
 
   joint_states_publisher = rcl_get_zero_initialized_publisher();
-  joint_states_pub_ret = rclc_publisher_init_default(
+  joint_states_pub_ret = rclc_publisher_init_best_effort(
     &joint_states_publisher,
     &heartbeat_node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
@@ -1487,7 +1488,10 @@ int main(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  (void)htim;
+  if(htim != NULL && htim->Instance == TIM1)
+  {
+    HAL_IncTick();
+  }
 }
 
 void Error_Handler(void)

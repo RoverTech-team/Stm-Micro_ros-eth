@@ -1,0 +1,26 @@
+{
+    servers {
+        protocols h1 h2
+    }
+}
+
+:5050 {
+    tls internal {
+        on_demand
+    }
+
+    reverse_proxy microk3:5050 {
+        flush_interval -1
+    }
+}
+
+:443 {
+    tls internal {
+        on_demand
+    }
+
+    reverse_proxy microk3:5050 {
+        flush_interval -1
+    }
+}
+

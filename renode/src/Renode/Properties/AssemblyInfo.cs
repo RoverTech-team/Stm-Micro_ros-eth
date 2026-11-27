@@ -29,7 +29,7 @@ using System.Runtime.Versioning;
 // and "{Major}.{Minor}.{Build}.*" will update just the revision.
 
 [assembly: AssemblyVersion("1.16.1.*")]
-[assembly: AssemblyInformationalVersion("f415d947-202603030051")]
+[assembly: AssemblyInformationalVersion("d81bbcf0-202611191218")]
 
 // The following attributes are used to specify the signing key for the assembly,
 // if desired. See the Mono documentation for more information about signing.

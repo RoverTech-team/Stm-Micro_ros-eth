@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MicroK3 Caddy — Surgical Fix Plan</title>
+<style>
+  :root{--bg:#0b1016;--surface:#111a24;--surface2:#14202e;--border:#1e3245;--border2:#23465f;--text:#e6eef6;--dim:#8fa3b8;--muted:#6b8398;--cyan:#22d3ee;--violet:#8b5cf6;--amber:#f59e0b;--emerald:#10b981;--rose:#f43f5e;--mono:"JetBrains Mono","SF Mono",Consolas,monospace;--sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  *{box-sizing:border-box} html{scroll-behavior:smooth}
+  body{margin:0;background:radial-gradient(1100px 500px at 10% -10%, rgba(34,211,238,.13), transparent 60%),radial-gradient(900px 400px at 95% 0%, rgba(139,92,246,.13), transparent 60%), var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:14px}
+  a{color:var(--cyan)} code{font-family:var(--mono);background:#0e1a26;border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:12px;color:#c4d3e6}
+  pre{background:#0b1420;border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow:auto;font-size:12px;line-height:1.55}
+  .layout{display:flex;min-height:100vh}
+  nav.toc{width:300px;flex-shrink:0;background:rgba(17,26,36,.92);backdrop-filter:blur(8px);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow:auto}
+  nav.toc .brand{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+  nav.toc .brand h1{margin:0;font-size:15px;letter-spacing:-.02em} nav.toc .brand h1 span{color:var(--cyan)}
+  nav.toc .brand .ver{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+  nav.toc .group{padding:14px 0 6px 20px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  nav.toc ol{list-style:none;margin:0;padding:0 0 16px}
+  nav.toc li a{display:flex;gap:8px;padding:6px 20px;color:var(--dim);font-size:12.5px;border-left:3px solid transparent;text-decoration:none}
+  nav.toc li a:hover{color:var(--text);background:rgba(34,211,238,.06);border-left-color:var(--cyan)}
+  main{flex:1;max-width:1000px;padding:36px 48px 80px}
+  .hero{border:1px solid var(--border);border-radius:16px;background:linear-gradient(135deg,#111a24 0%,#0f1f2e 100%);padding:28px 28px 22px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--rose)}
+  h1.title{font-size:28px;line-height:1.15;margin:8px 0 8px;letter-spacing:-.02em} h1.title em{font-style:normal;background:linear-gradient(90deg,var(--rose),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .subtitle{color:var(--dim);font-size:14px;max-width:720px}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
+  .badge{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);color:var(--dim);background:rgba(255,255,255,.03)}
+  .badge.rose{color:var(--rose);border-color:rgba(244,63,94,.35);background:rgba(244,63,94,.09)} .badge.cyan{color:var(--cyan);border-color:rgba(34,211,238,.35);background:rgba(34,211,238,.09)} .badge.emerald{color:#6ee7b7;border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.09)}
+  h2{font-size:22px;margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);letter-spacing:-.02em;scroll-margin-top:16px} h2 .num{font-family:var(--mono);font-size:14px;color:var(--cyan);margin-right:8px}
+  h3{font-size:16px;margin:22px 0 8px} h4{font-size:13px;margin:14px 0 6px;color:var(--cyan);font-family:var(--mono)}
+  .callout{border-radius:10px;padding:12px 14px;margin:12px 0;border:1px solid var(--border);border-left:4px solid}
+  .callout.info{border-left-color:var(--cyan);background:rgba(34,211,238,.06)} .callout.warn{border-left-color:var(--amber);background:rgba(245,158,11,.07)} .callout.ok{border-left-color:var(--emerald);background:rgba(16,185,129,.07)} .callout.danger{border-left-color:var(--rose);background:rgba(244,63,94,.07)}
+  .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px} th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:#0f1a24;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--cyan)} tr:last-child td{border:none}
+  .pill{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:999px} .pill.fix{background:rgba(244,63,94,.14);color:var(--rose)} .pill.keep{background:rgba(16,185,129,.14);color:#6ee7b7} .pill.info{background:rgba(34,211,238,.14);color:var(--cyan)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px} .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .diff{font-family:var(--mono);font-size:12px;line-height:1.5} .diff .add{color:#6ee7b7} .diff .rem{color:#fda4af} .diff .hunk{color:var(--muted)}
+  .footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-size:11px}
+  @media(max-width:900px){nav.toc{display:none} main{padding:22px 18px} .grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <div class="brand"><h1>◆ <span>MicroK3</span> Caddy Fix</h1><div class="ver">surgical · jetson 10.42.0.1 · 2026-08-30</div></div>
+  <div class="group">Context</div>
+  <ol>
+    <li><a href="#what-broke">01 What broke & why</a></li>
+    <li><a href="#snapshot">02 Current snapshot</a></li>
+  </ol>
+  <div class="group">Fix</div>
+  <ol>
+    <li><a href="#surgical">03 Surgical edits (3 files)</a></li>
+    <li><a href="#caddyfile">04 Caddyfile — keep?</a></li>
+    <li><a href="#certs">05 Cert volume reset</a></li>
+  </ol>
+  <div class="group">Execute</div>
+  <ol>
+    <li><a href="#order">06 Exact order (6 steps)</a></li>
+    <li><a href="#verify">07 Verify</a></li>
+    <li><a href="#rollback">08 Rollback</a></li>
+  </ol>
+</nav>
+<main>
+<div class="hero">
+  <div class="eyebrow">INCIDENT · production/jetson-orin-nx on RoverTech@10.42.0.1</div>
+  <h1 class="title">Caddy broken by duplicate <code>5050:5050</code> port — <em>surgical fix without touching MicroK3</em></h1>
+  <p class="subtitle">MicroK3 is healthy (<code>ros_connected:true</code>, <code>/joint_states</code> subscribed, Drive Rover/Arm tabs render via <code>http://10.42.0.1:5051</code>). Only the HTTPS reverse-proxy `caddy` is down. Fix is 3 one-line edits on the Jetson plus a cert-volume reset.</p>
+  <div class="meta">
+    <span class="badge rose">Impact: HTTPS dashboard 502/empty</span>
+    <span class="badge cyan">Blast radius: only caddy</span>
+    <span class="badge emerald">MicroK3 untouched</span>
+    <span class="badge">Host 10.42.0.1 · DASHBOARD_PORT 5050</span>
+  </div>
+</div>
+
+<h2 id="what-broke"><span class="num">01</span> What broke & why</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>File:line</th><th>What</th><th>Why it breaks</th></tr></thead>
+  <tbody>
+    <tr><td><code>docker-compose.jetson.yml:91-92</code></td><td>Two ports both bind host <code>5050</code>:<br><code>"${DASHBOARD_PORT:-5050}:443"</code> + <code>"${DASHBOARD_PORT:-5050}:5050"</code></td><td>Docker `Bind for 0.0.0.0:5050 failed: port is already allocated` → `jetson-orin-nx-caddy-1` `Created` not `Up` (no `0.0.0.0:5050->443` in `docker ps`). Before rebuild old caddy was already `Up` with stale config, so not noticed.</td></tr>
+    <tr><td><code>.env:2</code></td><td><code>HOST_IP=192.168.3.22</code> vs actual USB-tether `10.42.0.1`</td><td><code>Caddyfile:7</code> `https://{$HOST_IP}:5050` → cert SAN for `192.168.3.22` only. With `HOST_IP=10.42.0.1`, old `caddy_data` volume still holds cert for `192.168.3.22` (`ls /data/caddy/certificates/local/192.168.3.22` exists, `10.42.0.1` only renewed Aug29 15:53). `tls internal` handshake then `Alert internal error` (Mac LibreSSL `1404B438`, Jetson `openssl` succeeded only after renewal).</td></tr>
+    <tr><td><code>docker-compose.jetson.yml:42</code> (microk3)</td><td>No `ports:` before, only `expose:5050`</td><td>Direct HTTP fallback `http://10.42.0.1:5051` was added as workaround; not part of original working setup but now masks Caddy failure.</td></tr>
+  </tbody>
+</table></div>
+<div class="callout danger"><strong>Evidence:</strong> `docker logs jetson-orin-nx-caddy-1` after `up -d caddy` → `Error response from daemon: Bind for 0.0.0.0:5050 failed: port is already allocated`; `curl -sk https://10.42.0.1:5050/health` Mac → `LibreSSL error:1404B438`; Jetson `openssl s_client -connect 10.42.0.1:5050` after fix → `TLSv1.3 / CN = Caddy Local Authority - ECC Intermediate` valid but `No ALPN negotiated`; `docker exec microk3 curl http://localhost:5050/health` → `{"ros_connected":true}` proves MicroK3 healthy.</div>
+
+<h2 id="snapshot"><span class="num">02</span> Current snapshot (Jetson 10.42.0.1)</h2>
+<div class="grid2">
+  <div class="card">
+    <h4>MicroK3 <span class="pill keep">healthy</span></h4>
+    <pre class="diff"><span class="hunk">container a863372abb31 jetson-orin-nx-microk3</span>
+<span class="add">Up (healthy) 0.0.0.0:5051->5050</span>
+<span class="hunk">health: {"ros_connected":true,"status":"healthy"}</span>
+<span class="add">GET http://10.42.0.1:5051/health 200</span>
+<span class="add">GET http://10.42.0.1:5051/drive → Teleop Drive Rover|Arm tabs render</span></pre>
+  </div>
+  <div class="card">
+    <h4>Caddy <span class="pill fix">broken</span></h4>
+    <pre class="diff"><span class="rem">Bind for 0.0.0.0:5050 failed</span>
+<span class="hunk">ps: no 0.0.0.0:5050->443 after duplicate</span>
+<span class="rem">curl -k https://10.42.0.1:5050/health → TLS internal error / empty</span>
+<span class="hunk">HOST_IP 10.42.0.1 cert renewed Aug29 15:53</span></pre>
+  </div>
+</div>
+<div class="callout info"><strong>Good news:</strong> No MicroK3 code change needed. All Drive/Publisher features (`ros_interface.py:524` `publish_arm_trajectory`, `app.py:1156` `/api/ros/arm/*`, `templates/drive.html:1` Rover/Arm) are already on Jetson and working via `5051`.</div>
+
+<h2 id="surgical"><span class="num">03</span> Surgical edits (3 files, 1 line each)</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>#</th><th>File on Jetson</th><th>Exact line</th><th>Keep / Remove</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill fix">FIX-1</span></td><td><code>~/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.jetson.yml:91-92</code></td><td><code>ports:</code> block for `caddy`</td><td><span class="pill fix">remove duplicate</span> keep only <code>"${DASHBOARD_PORT:-5050}:443"</code>, delete <code>"${DASHBOARD_PORT:-5050}:5050"</code></td></tr>
+    <tr><td><span class="pill keep">KEEP</span></td><td><code>~/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.jetson.yml:42</code> (microk3)</td><td>Added workaround <code>ports: ["5051:5050"]</code></td><td><span class="pill info">keep for fallback</span> or remove if strict HTTPS-only desired (ask).</td></tr>
+    <tr><td><span class="pill fix">FIX-2</span></td><td><code>~/Stm-Micro_ros-eth/production/jetson-orin-nx/.env:2</code></td><td><code>HOST_IP=10.42.0.1</code></td><td>Already correct (was `192.168.3.22`). Verify `DASHBOARD_PORT=5050` unchanged. No further edit.</td></tr>
+    <tr><td><span class="pill fix">FIX-3</span></td><td>Caddy volume `jetson-orin-nx_caddy_data`</td><td>certs for `192.168.3.22` vs `10.42.0.1`</td><td>Reset volume to force fresh `tls internal` cert for `10.42.0.1` (removes `/data/caddy/certificates/local/*`).</td></tr>
+  </tbody>
+</table></div>
+
+<h4>Diff 1 — compose caddy (the only required code change)</h4>
+<pre class="diff"><span class="hunk">--- a/production/jetson-orin-nx/docker-compose.jetson.yml:91</span>
+  caddy:
+    ports:
+      - "${DASHBOARD_PORT:-5050}:443"
+<span class="rem">-      - "${DASHBOARD_PORT:-5050}:5050"</span>
+      <span class="add"># keep only 443; Caddyfile already serves https://{$HOST_IP}:5050 and :443</span>
+</pre>
+
+<h4>Diff 2 — .env (already correct, verify)</h4>
+<pre class="diff"><span class="hunk">--- a/production/jetson-orin-nx/.env:2</span>
+-HOST_IP=192.168.3.22
+<span class="add">+HOST_IP=10.42.0.1</span>
+ DASHBOARD_PORT=5050
+</pre>
+
+<h4>No change — Caddyfile</h4>
+<pre><code>{ servers { protocols h1 } }
+https://localhost:5050, https://127.0.0.1:5050, https://{$HOST_IP}:5050 {
+    tls internal
+    reverse_proxy microk3:5050
+}
+:443 {
+    tls internal
+    reverse_proxy microk3:5050
+}</code></pre>
+<div class="callout ok"><strong>Why not edit Caddyfile:</strong> It already handles both `https://{$HOST_IP}:5050` and `:443`. Fixing compose is sufficient.</div>
+
+<h2 id="caddyfile"><span class="num">04</span> Caddyfile — keep as is?</h2>
+<p>Keep `production/jetson-orin-nx/Caddyfile:7` unchanged. If you want plain HTTP for lab (no TLS), alternative surgical option is to change to `http://{$HOST_IP}:5050` and remove `tls internal` — but not recommended; HTTPS with internal CA is correct for Jetson.</p>
+
+<h2 id="certs"><span class="num">05</span> Cert volume reset (one-time)</h2>
+<p>Caddy stores certs in Docker volume `caddy_data` (`/data/caddy/certificates/local/{10.42.0.1,127.0.0.1,localhost,192.168.3.22}` seen via `docker exec -u root caddy ls -la /data/caddy/certificates/local/`). After `HOST_IP` change, old `192.168.3.22` cert remains and renewal is throttled (`storage cleaning happened too recently; skipping`). Reset forces fresh cert for `10.42.0.1`.</p>
+<pre><code># inspect (read-only, verifies)
+docker volume inspect jetson-orin-nx_caddy_data
+docker exec -u root jetson-orin-nx-caddy-1 ls -la /data/caddy/certificates/local/
+
+# reset (destructive, only caddy_data)
+docker compose -f docker-compose.jetson.yml down   # stops caddy + microk3 (microk3 healthy, will restart)
+docker volume rm jetson-orin-nx_caddy_data jetson-orin-nx_caddy_config
+# alternative surgical: rm only stale dir inside running container
+docker exec -u root jetson-orin-nx-caddy-1 rm -rf /data/caddy/certificates/local/192.168.3.22</code></pre>
+
+<h2 id="order"><span class="num">06</span> Exact order (6 commands, all via sshpass, no local copy needed)</h2>
+<pre><code># 0 — ssh baseline (already works)
+sshpass -p 'RoverTech' ssh -o StrictHostKeyChecking=no RoverTech@10.42.0.1 "hostname; docker ps"
+
+# 1 — fix compose duplicate (one sed)
+sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "sed -i '/\${DASHBOARD_PORT:-5050}:5050/d' ~/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.jetson.yml && cat ~/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.jetson.yml | sed -n '86,102p'"
+
+# 2 — verify .env (no edit if already 10.42.0.1)
+sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "grep -E 'HOST_IP|DASHBOARD_PORT' ~/Stm-Micro_ros-eth/production/jetson-orin-nx/.env"
+
+# 3 — reset caddy_data (forces fresh cert for 10.42.0.1)
+sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "cd ~/Stm-Micro_ros-eth/production/jetson-orin-nx && docker compose -f docker-compose.jetson.yml down && docker volume rm -f jetson-orin-nx_caddy_data jetson-orin-nx_caddy_config"
+
+# 4 — rebuild not needed (microk3 image already new), just up
+sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "cd ~/Stm-Micro_ros-eth/production/jetson-orin-nx && docker compose -f docker-compose.jetson.yml up -d microk3 caddy && sleep 6 && docker ps"
+
+# 5 — keep HTTP fallback on 5051 (optional, already in compose). If you want strict HTTPS-only, remove:
+# sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "sed -i '/5051:5050/d' ~/Stm-Micro_ros-eth/production/jetson-orin-nx/docker-compose.jetson.yml"
+
+# 6 — logs
+sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "docker logs jetson-orin-nx-caddy-1 --tail 40; docker logs jetson-orin-nx-microk3-1 --tail 20"</code></pre>
+<div class="callout warn"><strong>Do not run `docker compose down -v` without naming volumes</strong> — it would also delete `microk3_jetson_data` (system_data.json). The volume rm above targets only `caddy_*`.</div>
+
+<h2 id="verify"><span class="num">07</span> Verify (must all pass)</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Command (where)</th><th>Expected</th></tr></thead>
+  <tbody>
+    <tr><td><code>docker ps</code> (Jetson)</td><td><code>jetson-orin-nx-caddy-1 0.0.0.0:5050->443</code> and <code>jetson-orin-nx-microk3-1 0.0.0.0:5051->5050 (healthy)</code> or `0.0.0.0:5050->443` only if strict</td></tr>
+    <tr><td><code>docker exec microk3 curl http://localhost:5050/health</code></td><td><code>{"ros_connected":true,"status":"healthy"}</code></td></tr>
+    <tr><td><code>curl -s http://10.42.0.1:5051/health</code> (Mac)</td><td>Same JSON (HTTP fallback)</td></tr>
+    <tr><td><code>curl -sk https://10.42.0.1:5050/health</code> (Mac, `-k` ignores internal CA)</td><td>Same JSON (was `TLS internal error` before fix)</td></tr>
+    <tr><td><code>curl -sk https://10.42.0.1:5050/drive | grep "Teleop Drive"</code></td><td>Contains `Rover` + `Arm` tabs</td></tr>
+    <tr><td><code>openssl s_client -connect 10.42.0.1:5050 -servername 10.42.0.1</code> (Jetson)</td><td>`CN = Caddy Local Authority - ECC Intermediate` valid `NotBefore Aug29 15:5x`</td></tr>
+  </tbody>
+</table></div>
+<div class="callout ok"><strong>Definition of done:</strong> Both `http://10.42.0.1:5051` (direct) and `https://10.42.0.1:5050` (via Caddy) serve Drive Rover/Arm. MicroK3 stays `healthy`.</div>
+
+<h2 id="rollback"><span class="num">08</span> Rollback (if verification fails)</h2>
+<pre><code># Restore microk3 HTTP-only (always works)
+sshpass -p 'RoverTech' ssh RoverTech@10.42.0.1 "cd ~/Stm-Micro_ros-eth/production/jetson-orin-nx && docker compose -f docker-compose.jetson.yml down && docker compose -f docker-compose.jetson.yml up -d microk3"
+# Then dashboard at http://10.42.0.1:5051 (no Caddy needed for demo)</code></pre>
+<p>Original broken state can be restored by re-adding the duplicate line: `echo '      - "${DASHBOARD_PORT:-5050}:5050"' >> compose` — but not recommended.</p>
+
+<div class="footer">
+  Plan v1.0 · 2026-08-30 · Jetson 10.42.0.1 RoverTech · Files: <code>production/jetson-orin-nx/docker-compose.jetson.yml:91</code>, <code>production/jetson-orin-nx/.env:2</code>, <code>production/jetson-orin-nx/Caddyfile:7</code> (no change), volume <code>jetson-orin-nx_caddy_data</code> · MicroK3 code already on Jetson (Drive Rover/Arm) — no rebuild needed.
+  <br>Question for you: keep HTTP fallback <code>5051:5050</code> for lab debugging, or remove it and enforce HTTPS-only via Caddy <code>5050:443</code>?
+</div>
+</main>
+</div>
+</body>
+</html>

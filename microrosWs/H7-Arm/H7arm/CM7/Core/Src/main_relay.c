@@ -553,7 +553,6 @@ static void StartJointCommandExecutorTask(void *argument)
     osDelay(20);
   }
 }
-
 static bool PublishTelemetrySample(
   rcl_publisher_t *publisher,
   std_msgs__msg__String *message,
@@ -1518,7 +1517,10 @@ int main(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  (void)htim;
+  if(htim != NULL && htim->Instance == TIM1)
+  {
+    HAL_IncTick();
+  }
 }
 
 void Error_Handler(void)

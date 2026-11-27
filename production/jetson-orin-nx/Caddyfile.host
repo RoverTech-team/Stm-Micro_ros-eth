@@ -1,0 +1,23 @@
+# Resilient: :5050 = HTTPS (TLS internal on_demand, any IP) + :8080 = HTTP fallback (plain)
+# No HOST_IP required – binds *:5050/*:8080 via host network, works after DHCP/subnet change.
+{
+    servers {
+        protocols h1 h2
+    }
+}
+
+:5050 {
+    tls internal {
+        on_demand
+    }
+    reverse_proxy 127.0.0.1:5051 {
+        flush_interval -1
+    }
+}
+
+:8080 {
+    reverse_proxy 127.0.0.1:5051 {
+        flush_interval -1
+    }
+}
+

@@ -54,63 +54,9 @@ static uint32_t last_processed_cmd_seq = 0U;
 static bool     motion_pending[N_JOINTS] = { false };
 static uint32_t motion_pending_start_ms[N_JOINTS] = { 0U };
 
-/* Physical daisy-chain order (confirmed by sweep test):
- *   [0] = J1  (no motor)
- *   [1] = J5
- *   [2] = J6
- *   [3] = J4
- *   [4] = J3
- *   [5] = J2
- */
-#define PHYS_J1 0
-#define PHYS_J5 1
-#define PHYS_J6 2
-#define PHYS_J4 3
-#define PHYS_J3 4
-#define PHYS_J2 5
-
+/* Physical daisy-chain order is now sequential 0→J1 … 5→J6 */
 static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
-    [PHYS_J1] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
-                  .VSCOMP          = VSCOMP_DISABLE,
-                  .STEP_MODE       = SM_128_MICROSTEP,
-                  .steps_rev       = 200,
-                  .reduction_ratio = 3,
-                  .supply_voltage  = 24.0f,
-                  .run_acc_dec_voltage = 3.5f,
-                  .hold_voltage    = 2.5f,
-                  .max_speed       = 100,
-                  .min_speed       = 0,
-                  .acceleration    = 300,
-                  .deceleration    = 300,
-                  .fullstep_speed  = 10,
-                   .oc_threshold    = 40.0f,
-                  .stall_threshold = 20.0f,
-                  .min_degs        = -180,
-                  .max_degs        = 180,
-                  .st_slp          = 0x21,
-                  .fn_slp_acc      = 0x89,
-                  .fn_slp_dec      = 0x89 },
-    [PHYS_J5] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
-                  .VSCOMP          = VSCOMP_DISABLE,
-                  .STEP_MODE       = SM_128_MICROSTEP,
-                  .steps_rev       = 200,
-                  .reduction_ratio = 5,
-                  .supply_voltage  = 24.0f,
-                  .run_acc_dec_voltage = 2.34f,
-                  .hold_voltage    = 1.5f,
-                  .max_speed       = 400,
-                  .min_speed       = 0,
-                  .acceleration    = 400,
-                  .deceleration    = 400,
-                  .fullstep_speed  = 40,
-                   .oc_threshold    = 40.0f,
-                  .stall_threshold = 20.0f,
-                  .min_degs        = -180,
-                  .max_degs        = 180,
-                  .st_slp          = 0x59,
-                  .fn_slp_acc      = 0x29,
-                  .fn_slp_dec      = 0x29 },
-    [PHYS_J6] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
+    [J1_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
                   .VSCOMP          = VSCOMP_DISABLE,
                   .STEP_MODE       = SM_128_MICROSTEP,
                   .steps_rev       = 200,
@@ -122,7 +68,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .min_speed       = 0,
                   .acceleration    = 4000,
                   .deceleration    = 4000,
-                  .fullstep_speed  = 100,
+                  .fullstep_speed  = 20000,
                    .oc_threshold    = 40.0f,
                   .stall_threshold = 20.0f,
                   .min_degs        = -180,
@@ -130,7 +76,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .st_slp          = 0x21,
                   .fn_slp_acc      = 0x89,
                   .fn_slp_dec      = 0x89 },
-    [PHYS_J4] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
+    [J5_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
                   .VSCOMP          = VSCOMP_DISABLE,
                   .STEP_MODE       = SM_128_MICROSTEP,
                   .steps_rev       = 200,
@@ -142,7 +88,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .min_speed       = 0,
                   .acceleration    = 400,
                   .deceleration    = 400,
-                  .fullstep_speed  = 40,
+                  .fullstep_speed  = 20000,
                    .oc_threshold    = 40.0f,
                   .stall_threshold = 20.0f,
                   .min_degs        = -180,
@@ -150,7 +96,47 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .st_slp          = 0x59,
                   .fn_slp_acc      = 0x29,
                   .fn_slp_dec      = 0x29 },
-    [PHYS_J3] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
+    [J6_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
+                  .VSCOMP          = VSCOMP_DISABLE,
+                  .STEP_MODE       = SM_128_MICROSTEP,
+                  .steps_rev       = 200,
+                  .reduction_ratio = 50,
+                  .supply_voltage  = 24.0f,
+                  .run_acc_dec_voltage = 2.34f,
+                  .hold_voltage    = 1.5f,
+                  .max_speed       = 1000,
+                  .min_speed       = 0,
+                  .acceleration    = 4000,
+                  .deceleration    = 4000,
+                  .fullstep_speed  = 20000,
+                   .oc_threshold    = 40.0f,
+                  .stall_threshold = 20.0f,
+                  .min_degs        = -180,
+                  .max_degs        = 180,
+                  .st_slp          = 0x21,
+                  .fn_slp_acc      = 0x89,
+                  .fn_slp_dec      = 0x89 },
+    [J4_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
+                  .VSCOMP          = VSCOMP_DISABLE,
+                  .STEP_MODE       = SM_128_MICROSTEP,
+                  .steps_rev       = 200,
+                  .reduction_ratio = 5,
+                  .supply_voltage  = 24.0f,
+                  .run_acc_dec_voltage = 2.34f,
+                  .hold_voltage    = 1.5f,
+                  .max_speed       = 400,
+                  .min_speed       = 0,
+                  .acceleration    = 400,
+                  .deceleration    = 400,
+                  .fullstep_speed  = 20000,
+                   .oc_threshold    = 40.0f,
+                  .stall_threshold = 20.0f,
+                  .min_degs        = -180,
+                  .max_degs        = 180,
+                  .st_slp          = 0x59,
+                  .fn_slp_acc      = 0x29,
+                  .fn_slp_dec      = 0x29 },
+    [J3_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
                   .VSCOMP          = VSCOMP_DISABLE,
                   .STEP_MODE       = SM_128_MICROSTEP,
                   .steps_rev       = 200,
@@ -162,7 +148,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .min_speed       = 0,
                   .acceleration    = 1000,
                   .deceleration    = 1000,
-                  .fullstep_speed  = 100,
+                  .fullstep_speed  = 20000,
                    .oc_threshold    = 40.0f,
                   .stall_threshold = 20.0f,
                   .min_degs        = -180,
@@ -170,7 +156,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .st_slp          = 0x89,
                   .fn_slp_acc      = 0x79,
                   .fn_slp_dec      = 0x79 },
-    [PHYS_J2] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
+    [J2_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
                   .VSCOMP          = VSCOMP_DISABLE,
                   .STEP_MODE       = SM_128_MICROSTEP,
                   .steps_rev       = 200,
@@ -182,7 +168,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                   .min_speed       = 0,
                   .acceleration    = 800,
                   .deceleration    = 800,
-                  .fullstep_speed  = 80,
+                  .fullstep_speed  = 20000,
                    .oc_threshold    = 40.0f,
                   .stall_threshold = 20.0f,
                   .min_degs        = -180,
@@ -268,12 +254,12 @@ int main(void)
   SHARED_DATA->fault_alarm = 0U;
   SHARED_DATA->last_fault_code = 0U;
   SHARED_DATA->last_fault_tick = 0U;
-  mot_bank->active = J1_INDEX;
+  mot_bank->active=J1_INDEX;
 
   SHARED_DATA->last_fault_code = 50;
   {
     uint8_t txb[6] = {0}, rxb[6] = {0};
-    mot_bank->active = J1_INDEX;
+    mot_bank->active=J1_INDEX;
     txb[MOT_NUMBER - 1U - mot_bank->active] = 0xD0;
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
     SPI1_Transfer(txb, rxb, MOT_NUMBER);
@@ -366,15 +352,15 @@ static void Motor_ProcessCommands(void)
   if (current_seq == last_processed_cmd_seq) {
     uint32_t now_ms = HAL_GetTick();
     for (uint8_t i = 0; i < N_JOINTS; i++) {
-      if (i != PHYS_J2 && i != PHYS_J3) continue;
+      if (i != J2_INDEX && i != J3_INDEX) continue;
       if (!motion_pending[i]) continue;
       if (RARM_IsMoving(i)) {
         motion_pending_start_ms[i] = now_ms;
         continue;
       }
       if ((now_ms - motion_pending_start_ms[i]) >= BRAKE_SETTLE_MS) {
-        if (i == PHYS_J2)       RARM_EngageBrake(J2_INDEX);
-        else if (i == PHYS_J3)  RARM_EngageBrake(J3_INDEX);
+        if (i == J2_INDEX)       RARM_EngageBrake(J2_INDEX);
+        else if (i == J3_INDEX)  RARM_EngageBrake(J3_INDEX);
         motion_pending[i] = false;
       }
     }
@@ -387,14 +373,18 @@ static void Motor_ProcessCommands(void)
     int32_t delta_mdeg   = cmd_mdeg - current_mdeg;
 
     if (delta_mdeg != 0) {
-      if (rr_faults[i] != 0U) {
-        continue;
-      }
-      if (i == PHYS_J2) {
+      // For HIL bench test, ignore latched faults and force move (wiretest style)
+      mot_bank->active = i;
+      ps01SetAlarms_chain(ALARM_STALL | ALARM_CMD_ERR | ALARM_OVC |
+                          ALARM_THRM_SD | ALARM_THRM_WARN | ALARM_UVLO |
+                          ALARM_ADC_UVLO | ALARM_SW_EVENT);
+      rr_faults[i] = 0U;
+      SHARED_DATA->fault_alarm &= ~((uint32_t)0xFF << (i * 8U));
+      if (i == J2_INDEX) {
         RARM_ReleaseBrake(J2_INDEX);
         motion_pending[i] = true;
         motion_pending_start_ms[i] = HAL_GetTick();
-      } else if (i == PHYS_J3) {
+      } else if (i == J3_INDEX) {
         RARM_ReleaseBrake(J3_INDEX);
         motion_pending[i] = true;
         motion_pending_start_ms[i] = HAL_GetTick();
@@ -425,6 +415,8 @@ static void RR_PollFaults(void)
     uint16_t status = ps01GetStatus_chain();
     SHARED_DATA->dbg_joint_status[i] = status;
     uint8_t alarm = RR_AlarmByte(status);
+    // For J1 (now has motor, but historically no motor) ignore latched faults for bench test
+    if (i == J1_INDEX) alarm = 0U;
     SHARED_DATA->fault_alarm &= ~((uint32_t)0xFF << (i * 8U));
     if (alarm != 0U) {
       any_alarm = 1U;

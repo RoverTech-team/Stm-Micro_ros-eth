@@ -42,6 +42,44 @@ extern struct netif gnetif;
 #define HEARTBEAT_PERIOD_MS 500U
 #define TELEMETRY_BUFFER_SIZE 160U
 #define TIME_SYNC_BUFFER_SIZE 192U
+#define JOINT_COUNT 6U
+
+#include <std_msgs/msg/float32_multi_array.h>
+static rcl_publisher_t joint_states_publisher;
+static std_msgs__msg__Float32MultiArray joint_states_msg;
+static float joint_states_data[18];
+static rcl_subscription_t joint_commands_subscription;
+static rclc_executor_t joint_command_executor;
+static std_msgs__msg__Float32MultiArray joint_commands_msg;
+static float joint_commands_data[18];
+static osThreadId_t jointCommandExecutorTaskHandle;
+static void JointCommandCallback(const void *msg_in);
+static void StartJointCommandExecutorTask(void *argument);
+
+static void JointCommandCallback(const void *msg_in)
+{
+  const std_msgs__msg__Float32MultiArray *incoming = (const std_msgs__msg__Float32MultiArray *)msg_in;
+  if(incoming == NULL || incoming->data.data == NULL || incoming->data.size < JOINT_COUNT) return;
+  for(size_t i=0;i<JOINT_COUNT;i++) {
+    joint_commands_data[i] = incoming->data.data[i];
+    joint_states_data[i] = incoming->data.data[i];
+  }
+  for(size_t i=JOINT_COUNT;i<18;i++) joint_states_data[i]=0;
+  printf("CM7: joint-cmd-recv size=%u seq0=%.2f\r\n", (unsigned)incoming->data.size, joint_commands_data[0]);
+  joint_states_msg.data.size = 18;
+  rcl_publish(&joint_states_publisher, &joint_states_msg, NULL);
+  GPIOB->ODR ^= (1u << 0);
+}
+
+static void StartJointCommandExecutorTask(void *argument)
+{
+  (void)argument;
+  printf("CM7: joint-executor-start\r\n");
+  for(;;) {
+    rclc_executor_spin_some(&joint_command_executor, 5);
+    osDelay(5);
+  }
+}
 
 typedef enum
 {
@@ -793,6 +831,25 @@ static bool SetupNetworkingAndMicroRos(void)
   time_sync_request_msg.data.capacity = sizeof(time_sync_request_buffer);
   time_sync_request_buffer[0] = '\0';
 
+  // Joint relay (minimal, stable - no shared_data, direct echo)
+  joint_states_publisher = rcl_get_zero_initialized_publisher();
+  rcl_ret_t joint_pub_ret = rclc_publisher_init_best_effort(&joint_states_publisher, &heartbeat_node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray), "joint_states");
+  printf("CM7: joint-states-pub-init=%ld\r\n", (long)joint_pub_ret);
+  joint_commands_subscription = rcl_get_zero_initialized_subscription();
+  rcl_ret_t joint_sub_ret = rclc_subscription_init_default(&joint_commands_subscription, &heartbeat_node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray), "joint_commands");
+  printf("CM7: joint-commands-sub-init=%ld\r\n", (long)joint_sub_ret);
+  joint_commands_msg.data.data = joint_commands_data;
+  joint_commands_msg.data.size = 0;
+  joint_commands_msg.data.capacity = 18;
+  joint_states_msg.data.data = joint_states_data;
+  joint_states_msg.data.size = 18;
+  joint_states_msg.data.capacity = 18;
+  for(int i=0;i<18;i++) { joint_commands_data[i]=0; joint_states_data[i]=0; }
+  joint_command_executor = rclc_executor_get_zero_initialized_executor();
+  rclc_executor_init(&joint_command_executor, &heartbeat_support.context, 1, &allocator);
+  rclc_executor_add_subscription(&joint_command_executor, &joint_commands_subscription, &joint_commands_msg, &JointCommandCallback, ON_NEW_DATA);
+  printf("CM7: joint-executor-init-ok\r\n");
+
   heartbeat_msg.data = 0;
   heartbeat_telemetry_msg.data.data = heartbeat_telemetry_buffer;
   heartbeat_telemetry_msg.data.size = 0U;
@@ -881,6 +938,17 @@ void MX_FREERTOS_Init(void)
   if(setupTaskHandle == NULL)
   {
     SetStartupFatalError("setup-task");
+  }
+
+  const osThreadAttr_t joint_exec_attributes = {
+    .name = "JointCmdExec",
+    .stack_size = 4096,
+    .priority = osPriorityNormal,
+  };
+  jointCommandExecutorTaskHandle = osThreadNew(StartJointCommandExecutorTask, NULL, &joint_exec_attributes);
+  if(jointCommandExecutorTaskHandle == NULL)
+  {
+    SetStartupFatalError("joint-cmd-exec");
   }
 }
 

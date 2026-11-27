@@ -15,10 +15,11 @@ import os
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float32MultiArray
 
-JOINT_NAMES = ["joint_1", "joint_2", "joint_3"]
+JOINT_NAMES = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
 N = len(JOINT_NAMES)
 
 STATES_INPUT_TOPIC = os.environ.get("ARM_STATES_INPUT_TOPIC", "/joint_states")
@@ -41,8 +42,9 @@ class ArmBridge(Node):
         )
         # STM32 -> ros2_control
         self.pub_states = self.create_publisher(JointState, STATES_OUTPUT_TOPIC, 10)
+        qos_best_effort = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
         self.sub_states = self.create_subscription(
-            Float32MultiArray, STATES_INPUT_TOPIC, self.on_states, 10
+            Float32MultiArray, STATES_INPUT_TOPIC, self.on_states, qos_best_effort
         )
         # ros2_control -> STM32
         self.pub_cmd = self.create_publisher(

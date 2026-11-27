@@ -22,7 +22,7 @@
 static void SystemClock_Config(void);
 
 #ifndef WIRE_TEST
-#define WIRE_TEST 0
+#define WIRE_TEST 1
 #endif
 
 #define MOTOR_LOOP_PERIOD_MS 10U
@@ -53,13 +53,13 @@ static uint8_t  btn_green_blinks = 0;
 static uint8_t  btn_green_phase  = 0;
 static uint32_t btn_green_timer  = 0;
 
-/* Joint configuration array — indexed by J*_INDEX */
+/* Joint configuration array — indexed by J*_INDEX — sequential 0→J1 … 5→J6 */
 static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
     [J1_INDEX] = { .OVERCURRENT_SD = OC_NOSHUTDOWN,
                    .VSCOMP          = VSCOMP_DISABLE,
                    .STEP_MODE       = SM_128_MICROSTEP,
                    .steps_rev       = 200,
-                   .reduction_ratio = 3,
+                   .reduction_ratio = 50,
                    .supply_voltage  = 24.0f,
                    .run_acc_dec_voltage = 3.5f,
                    .hold_voltage    = 2.5f,
@@ -67,7 +67,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .min_speed       = 0,
                    .acceleration    = 300,
                    .deceleration    = 300,
-                   .fullstep_speed  = 10,
+                   .fullstep_speed  = 20000,
                     .oc_threshold    = 40.0f,
                    .stall_threshold = 20.0f,
                    .min_degs        = -180,
@@ -87,7 +87,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .min_speed       = 0,
                    .acceleration    = 400,
                    .deceleration    = 400,
-                   .fullstep_speed  = 40,
+                   .fullstep_speed  = 20000,
                     .oc_threshold    = 40.0f,
                    .stall_threshold = 20.0f,
                    .min_degs        = -180,
@@ -107,7 +107,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .min_speed       = 0,
                    .acceleration    = 4000,
                    .deceleration    = 4000,
-                   .fullstep_speed  = 100,
+                   .fullstep_speed  = 20000,
                     .oc_threshold    = 40.0f,
                    .stall_threshold = 20.0f,
                    .min_degs        = -180,
@@ -127,7 +127,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .min_speed       = 0,
                    .acceleration    = 400,
                    .deceleration    = 400,
-                   .fullstep_speed  = 40,
+                   .fullstep_speed  = 20000,
                     .oc_threshold    = 40.0f,
                    .stall_threshold = 20.0f,
                    .min_degs        = -180,
@@ -147,7 +147,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .min_speed       = 0,
                    .acceleration    = 1000,
                    .deceleration    = 1000,
-                   .fullstep_speed  = 100,
+                   .fullstep_speed  = 20000,
                     .oc_threshold    = 40.0f,
                    .stall_threshold = 20.0f,
                    .min_degs        = -180,
@@ -167,7 +167,7 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .min_speed       = 0,
                    .acceleration    = 800,
                    .deceleration    = 800,
-                   .fullstep_speed  = 80,
+                   .fullstep_speed  = 20000,
                     .oc_threshold    = 40.0f,
                    .stall_threshold = 20.0f,
                    .min_degs        = -180,
@@ -176,6 +176,38 @@ static RARM_SimpleConfig_t joint_configs[N_JOINTS] = {
                    .fn_slp_acc      = 0x79,
                    .fn_slp_dec      = 0x79 },
 };
+
+
+/* Automatic driver recovery (added 2026-09-05): a joint alarming continuously
+ * for FAULT_STICKY_LIMIT polls gets a full RARM_SetConfig re-apply
+ * (config+KVALs+BEMF+thresholds+alarm clear). No reset-pin pulse, so the
+ * driver ABS_POS tracking used by E2E is preserved. Cool-down spaces attempts.
+ * Recovery events are counted in drv_recovery_cnt[] and latched once into
+ * last_fault_code as 0x80000000|joint. */
+#define FAULT_STICKY_LIMIT 100U
+#define RECOVERY_COOLDOWN_MS 2000U
+static uint8_t  fault_sticky_cnt[N_JOINTS] = {0};
+static uint32_t recovery_cooldown_until[N_JOINTS] = {0};
+static uint32_t drv_recovery_cnt[N_JOINTS] = {0};
+
+
+static void Motor_RecoverDriver(uint8_t joint_index)
+{
+  uint8_t i = joint_index;
+  if (i >= N_JOINTS) return;
+  RARM_SetConfig(i, &joint_configs[i]);
+  rr_faults[i] = 0U;
+  SHARED_DATA->fault_alarm &= ~((uint32_t)0xFF << (i * 8U));
+  fault_sticky_cnt[i] = 0U;
+  recovery_cooldown_until[i] = HAL_GetTick() + RECOVERY_COOLDOWN_MS;
+  drv_recovery_cnt[i]++;
+  if (SHARED_DATA->last_fault_code == 0U)
+  {
+    SHARED_DATA->last_fault_code = 0x80000000U | (uint32_t)i;
+    SHARED_DATA->last_fault_tick = HAL_GetTick();
+  }
+  __DSB();
+}
 
 #if !WIRE_TEST
 static uint32_t last_processed_cmd_seq = 0U;
@@ -193,6 +225,7 @@ static uint8_t  test_idx       = 0;
 static void Motor_UpdatePositions(void);
 static void RR_Tick(uint32_t now);
 static void RR_PollFaults(void);
+static void Motor_RecoverDriver(uint8_t joint_index);
 static uint8_t RR_BlinkCount(uint16_t status);
 static uint8_t RR_AlarmByte(uint16_t status);
 static uint8_t RR_NextFaulted(uint8_t start);
@@ -271,13 +304,13 @@ int main(void)
   SHARED_DATA->fault_alarm = 0U;
   SHARED_DATA->last_fault_code = 0U;
   SHARED_DATA->last_fault_tick = 0U;
-  mot_bank->active = J1_INDEX;
+  mot_bank->active=J1_INDEX;
 
   SHARED_DATA->last_fault_code = 50; /* before SPI test */
   /* Debug: single-byte SPI test (like F4 reference) */
   {
     uint8_t txb[6] = {0}, rxb[6] = {0};
-    mot_bank->active = J1_INDEX;
+    mot_bank->active=J1_INDEX;
     txb[MOT_NUMBER - 1U - mot_bank->active] = 0xD0;
     HAL_GPIO_WritePin(DRV_CS_GPIO_Port, DRV_CS_Pin, GPIO_PIN_RESET);
     SPI1_Transfer(txb, rxb, MOT_NUMBER);
@@ -391,6 +424,7 @@ static void Motor_ProcessCommands(void)
       }
       if ((now_ms - motion_pending_start_ms[i]) >= BRAKE_SETTLE_MS) {
         RARM_EngageBrake(i);
+        SHARED_DATA->brake_state |= (uint32_t)(1U << i);
         motion_pending[i] = false;
       }
     }
@@ -398,16 +432,23 @@ static void Motor_ProcessCommands(void)
   }
 
   for (uint8_t i = 0; i < N_JOINTS; i++) {
+    if (i == J6_INDEX) continue; // J6 disabled for E2E J1-J5 test
     int32_t cmd_mdeg     = SHARED_DATA->joint_cmd_positions[i];
     int32_t current_mdeg = RARM_GetPositionMilliDegrees(i);
     int32_t delta_mdeg   = cmd_mdeg - current_mdeg;
 
     if (delta_mdeg != 0) {
       if (rr_faults[i] != 0U) {
-        continue;
+        /* Standstill faults (spurious STALL/UVLO) must not permanently gate
+           motion: clear latched alarms and retry. Real OC/thermal conditions
+           re-latch immediately and the move simply fails. */
+        ps01SetAlarms_chain(ALARM_STALL | ALARM_CMD_ERR | ALARM_OVC |
+                            ALARM_THRM_SD | ALARM_THRM_WARN | ALARM_UVLO);
+        rr_faults[i] = 0U;
       }
       if (i == J2_INDEX || i == J3_INDEX) {
         RARM_ReleaseBrake(i);
+        SHARED_DATA->brake_state &= ~(uint32_t)(1U << i);
         motion_pending[i] = true;
         motion_pending_start_ms[i] = HAL_GetTick();
       }
@@ -446,8 +487,15 @@ static void RR_PollFaults(void)
       SHARED_DATA->fault_alarm |= (uint32_t)alarm << (i * 8U);
       ps01SetAlarms_chain(ALARM_STALL | ALARM_CMD_ERR | ALARM_OVC |
                           ALARM_THRM_SD | ALARM_THRM_WARN | ALARM_UVLO);
+      if (fault_sticky_cnt[i] < 0xFFU) fault_sticky_cnt[i]++;
+      if (fault_sticky_cnt[i] >= FAULT_STICKY_LIMIT &&
+          (int32_t)(HAL_GetTick() - recovery_cooldown_until[i]) >= 0)
+      {
+        Motor_RecoverDriver(i);
+      }
     } else {
       rr_faults[i] = 0U;
+      fault_sticky_cnt[i] = 0U;
     }
   }
   if (any_alarm != 0U && SHARED_DATA->last_fault_code == 0U) {

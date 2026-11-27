@@ -17,6 +17,13 @@
 #define CLOCKWISE         1
 #define COUNTER_CLOCKWISE 0
 
+/* NOTE (bench 2026-09-05): a J1<->J2 chain-swap was suspected from eyewitness
+ * reports and a RARM_DrvIdx() remap was briefly added, but a brake-anchored
+ * test disproved it (index-0 command with J2 brake engaged strained the
+ * braked joint => chain position N-1-active already addresses the right
+ * motor). Mapping is 1:1, NO remap. Do NOT re-add index translation without
+ * repeating the brake-anchored test. */
+
 typedef struct
 {
     uint8_t   OVERCURRENT_SD;
@@ -42,6 +49,7 @@ typedef struct
     uint8_t   st_slp;
     uint8_t   fn_slp_acc;
     uint8_t   fn_slp_dec;
+    uint16_t  int_speed;
 } RARM_SimpleConfig_t;
 
 typedef struct
@@ -70,5 +78,7 @@ void    RARM_ReleaseBrake          (uint8_t joint_index);
 void    RARM_EngageBrake           (uint8_t joint_index);
 
 bool    RARM_IsMoving              (uint8_t joint_index);
+
+extern int32_t j1_sim_mdeg;  // J1 simulated position for bench test (no physical motor at J1)
 
 #endif

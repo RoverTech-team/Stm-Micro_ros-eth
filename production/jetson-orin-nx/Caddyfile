@@ -1,0 +1,32 @@
+# Resilient: :5050 = HTTPS (TLS internal on_demand, any IP) + :8080 = HTTP fallback + :443 HTTPS
+# No HOST_IP required – binds *:5050/*:8080/*:443 via bridge network.
+{
+    servers {
+        protocols h1 h2
+    }
+}
+
+:5050 {
+    tls internal {
+        on_demand
+    }
+    reverse_proxy microk3:5050 {
+        flush_interval -1
+    }
+}
+
+:8080 {
+    reverse_proxy microk3:5050 {
+        flush_interval -1
+    }
+}
+
+:443 {
+    tls internal {
+        on_demand
+    }
+    reverse_proxy microk3:5050 {
+        flush_interval -1
+    }
+}
+

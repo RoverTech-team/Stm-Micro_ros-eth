@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARM → BRINGUP directory replacement plan</title>
+<style>
+  :root{
+    --bg:#0a0f14;
+    --bg2:#101a22;
+    --surface:#14202d;
+    --surface2:#1a2a3a;
+    --surface3:#1e3448;
+    --border:#22384d;
+    --border2:#2a4a66;
+    --text:#e6eef6;
+    --dim:#8fa3b8;
+    --muted:#6b8398;
+    --cyan:#22d3ee;
+    --cyan2:#06b6d4;
+    --blue:#3b82f6;
+    --violet:#8b5cf6;
+    --amber:#f59e0b;
+    --emerald:#10b981;
+    --rose:#f43f5e;
+    --mono:"JetBrains Mono","SF Mono","Fira Code",Consolas,monospace;
+    --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%, rgba(34,211,238,.18), transparent 60%),radial-gradient(900px 500px at 90% 0%, rgba(139,92,246,.18), transparent 60%), var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:14.5px}
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);background:#0e1a26;border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:12.5px;color:#c4d3e6}
+  pre{background:#0b1420;border:1px solid var(--border);border-radius:12px;padding:18px 20px;overflow-x:auto;font-size:12.8px;line-height:1.6}
+  pre code{background:none;border:none;padding:0}
+  .layout{display:flex;min-height:100vh}
+  nav.toc{width:300px;flex-shrink:0;background:rgba(20,32,45,.92);backdrop-filter:blur(10px);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow:auto}
+  nav.toc .brand{padding:22px 22px 18px;border-bottom:1px solid var(--border)}
+  nav.toc .brand h1{margin:0;font-size:18px;letter-spacing:-.02em}
+  nav.toc .brand h1 span{color:var(--cyan)}
+  nav.toc .brand .ver{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+  nav.toc .group{padding:14px 0 8px 22px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  nav.toc ol{list-style:none;margin:0;padding:0 0 20px}
+  nav.toc li a{display:flex;align-items:center;gap:10px;padding:7px 22px;color:var(--dim);font-size:13px;border-left:3px solid transparent;text-decoration:none;transition:.15s}
+  nav.toc li a:hover{color:var(--text);background:rgba(34,211,238,.06);border-left-color:var(--cyan)}
+  nav.toc li a .num{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  main{flex:1;max-width:1020px;padding:44px 56px 100px}
+  .hero{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:18px;background:linear-gradient(135deg, #14202d 0%, #0f1f2e 100%);padding:36px 36px 28px}
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 80% 0%, rgba(34,211,238,.12), transparent 70%);pointer-events:none}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan)}
+  h1.title{font-size:34px;line-height:1.12;margin:10px 0 10px;letter-spacing:-.03em}
+  h1.title em{font-style:normal;background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .subtitle{color:var(--dim);font-size:16px;max-width:760px;margin:0}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0}
+  .badge{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);color:var(--dim);background:rgba(255,255,255,.03)}
+  .badge.cyan{color:var(--cyan);border-color:rgba(34,211,238,.35);background:rgba(34,211,238,.09)}
+  .badge.violet{color:#c4b5fd;border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.09)}
+  .badge.emerald{color:#6ee7b7;border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.09)}
+  .badge.rose{color:var(--rose);border-color:rgba(244,63,94,.35);background:rgba(244,63,94,.09)}
+  .badge.amber{color:#fcd34d;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.09)}
+  h2{font-size:26px;margin:54px 0 16px;padding-bottom:10px;border-bottom:1px solid var(--border);letter-spacing:-.02em;scroll-margin-top:18px}
+  h2 .num{font-family:var(--mono);font-size:16px;color:var(--cyan);margin-right:10px}
+  h3{font-size:18px;margin:30px 0 10px;scroll-margin-top:18px}
+  h4{font-size:14px;margin:18px 0 8px;color:var(--cyan);font-family:var(--mono);letter-spacing:.02em}
+  p{margin:0 0 12px}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin-bottom:6px}
+  .callout{border-radius:12px;padding:16px 18px;margin:16px 0;border:1px solid var(--border);border-left:4px solid}
+  .callout.info{background:rgba(34,211,238,.07);border-left-color:var(--cyan)}
+  .callout.warn{background:rgba(245,158,11,.08);border-left-color:var(--amber)}
+  .callout.ok{background:rgba(16,185,129,.08);border-left-color:var(--emerald)}
+  .callout.danger{background:rgba(244,63,94,.08);border-left-color:var(--rose)}
+  .callout .head{font-weight:700;margin-bottom:4px;display:flex;gap:8px;align-items:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
+  .card h4{margin:0 0 6px;color:var(--text)}
+  .card .tag{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px;margin:14px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--surface);font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--cyan)}
+  tr:last-child td{border:none}
+  .pill{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px}
+  .pill.new{background:rgba(34,211,238,.14);color:var(--cyan)}
+  .pill.keep{background:rgba(16,185,129,.14);color:#6ee7b7}
+  .pill.refactor{background:rgba(245,158,11,.14);color:#fcd34d}
+  .pill.remove{background:rgba(244,63,94,.14);color:var(--rose)}
+  .diagram{background:#0b1420;border:1px solid var(--border);border-radius:12px;padding:20px;font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre;overflow:auto}
+  .phase{display:flex;gap:14px;margin:16px 0}
+  .phase-num{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--violet));color:#001018;display:grid;place-items:center;font-weight:800;font-family:var(--mono)}
+  .footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+  .mono-block{font-family:var(--mono);font-size:12.5px;color:var(--dim);background:#0b1420;border:1px solid var(--border);border-radius:10px;padding:12px 16px;overflow-x:auto}
+  @media(max-width:900px){nav.toc{display:none} main{padding:28px 20px} .grid2,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <div class="brand">
+    <h1>◆ <span>ARM → BRINGUP</span></h1>
+    <div class="ver">microroseth directory replacement — Plan v1.0 · 2026-11-16</div>
+  </div>
+  <div class="group">Overview</div>
+  <ol>
+    <li><a href="#summary"><span class="num">01</span> Executive Summary</a></li>
+    <li><a href="#current"><span class="num">02</span> Current state (being replaced)</a></li>
+    <li><a href="#target"><span class="num">03</span> Target state (BRINGUP quasi-working)</a></li>
+  </ol>
+  <div class="group">The swap</div>
+  <ol>
+    <li><a href="#mapping"><span class="num">04</span> Replacement mapping</a></li>
+    <li><a href="#why"><span class="num">05</span> Why BRINGUP — evidence</a></li>
+    <li><a href="#phases"><span class="num">06</span> Execution phases</a></li>
+    <li><a href="#gates"><span class="num">07</span> Validation gates (step1/2/3)</a></li>
+  </ol>
+  <div class="group">Safety</div>
+  <ol>
+    <li><a href="#rollback"><span class="num">08</span> Rollback plan</a></li>
+    <li><a href="#issues"><span class="num">09</span> Known issues & open items</a></li>
+    <li><a href="#risks"><span class="num">10</span> Risks & mitigations</a></li>
+    <li><a href="#next"><span class="num">11</span> Next steps / decision</a></li>
+  </ol>
+</nav>
+
+<main>
+  <div class="hero">
+    <div class="eyebrow">RFC · microrosWs/Micro_ros_eth/microroseth · firmware tree swap</div>
+    <h1 class="title">Replace the <code>arm</code> directory with the <strong>quasi-working BRINGUP setup</strong></h1>
+    <p class="subtitle">Swap the current in-tree arm firmware (<code>CM7_arm</code> + <code>CM7_arm_e2e</code> + <code>CM4</code>) for the self-contained, step-gated BRINGUP variants (<code>cm7_e2e_full</code> + <code>cm4_full</code>, rollback <code>cm7_echo</code> + <code>cm4_follow</code>). This is a <strong>plan only</strong> — no files are moved or deleted by this document.</p>
+    <div class="meta">
+      <span class="badge cyan">Type: Replacement Plan</span>
+      <span class="badge">Scope: microroseth/CM7_arm, CM7_arm_e2e, CM4 → microroseth/BRINGUP</span>
+      <span class="badge amber">Destructive: yes (dir replacement)</span>
+      <span class="badge rose">Requires: bench + ST-Link + Jetson</span>
+    </div>
+  </div>
+
+  <!-- 01 -->
+  <h2 id="summary"><span class="num">01</span> Executive Summary</h2>
+  <p>The <code>microroseth/</code> arm firmware tree (<code>CM7_arm/</code>, <code>CM7_arm_e2e/</code>, <code>CM4/</code>, built via <code>microroseth/Makefile/</code>) is the active but unvalidated working copy. The <code>BRINGUP/</code> tree holds the <strong>quasi-working</strong> setups that were last confirmed moving the arm on hardware (eyewitness, 2026-09-05): <code>cm7_e2e</code>/<code>cm4_follow</code> for step 2 (J1–J5 ±10°, J6 held) and <code>cm7_e2e_full</code>/<code>cm4_full</code> for step 3 (all 6 joints, attended).</p>
+  <p>This plan defines how to <strong>replace</code> the `arm` directory with the BRINGUP setup: back up the current tree, swap in BRINGUP variants as the canonical arm firmware, rebuild per-variant, flash via ST-Link, and validate through the gated step1→step2→step3 runbook — with instant rollback to the proven echo/net baseline.</p>
+  <div class="grid3">
+    <div class="card">
+      <h4>Today (arm dir)</h4>
+      <div class="tag">microroseth/CM7_arm + CM7_arm_e2e + CM4</div>
+      <ul style="color:var(--dim);font-size:12.8px">
+        <li>CubeMX-style (.ioc), shared Makefile/ builds</li>
+        <li>CM7_arm reference.c is Arduino pump stub (not arm motion)</li>
+        <li>No step gating, no instant rollback</li>
+        <li>Last confirmed motion: none on BRINGUP-equivalent</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Target (BRINGUP)</h4>
+      <div class="tag">microroseth/BRINGUP/{cm7_e2e_full,cm4_full}</div>
+      <ul style="color:var(--dim);font-size:12.8px">
+        <li>Self-contained Makefile + build/ per variant</li>
+        <li>Shared SRAM .shared @0x38000000, magic 0x53485244 v2</li>
+        <li>Gated: step1 echo → step2 J1–J5 → step3 full (attended)</li>
+        <li>Instant rollback: flash_echo.sh (~1 min)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Decision needed</h4>
+      <div class="tag">Approve before any mv/rm</div>
+      <ul style="color:var(--dim);font-size:12.8px">
+        <li>Confirm which BRINGUP variants become canonical</li>
+        <li>Confirm backup location + rollback trigger</li>
+        <li>Confirm bench + Jetson + ST-Link availability</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <h2 id="current"><span class="num">02</span> Current state — what is being replaced</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Path</th><th>Role</th><th>Build</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><code>microroseth/CM7_arm/</code></td><td>CM7 baseline firmware (Core/, LWIP/, reference.c)</td><td><code>microroseth/Makefile/CM7_arm/Makefile</code></td><td><span class="pill">in-tree</span></td></tr>
+      <tr><td><code>microroseth/CM7_arm_e2e/</code></td><td>CM7 E2E firmware (Core/, LWIP/, reference.c)</td><td><code>microroseth/Makefile/CM7_arm_e2e/Makefile</code></td><td><span class="pill">in-tree</span></td></tr>
+      <tr><td><code>microroseth/CM4/</code></td><td>CM4 firmware (Core/ only)</td><td><code>microroseth/Makefile/CM4/Makefile</code></td><td><span class="pill">in-tree</span></td></tr>
+      <tr><td><code>microroseth/Makefile/</code></td><td>Per-dir root Makefiles (CM7, CM7_arm, CM4, …)</td><td>—</td><td><span class="pill">in-tree</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout danger">
+    <div class="head">⚠ reference.c is not arm motion</div>
+    <p><code>CM7_arm/reference.c</code> is an Arduino pump-duty-cycle stub (GPIO/Serial only) — it is not part of the STM32H7 arm bringup and should not be carried forward unless intentionally ported.</p>
+  </div>
+  <div class="callout warn">
+    <div class="head">No validated motion in the arm dir</div>
+    <p>The in-tree <code>CM7_arm</code>/<code>CM7_arm_e2e</code>/<code>CM4</code> have not been the source of the last confirmed arm motion. The confirmed motion came from <code>BRINGUP/cm7_e2e</code> + <code>cm4_follow</code> (step 2) on 2026-09-05. Replacing the arm dir with BRINGUP is therefore a move <em>toward</em> the last-known-good configuration, not away from it.</p>
+  </div>
+
+  <!-- 03 -->
+  <h2 id="target"><span class="num">03</span> Target state — BRINGUP quasi-working setup</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Variant</th><th>Core</th><th>Behavior</th><th>Step</th><th>Size (text/data/bss)</th></tr></thead>
+    <tbody>
+      <tr><td><code>cm7_echo</code></td><td>CM7</td><td>Heartbeat + joint_commands→joint_states ECHO, no shared writes</td><td>step1 (baseline)</td><td>146524/1048/410388</td></tr>
+      <tr><td><code>cm7_e2e</code></td><td>CM7</td><td>Magic-gated shared write J1–J5, J6=0, on-demand publish</td><td>step2</td><td>147244/1048/410564</td></tr>
+      <tr><td><code>cm7_e2e_full</code></td><td>CM7</td><td>Shared write incl. J6</td><td>step3 (attended)</td><td>147228/1048/410564</td></tr>
+      <tr><td><code>cm4_follow</code></td><td>CM4</td><td>Motor_ProcessCommands, J6 skipped, brakes J2/J3</td><td>step2</td><td>14644/388/2148</td></tr>
+      <tr><td><code>cm4_full</code></td><td>CM4</td><td>Follows incl. J6</td><td>step3 (attended)</td><td>14640/388/2148</td></tr>
+    </tbody>
+  </table></div>
+  <div class="mono-block">BRINGUP/   Makefile        (root: make all|clean|manifest|step1|step2|step3|test-net)
+  ├── cm7_echo/      CM7 minimal (proven)
+  ├── cm7_e2e/       CM7 E2E J1–J5, J6=0
+  ├── cm7_e2e_full/  CM7 E2E full incl. J6 (step 3, attended)
+  ├── cm4_follow/    CM4 follow J1–J5, J6 skipped
+  ├── cm4_full/      CM4 follow incl. J6 (step 3, attended)
+  ├── scripts/       step1/2/3.sh, flash_echo.sh, flash_e2e.sh,
+  │                  test_net.sh, test_joints.sh, build_all.sh, common.sh
+  ├── STEPS.md       gated runbook
+  ├── BUILD_MANIFEST.md sizes + sha256
+  └── README.md      network + variants + known issues</div>
+
+  <!-- 04 -->
+  <h2 id="mapping"><span class="num">04</span> Replacement mapping</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Current (arm dir)</th><th>← Replaced by</th><th>Action</th><th>Rollback to</th></tr></thead>
+    <tbody>
+      <tr><td><code>CM7_arm/</code></td><td><code>BRINGUP/cm7_echo/</code></td><td><span class="pill.new">new canonical baseline</span></td><td><code>cm7_echo</code> (unchanged)</td></tr>
+      <tr><td><code>CM7_arm_e2e/</code></td><td><code>BRINGUP/cm7_e2e_full/</code></td><td><span class="pill.refactor">E2E full (J1–J6)</span></td><td><code>cm7_e2e</code> (J6 held)</td></tr>
+      <tr><td><code>CM4/</code></td><td><code>BRINGUP/cm4_full/</code></td><td><span class="pill.refactor">follow full (J1–J6)</span></td><td><code>cm4_follow</code> (J6 held)</td></tr>
+      <tr><td><code>Makefile/{CM7_arm,CM7_arm_e2e,CM4}</code></td><td><code>BRINGUP/Makefile</code></td><td><span class="pill.remove">retire per-dir Makefiles</span></td><td>BRINGUP root Makefile</td></tr>
+    </tbody>
+  </table></div>
+  <p class="mono-block"># Canonical flash targets after replacement
+make -C microroseth/BRINGUP/cm7_e2e_full -j4   # CM7 @ 0x08000000
+make -C microroseth/BRINGUP/cm4_full -j4        # CM4 @ 0x08100000
+./microroseth/BRINGUP/scripts/flash_e2e.sh      # mass-erase + flash both</p>
+
+  <!-- 05 -->
+  <h2 id="why"><span class="num">05</span> Why BRINGUP — evidence</h2>
+  <ul>
+    <li><strong>Last confirmed motion:</strong> step 2 (<code>cm7_e2e</code> + <code>cm4_follow</code>) validated 2026-09-05 — seq=1,2,3 landed (<code>mdeg=±9998</code>, ack <code>0→1→2</code>), arm physically moving (eyewitness).</li>
+    <li><strong>Self-contained:</strong> each variant has its own Makefile + <code>build/</code>; rollback = rebuild + flash the other variant, no shared build state.</li>
+    <li><strong>Gated runbook:</strong> <code>STEPS.md</code> enforces step1→step2→step3; do not advance on FAIL.</li>
+    <li><strong>Instant rollback:</strong> <code>flash_echo.sh</code> returns to proven ping+echo in ~1 minute.</li>
+    <li><strong>Single-source main.c:</strong> all 3 CM7 `main.c` byte-identical (behavior via <code>-DBRINGUP_E2E=0/1 -DBRINGUP_J6_HOLD=0/1</code>); both CM4 `main.c` identical (J6 hold via flag). Safe defaults (<code>E2E=0</code>, <code>J6_HOLD=1</code>) if flags absent.</li>
+  </ul>
+  <div class="callout info">
+    <div class="head">Vendor-tree references</div>
+    <p><code>cm4_follow</code> references vendor trees relatively (<code>../../../../H7-Arm/H7arm/{Drivers,Middlewares,Common}</code>); CM7 variants are self-contained except <code>../../micro_ros_stm32cubemx_utils</code> (stable). Verify these relative paths resolve after the swap before building.</p>
+  </div>
+
+  <!-- 06 -->
+  <h2 id="phases"><span class="num">06</span> Execution phases</h2>
+  <div class="phase"><div class="phase-num">1</div><div>
+    <h4 style="margin:0">Phase 1 — Backup &amp; freeze <span style="font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400">· 15 min · no bench</span></h4>
+    <ul style="color:var(--dim);font-size:12.8px">
+      <li>Commit or tar the current arm dir: <code>CM7_arm/</code>, <code>CM7_arm_e2e/</code>, <code>CM4/</code>, <code>Makefile/CM7_arm</code>, <code>Makefile/CM7_arm_e2e</code>, <code>Makefile/CM4</code> → <code>backups/arm_tree_20261116.tar.gz</code></li>
+      <li>Record current flashed images + sizes (baseline for rollback comparison).</li>
+      <li>Freeze: no edits to the arm dir during the swap.</li>
+    </ul>
+  </div></div>
+  <div class="phase"><div class="phase-num">2</div><div>
+    <h4 style="margin:0">Phase 2 — Swap directories <span style="font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400">· 10 min · no bench</span></h4>
+    <ul style="color:var(--dim);font-size:12.8px">
+      <li>Remove/retire <code>CM7_arm/</code>, <code>CM7_arm_e2e/</code>, <code>CM4/</code> and their per-dir <code>Makefile/</code> entries.</li>
+      <li>Adopt <code>BRINGUP/</code> (cm7_echo/cm7_e2e_full/cm4_full/cm4_follow) as the canonical arm firmware.</li>
+      <li>Confirm relative vendor paths (<code>../../../../H7-Arm/H7arm/…</code>, <code>../../micro_ros_stm32cubemx_utils</code>) resolve from the new locations.</li>
+    </ul>
+  </div></div>
+  <div class="phase"><div class="phase-num">3</div><div>
+    <h4 style="margin:0">Phase 3 — Build <span style="font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400">· 20 min · offline-safe</span></h4>
+    <ul style="color:var(--dim);font-size:12.8px">
+      <li><code>make -C microroseth/BRINGUP all -j4</code> (builds all 5 variants).</li>
+      <li><code>make -C microroseth/BRINGUP manifest</code> to regenerate <code>BUILD_MANIFEST.md</code> (sizes + sha256).</li>
+      <li>Confirm sizes match manifest (<code>cm7_e2e_full 147228/1048/410564</code>, <code>cm4_full 14640/388/2148</code>).</li>
+    </ul>
+  </div></div>
+  <div class="phase"><div class="phase-num">4</div><div>
+    <h4 style="margin:0">Phase 4 — Flash &amp; validate <span style="font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400">· bench + Jetson + ST-Link</span></h4>
+    <ul style="color:var(--dim);font-size:12.8px">
+      <li>Flash step 1 baseline: <code>make step1</code> (<code>cm7_echo</code> + <code>cm4_follow</code>).</li>
+      <li>Validate net: <code>make test-net</code> (ping 192.168.0.5, ARP <code>00:80:e1:00:00:00</code>, /heartbeat).</li>
+      <li>Advance to step 2 (<code>cm7_e2e</code> + <code>cm4_follow</code>): J1–J5 ±10°, J6 held.</li>
+      <li>Advance to step 3 (<code>cm7_e2e_full</code> + <code>cm4_full</code>, attended, type <code>YES</code>): all 6 joints ±10°.</li>
+    </ul>
+  </div></div>
+  <div class="phase"><div class="phase-num">5</div><div>
+    <h4 style="margin:0">Phase 5 — Cutover &amp; sign-off <span style="font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400">· 10 min</span></h4>
+    <ul style="color:var(--dim);font-size:12.8px">
+      <li>Update <code>microroseth/README.md</code> and any references pointing at <code>CM7_arm/</code>/<code>CM4/</code> to point at <code>BRINGUP/</code> variants.</li>
+      <li>Record final flashed image names/sizes; close the backup or keep as rollback source.</li>
+    </ul>
+  </div></div>
+
+  <!-- 07 -->
+  <h2 id="gates"><span class="num">07</span> Validation gates (step1/2/3)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Gate</th><th>Flash</th><th>Pass criteria</th><th>Fail action</th></tr></thead>
+    <tbody>
+      <tr><td>Step 1 — baseline</td><td><code>cm7_echo</code> + <code>cm4_follow</code></td><td>ping 0% ~0.5 ms; ARP REACHABLE/STALE MAC 00:80:e1:00:00:00; /heartbeat counting; serial <code>joint-cmd-recv size=18</code></td><td>Stop; re-flash step 1; check Jetson LAN + agent</td></tr>
+      <tr><td>Step 2 — J1–J5</td><td><code>cm7_e2e</code> + <code>cm4_follow</code></td><td>Serial <code>protocol-ok magic=0x53485244 version=2</code>; <code>joint-cmd-shared seq=N mdeg=±10000</code>; /joint_states J1–J5 track ±0.17, index 5 = 0.0; J1–J5 move ±10°, J6 still</td><td>Re-run step 1 rollback; quarantine to old-tree HardFault analysis</td></tr>
+      <tr><td>Step 3 — full (J6)</td><td><code>cm7_e2e_full</code> + <code>cm4_full</code> (attended, YES)</td><td>Index 5 tracks ±0.17; J6 physically moves ±10°</td><td>Rollback <code>make step1</code> immediately</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout.warn">
+    <div class="head">Step 3 is attended</div>
+    <p><code>make step3</code> requires typing <code>YES</code> because the arm moves J6. Do not run step 3 unattended. Rollback any time: <code>make step1</code>.</p>
+  </div>
+
+  <!-- 08 -->
+  <h2 id="rollback"><span class="num">08</span> Rollback plan</h2>
+  <ul>
+    <li><strong>Instant:</strong> <code>./microroseth/BRINGUP/scripts/flash_echo.sh</code> → back to proven ping+echo (<code>cm7_echo</code> + <code>cm4_follow</code>) in ~1 minute.</li>
+    <li><strong>Tree rollback:</strong> restore <code>backups/arm_tree_20261116.tar.gz</code> into <code>microroseth/</code> (CM7_arm, CM7_arm_e2e, CM4, Makefile/ entries).</li>
+    <li><strong>Trigger:</strong> any step gate FAIL, unexplained all-motion-dead, or J1/J3/J5 behavior worse than the 04_11_26.md baseline.</li>
+    <li><strong>Full-erase caveat:</strong> if motion dies after repeated SW-reset flashes, do a mass-erase (<code>-e all</code>) + reflash + reset before suspecting code (a binary that moved after full erase proved it was latch state, not firmware).</li>
+  </ul>
+
+  <!-- 09 -->
+  <h2 id="issues"><span class="num">09</span> Known issues & open items (carried from BRINGUP/04_11_26.md)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Item</th><th>Symptom</th><th>Working hypothesis</th><th>Owner</th></tr></thead>
+    <tbody>
+      <tr><td>J1 never energizes</td><td>Driver HiZ 0xE203, ABS_POS stays 0; SPI healthy</td><td>Hardware/power-stage on J1 (Vs, phase wiring, latched OCD/UVLO)</td><td>Bench diagnosis</td></tr>
+      <tr><td>J3 runaway</td><td>Does not stop on 0.0; stops on 0.001</td><td>Reduction ratio / step math wrong for all joints (~35× overshoot on 0.01 rad)</td><td>Fix all ratios + RARM_MoveMilliDegrees</td></tr>
+      <tr><td>J5 stall</td><td>Stalls at SM_16 (8× faster than SM_128)</td><td>Acceleration too aggressive for geared motor at SM_16</td><td>Decide SM_16 vs SM_128; tune accel</td></tr>
+      <tr><td>Ratios wrong</td><td>Position error on all moving joints</td><td>reduction_ratio uint16_t truncates 4.8→4; step formula unit error possible</td><td>Scaled-integer (×10) or hard-coded 24/5</td></tr>
+      <tr><td>/joint_states empty</td><td>Type conflict Float32MultiArray vs JointState</td><td>Use explicit type + best_effort QoS on ros2 topic echo</td><td>Dashboard / scripts (out of scope)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout.info">
+    <div class="head">These are pre-existing, not introduced by the swap</div>
+    <p>The ratio/J1/J3/J5 issues exist in the BRINGUP baseline itself (per 04_11_26.md). The replacement plan should <em>not</em> claim the swap fixes them; treat them as open items to audit after cutover (audit <code>Motor_ProcessCommands</code> + per-joint alarm state during motion).</p>
+  </div>
+
+  <!-- 10 -->
+  <h2 id="risks"><span class="num">10</span> Risks & mitigations</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Relative vendor paths break after move</td><td>Med</td><td>Verify <code>../../../../H7-Arm/H7arm/{Drivers,Middlewares,Common}</code> and <code>../../micro_ros_stm32cubemx_utils</code> resolve before <code>make all</code>.</td></tr>
+      <tr><td>ST-Link not available / flash fails</td><td>Low</td><td><code>CLI</code> env overrides programmer path; confirm STM32CubeProgrammer CLI present.</td></tr>
+      <tr><td>Uplink dead after flash (session re-established)</td><td>Med</td><td>Restart <code>uros-agent</code> container → reset STM (fresh XRCE session) → republish; STM does not auto-reconnect.</td></tr>
+      <tr><td>Step 3 moves J6 unintentionally</td><td>Low (attended)</td><td>Require <code>YES</code>; keep E-stop/bench clear; rollback <code>make step1</code> on any anomaly.</td></tr>
+      <tr><td>Build uses legacy utils copy</td><td>Low</td><td>Canonical utils is <code>microroseth/micro_ros_stm32cubemx_utils</code> (newest, has w5500_transport.c); do not symlink/merge TestArm/sensor_fusion/H7arm copies blindly.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 11 -->
+  <h2 id="next"><span class="num">11</span> Next steps / decision</h2>
+  <ol>
+    <li>Approve the replacement mapping (§04) and confirm which BRINGUP variants become canonical (cm7_e2e_full + cm4_full, with cm7_echo/cm4_follow as rollback).</li>
+    <li>Confirm bench + ST-Link + Jetson (192.168.0.1) + <code>uros-agent</code> availability before Phase 4.</li>
+    <li>Run Phase 1–3 (backup, swap, build + manifest) offline.</li>
+    <li>Run Phase 4 gates step1→step2→step3, advancing only on PASS.</li>
+    <li>After cutover, audit <code>Motor_ProcessCommands</code> + per-joint alarm and re-derive all reduction ratios (priority #1 per 04_11_26.md).</li>
+  </ol>
+  <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+    <span style="border:1px solid var(--border);color:var(--dim);border-radius:999px;padding:10px 18px;font-size:13px">Awaiting approval before any mv/rm</span>
+    <span style="background:linear-gradient(90deg,var(--cyan),var(--violet));color:#001018;border-radius:999px;padding:10px 18px;font-weight:800;font-size:13px">Plan complete — ready to execute</span>
+  </div>
+
+  <div class="footer">
+    <div>ARM → BRINGUP directory replacement — Plan v1.0 · 2026-11-16 · Scope: <code>microrosWs/Micro_ros_eth/microroseth</code> · Plan only, no file changes</div>
+    <div style="margin-top:6px;color:var(--muted)">File: <code>.plans/arm-replace-bringup-plan-20261116.html</code> · Sources: <code>BRINGUP/README.md</code>, <code>BRINGUP/STEPS.md</code>, <code>BRINGUP/BUILD_MANIFEST.md</code>, <code>BRINGUP/additional_context.md</code>, <code>BRINGUP/04_11_26.md</code></div>
+  </div>
+</main>
+</div>
+</body>
+</html>

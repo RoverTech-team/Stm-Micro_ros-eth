@@ -1,6 +1,6 @@
 ##########################################################################################################################
 # Standalone CM4 build — WireTest mode only, ignores shared-memory commands.
-# Rocks physical J2 (software idx 5) ±10° every 2 s.
+# J6 only counterclockwise -3600° once (10 revs CCW), J1-J5 held stopped (HiZ + brakes).
 ##########################################################################################################################
 
 ######################################

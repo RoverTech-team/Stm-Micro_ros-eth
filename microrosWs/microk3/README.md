@@ -9,6 +9,14 @@ Flask + rclpy dashboard for monitoring micro-ROS nodes and exposing a REST API. 
 
 The dashboard includes a dedicated `ROS 2` page for browsing discovered nodes/topics and watching live topic values with short rolling history.
 
+The `Images` page shows one tile per feed from three sources: ROS
+(`sensor_msgs/Image`, including `mono8`, or `CompressedImage` topics),
+raw JPEG over TCP (`tcp://host:port`) or MJPEG over HTTP
+(`http://host:port/path`), and raw mono8 over UDP (`udp://host:port`, VFR0
+row-block framing, e.g. from an STM32+W5500 video stream). All three serve the
+same tile snapshot shape (`jpeg_base64` + `mime`), so the frontend polls them
+uniformly.
+
 ## Documentation
 
 - https://rovertech-team.github.io/Stm-Micro_ros-eth/microk3/overview.html

@@ -32,6 +32,12 @@ bool cubemx_transport_close_usb(struct uxrCustomTransport * transport);
 size_t cubemx_transport_write_usb(struct uxrCustomTransport* transport, uint8_t * buf, size_t len, uint8_t * err);
 size_t cubemx_transport_read_usb(struct uxrCustomTransport* transport, uint8_t* buf, size_t len, int timeout, uint8_t* err);
 
+/* W5500 Transport functions - for WIZnet W5500 SPI Ethernet (ioLibrary) */
+bool cubemx_transport_open_w5500(struct uxrCustomTransport * transport);
+bool cubemx_transport_close_w5500(struct uxrCustomTransport * transport);
+size_t cubemx_transport_write_w5500(struct uxrCustomTransport* transport, const uint8_t * buf, size_t len, uint8_t * err);
+size_t cubemx_transport_read_w5500(struct uxrCustomTransport* transport, uint8_t* buf, size_t len, int timeout, uint8_t* err);
+
 /* Memory allocator functions - defined in microros_allocators.c */
 void * microros_allocate(size_t size, void * state);
 void microros_deallocate(void * pointer, void * state);

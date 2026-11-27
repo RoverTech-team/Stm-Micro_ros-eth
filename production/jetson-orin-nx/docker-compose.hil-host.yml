@@ -25,12 +25,13 @@ services:
       context: ../../microrosWs/microk3
       dockerfile: Dockerfile
     network_mode: host
+    command: ["gunicorn", "--bind", "0.0.0.0:5051", "--workers", "1", "--threads", "8", "--worker-class", "gthread", "--timeout", "0", "runtime:app"]
     restart: unless-stopped
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=false
       - FLASK_HOST=0.0.0.0
-      - FLASK_PORT=${DASHBOARD_PORT:-5050}
+      - FLASK_PORT=5051
       - SECRET_KEY=${SECRET_KEY:-e2e-test-secret-key}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-testpass123}
@@ -49,16 +50,41 @@ services:
       - LOG_FILE=/app/logs/microk3.log
       - MICROK3_METRICS_INTERVAL_SEC=${MICROK3_METRICS_INTERVAL_SEC:-2.0}
       - MICROK3_METRICS_DOCKER_SERVICES=${MICROK3_METRICS_DOCKER_SERVICES:-micro-ros-agent,microk3,renode-bridge}
+      - SSH_TERMINAL_ENABLED=${SSH_TERMINAL_ENABLED:-true}
+      - SSH_TERMINAL_HOST=${SSH_TERMINAL_HOST:-127.0.0.1}
+      - SSH_TERMINAL_PORT=${SSH_TERMINAL_PORT:-22}
+      - SSH_TERMINAL_USERNAME=${SSH_TERMINAL_USERNAME:-}
+      - SSH_TERMINAL_AUTH_METHOD=${SSH_TERMINAL_AUTH_METHOD:-key}
+      - SSH_TERMINAL_KEY_PATH=/run/secrets/ssh_terminal_key
+      - SSH_TERMINAL_KNOWN_HOSTS_PATH=/run/secrets/ssh_terminal_known_hosts
+      - SSH_TERMINAL_IDLE_TIMEOUT_SEC=${SSH_TERMINAL_IDLE_TIMEOUT_SEC:-1800}
+      - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-1}
     volumes:
       - microk3_hil_host_data:/app/data
       - microk3_hil_host_logs:/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/nv_tegra_release:/etc/nv_tegra_release:ro
+      - ${SSH_TERMINAL_KEY_PATH_HOST:-/dev/null}:/run/secrets/ssh_terminal_key:ro
+      - ${SSH_TERMINAL_KNOWN_HOSTS_PATH_HOST:-/dev/null}:/run/secrets/ssh_terminal_known_hosts:ro
+      - ../../microrosWs/microk3/Model3D_mesh2.obj:/app/Model3D_mesh2.obj:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${DASHBOARD_PORT:-5050}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5051/health"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    volumes:
+      - ./Caddyfile.host:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      microk3:
+        condition: service_healthy
+    restart: unless-stopped
 
   renode-bridge:
     platform: linux/arm64
@@ -104,3 +130,5 @@ services:
 volumes:
   microk3_hil_host_data:
   microk3_hil_host_logs:
+  caddy_data:
+  caddy_config:
